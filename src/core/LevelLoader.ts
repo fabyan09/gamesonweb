@@ -45,9 +45,10 @@ export class LevelLoader {
                 let maxUniformBlocks = 12; // Default conservative value
 
                 if (gl.getParameter) {
-                    // Try WebGL 2 parameter
-                    const maxVertexUniformBlocks = gl.getParameter(gl.MAX_VERTEX_UNIFORM_BLOCKS);
-                    const maxFragmentUniformBlocks = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_BLOCKS);
+                    // Try WebGL 2 parameters (using numeric constants for compatibility)
+                    // MAX_VERTEX_UNIFORM_BLOCKS = 0x8A2B, MAX_FRAGMENT_UNIFORM_BLOCKS = 0x8A2D
+                    const maxVertexUniformBlocks = gl.getParameter(0x8A2B);
+                    const maxFragmentUniformBlocks = gl.getParameter(0x8A2D);
 
                     if (maxVertexUniformBlocks && maxFragmentUniformBlocks) {
                         maxUniformBlocks = Math.min(maxVertexUniformBlocks, maxFragmentUniformBlocks);
