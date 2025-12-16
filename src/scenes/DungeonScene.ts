@@ -66,7 +66,7 @@ export class DungeonScene {
         // Load assets
         const assets = await this.assetLoader.loadGLB(
             'dungeon',
-            '/assets/Dungeon_set/',
+            `${import.meta.env.BASE_URL}assets/Dungeon_set/`,
             'Dungeon_set.glb'
         );
 
