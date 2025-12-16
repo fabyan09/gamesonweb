@@ -22,21 +22,27 @@ interface AnimationSet {
     run: AnimationGroup | null;
     attack: AnimationGroup | null;
     block: AnimationGroup | null;
+    blockIdle: AnimationGroup | null;
     jump: AnimationGroup | null;
     death: AnimationGroup | null;
 }
 
 type AnimationName = keyof AnimationSet;
 
+// Root nodes to exclude from animations (to prevent root motion)
+const ROOT_MOTION_NODES = ['Armature', 'Hips', 'mixamorig:Hips'];
+
 export class PlayerController {
     private scene: Scene;
     private mesh: AbstractMesh | null = null;
+    private rootNode: TransformNode | null = null;
     private animations: AnimationSet = {
         idle: null,
         walk: null,
         run: null,
         attack: null,
         block: null,
+        blockIdle: null,
         jump: null,
         death: null
     };
@@ -83,8 +89,13 @@ export class PlayerController {
             this.scene
         );
 
+        // Create a root node for proper rotation control
+        this.rootNode = new TransformNode('playerRoot', this.scene);
+        this.rootNode.position = this.config.position.clone();
+
         this.mesh = characterResult.meshes[0];
-        this.mesh.position = this.config.position.clone();
+        this.mesh.parent = this.rootNode;
+        this.mesh.position = Vector3.Zero(); // Reset position since parent handles it
         this.mesh.scaling.setAll(this.config.scale);
 
         // Get skeleton
@@ -109,14 +120,15 @@ export class PlayerController {
             console.log(`[PlayerController] Character has ${characterResult.animationGroups.length} built-in animations`);
         }
 
-        // Load animations
-        await this.loadAnimation(basePath, 'sword and shield idle.glb', 'idle');
-        await this.loadAnimation(basePath, 'sword and shield walk.glb', 'walk');
-        await this.loadAnimation(basePath, 'sword and shield run.glb', 'run');
-        await this.loadAnimation(basePath, 'sword and shield attack.glb', 'attack');
-        await this.loadAnimation(basePath, 'sword and shield block.glb', 'block');
-        await this.loadAnimation(basePath, 'sword and shield jump.glb', 'jump');
-        await this.loadAnimation(basePath, 'sword and shield death.glb', 'death');
+        // Load animations (true = remove root motion for locomotion anims)
+        await this.loadAnimation(basePath, 'sword and shield idle.glb', 'idle', true);
+        await this.loadAnimation(basePath, 'sword and shield walk.glb', 'walk', true);
+        await this.loadAnimation(basePath, 'sword and shield run.glb', 'run', true);
+        await this.loadAnimation(basePath, 'sword and shield attack.glb', 'attack', false);
+        await this.loadAnimation(basePath, 'sword and shield block.glb', 'block', true);
+        await this.loadAnimation(basePath, 'sword and shield block idle.glb', 'blockIdle', true);
+        await this.loadAnimation(basePath, 'sword and shield jump.glb', 'jump', false);
+        await this.loadAnimation(basePath, 'sword and shield death.glb', 'death', false);
 
         // Start with idle animation
         this.playAnimation('idle', true);
@@ -130,7 +142,7 @@ export class PlayerController {
         console.log('[PlayerController] Player loaded successfully');
     }
 
-    private async loadAnimation(basePath: string, filename: string, name: AnimationName): Promise<void> {
+    private async loadAnimation(basePath: string, filename: string, name: AnimationName, removeRootMotion: boolean = false): Promise<void> {
         if (this.transformNodes.size === 0) {
             console.warn(`[PlayerController] No transform nodes to retarget animation ${name}`);
             return;
@@ -163,6 +175,18 @@ export class PlayerController {
             for (const targetedAnim of sourceAnimGroup.targetedAnimations) {
                 const sourceNode = targetedAnim.target;
                 if (sourceNode && sourceNode.name) {
+                    // Skip root motion if requested (position animations on root nodes)
+                    if (removeRootMotion) {
+                        const isRootNode = ROOT_MOTION_NODES.some(rootName =>
+                            sourceNode.name.includes(rootName)
+                        );
+                        const isPositionAnim = targetedAnim.animation.targetProperty === 'position';
+
+                        if (isRootNode && isPositionAnim) {
+                            continue; // Skip root motion
+                        }
+                    }
+
                     // Find matching transform node in our character
                     const targetNode = this.transformNodes.get(sourceNode.name);
                     if (targetNode) {
@@ -290,30 +314,85 @@ export class PlayerController {
     }
 
     private triggerAttack(): void {
-        if (this.isAttacking) return;
+        if (this.isAttacking || !this.rootNode) return;
 
         this.isAttacking = true;
+
+        // Store initial Hips position to calculate root motion delta
+        const hipsNode = this.transformNodes.get('mixamorig:Hips') || this.transformNodes.get('Hips');
+        const initialHipsPos = hipsNode ? hipsNode.position.clone() : null;
+
         this.playAnimation('attack', false);
 
         if (this.animations.attack) {
             this.animations.attack.onAnimationEndObservable.addOnce(() => {
+                // Apply root motion delta to rootNode
+                if (hipsNode && initialHipsPos) {
+                    const delta = hipsNode.position.subtract(initialHipsPos);
+                    // Transform delta by character rotation (subtract PI because of visual rotation offset)
+                    const angle = this.rootNode!.rotation.y - Math.PI;
+                    const scale = 0.21; // Root motion scale correction for attack
+                    const worldDeltaX = (delta.x * Math.cos(angle) + delta.z * Math.sin(angle)) * scale;
+                    const worldDeltaZ = (-delta.x * Math.sin(angle) + delta.z * Math.cos(angle)) * scale;
+
+                    this.rootNode!.position.x += worldDeltaX;
+                    this.rootNode!.position.z += worldDeltaZ;
+
+                    // Reset Hips to initial position
+                    hipsNode.position.copyFrom(initialHipsPos);
+                }
                 this.isAttacking = false;
             });
         }
     }
 
     private triggerBlock(active: boolean): void {
-        this.isBlocking = active;
+        if (active && !this.isBlocking) {
+            this.isBlocking = true;
+            // Play block animation once, then switch to blockIdle
+            this.playAnimation('block', false);
+
+            if (this.animations.block) {
+                this.animations.block.onAnimationEndObservable.addOnce(() => {
+                    // Only switch to blockIdle if still blocking
+                    if (this.isBlocking) {
+                        this.playAnimation('blockIdle', true);
+                    }
+                });
+            }
+        } else if (!active) {
+            this.isBlocking = false;
+        }
     }
 
     private triggerJump(): void {
-        if (this.isJumping) return;
+        if (this.isJumping || !this.rootNode) return;
 
         this.isJumping = true;
+
+        // Store initial Hips position to calculate root motion delta
+        const hipsNode = this.transformNodes.get('mixamorig:Hips') || this.transformNodes.get('Hips');
+        const initialHipsPos = hipsNode ? hipsNode.position.clone() : null;
+
         this.playAnimation('jump', false);
 
         if (this.animations.jump) {
             this.animations.jump.onAnimationEndObservable.addOnce(() => {
+                // Apply root motion delta to rootNode
+                if (hipsNode && initialHipsPos) {
+                    const delta = hipsNode.position.subtract(initialHipsPos);
+                    // Transform delta by character rotation (subtract PI because of visual rotation offset)
+                    const angle = this.rootNode!.rotation.y - Math.PI;
+                    const scale = 0.29; // Root motion scale correction for jump
+                    const worldDeltaX = (delta.x * Math.cos(angle) + delta.z * Math.sin(angle)) * scale;
+                    const worldDeltaZ = (-delta.x * Math.sin(angle) + delta.z * Math.cos(angle)) * scale;
+
+                    this.rootNode!.position.x += worldDeltaX;
+                    this.rootNode!.position.z += worldDeltaZ;
+
+                    // Reset Hips to initial position
+                    hipsNode.position.copyFrom(initialHipsPos);
+                }
                 this.isJumping = false;
                 this.keys.jump = false;
             });
@@ -321,10 +400,13 @@ export class PlayerController {
     }
 
     private update(): void {
-        if (!this.mesh) return;
+        if (!this.rootNode) return;
 
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
         const speed = this.keys.run ? this.config.runSpeed : this.config.walkSpeed;
+
+        // Get camera angle for movement
+        const cameraAngle = this.camera ? -this.camera.alpha - Math.PI / 2 : 0;
 
         // Calculate movement direction relative to camera
         let moveX = 0;
@@ -336,25 +418,24 @@ export class PlayerController {
         if (this.keys.right) moveX += 1;
 
         // Apply movement relative to camera orientation
-        if (isMoving) {
-            // Get camera angle for relative movement
-            const cameraAngle = this.camera ? -this.camera.alpha - Math.PI / 2 : 0;
+        if (isMoving && !this.isBlocking) {
             const inputAngle = Math.atan2(moveX, moveZ);
-            const finalAngle = cameraAngle + inputAngle;
+            const moveAngle = cameraAngle + inputAngle;
 
-            // Rotate character to face movement direction
-            this.mesh.rotation.y = finalAngle;
+            // Rotate character to face movement direction (flip 180° so character faces forward)
+            this.rootNode.rotation.y = moveAngle + Math.PI;
 
             // Move in that direction
-            this.mesh.position.x += Math.sin(finalAngle) * speed;
-            this.mesh.position.z += Math.cos(finalAngle) * speed;
+            this.rootNode.position.x += Math.sin(moveAngle) * speed;
+            this.rootNode.position.z += Math.cos(moveAngle) * speed;
+        } else if (!isMoving) {
+            // When idle, face away from camera (same direction camera is looking)
+            this.rootNode.rotation.y = cameraAngle + Math.PI;
         }
 
         // Update animation based on state
-        if (!this.isAttacking && !this.isJumping) {
-            if (this.isBlocking) {
-                this.playAnimation('block', true);
-            } else if (isMoving) {
+        if (!this.isAttacking && !this.isJumping && !this.isBlocking) {
+            if (isMoving) {
                 this.playAnimation(this.keys.run ? 'run' : 'walk', true);
             } else {
                 this.playAnimation('idle', true);
@@ -363,11 +444,11 @@ export class PlayerController {
     }
 
     get position(): Vector3 {
-        return this.mesh?.position ?? Vector3.Zero();
+        return this.rootNode?.position ?? Vector3.Zero();
     }
 
-    get rootMesh(): AbstractMesh | null {
-        return this.mesh;
+    get rootMesh(): TransformNode | null {
+        return this.rootNode;
     }
 
     setCamera(camera: ThirdPersonCamera): void {

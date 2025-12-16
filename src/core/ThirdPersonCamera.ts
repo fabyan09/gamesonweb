@@ -1,7 +1,7 @@
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Scene } from '@babylonjs/core/scene';
-import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 
 export interface ThirdPersonCameraConfig {
     distance?: number;
@@ -9,16 +9,20 @@ export interface ThirdPersonCameraConfig {
     rotationSensibility?: number;
     lowerRadiusLimit?: number;
     upperRadiusLimit?: number;
+    followSpeed?: number;
 }
 
 export class ThirdPersonCamera {
     private camera: ArcRotateCamera;
-    private target: AbstractMesh | null = null;
+    private target: TransformNode | null = null;
     private heightOffset: number;
+    private followSpeed: number;
+    private currentTarget: Vector3 = Vector3.Zero();
 
     constructor(scene: Scene, canvas: HTMLCanvasElement, config: ThirdPersonCameraConfig = {}) {
         const distance = config.distance ?? 5;
         this.heightOffset = config.heightOffset ?? 1.5;
+        this.followSpeed = config.followSpeed ?? 0.1;
 
         // Create arc rotate camera
         this.camera = new ArcRotateCamera(
@@ -53,15 +57,22 @@ export class ThirdPersonCamera {
         });
     }
 
-    setTarget(mesh: AbstractMesh): void {
-        this.target = mesh;
+    setTarget(node: TransformNode): void {
+        this.target = node;
+        // Initialize current target to avoid camera jumping from origin
+        this.currentTarget = node.position.clone();
+        this.currentTarget.y += this.heightOffset;
     }
 
     update(): void {
         if (this.target) {
-            // Follow target position with height offset
-            this.camera.target.copyFrom(this.target.position);
-            this.camera.target.y += this.heightOffset;
+            // Calculate desired target position
+            const desiredTarget = this.target.position.clone();
+            desiredTarget.y += this.heightOffset;
+
+            // Smoothly interpolate to desired position
+            this.currentTarget = Vector3.Lerp(this.currentTarget, desiredTarget, this.followSpeed);
+            this.camera.target.copyFrom(this.currentTarget);
         }
     }
 
