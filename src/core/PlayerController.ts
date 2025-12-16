@@ -77,6 +77,10 @@ export class PlayerController {
     private readonly jumpForce = 0.14;
     private groundY = 0;
 
+    // Attack callback
+    private attackHitCallback: ((position: Vector3, range: number) => void) | null = null;
+    private readonly attackRange = 2.5;
+
     constructor(scene: Scene, config: PlayerConfig = {}) {
         this.scene = scene;
         this.config = {
@@ -343,10 +347,46 @@ export class PlayerController {
         this.playAnimation('attack', false);
 
         if (this.animations.attack) {
+            // Trigger hit detection at animation midpoint
+            const hitFrame = (this.animations.attack.from + this.animations.attack.to) / 2;
+            let hitTriggered = false;
+
+            const checkHit = () => {
+                if (!hitTriggered && this.animations.attack!.animatables[0]) {
+                    const currentFrame = this.animations.attack!.animatables[0].masterFrame;
+                    if (currentFrame >= hitFrame) {
+                        hitTriggered = true;
+                        this.triggerAttackHit();
+                    }
+                }
+            };
+
+            const observer = this.scene.onBeforeRenderObservable.add(checkHit);
+
             this.animations.attack.onAnimationEndObservable.addOnce(() => {
                 this.isAttacking = false;
+                this.scene.onBeforeRenderObservable.remove(observer);
             });
         }
+    }
+
+    private triggerAttackHit(): void {
+        if (!this.rootNode || !this.attackHitCallback) return;
+
+        // Calculate attack position (in front of player)
+        const forward = new Vector3(
+            Math.sin(this.rootNode.rotation.y + Math.PI),
+            0,
+            Math.cos(this.rootNode.rotation.y + Math.PI)
+        );
+        const attackPosition = this.rootNode.position.add(forward.scale(1.5));
+        attackPosition.y += 1; // Adjust to chest height
+
+        this.attackHitCallback(attackPosition, this.attackRange);
+    }
+
+    onAttackHit(callback: (position: Vector3, range: number) => void): void {
+        this.attackHitCallback = callback;
     }
 
     private triggerBlock(active: boolean): void {
@@ -439,6 +479,10 @@ export class PlayerController {
 
     get rootMesh(): TransformNode | null {
         return this.rootNode;
+    }
+
+    get isCurrentlyBlocking(): boolean {
+        return this.isBlocking;
     }
 
     setCamera(camera: ThirdPersonCamera): void {
