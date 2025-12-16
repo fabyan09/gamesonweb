@@ -73,8 +73,8 @@ export class PlayerController {
 
     // Physics
     private verticalVelocity = 0;
-    private readonly gravity = -0.010;
-    private readonly jumpForce = 0.18;
+    private readonly gravity = -0.006;
+    private readonly jumpForce = 0.14;
     private groundY = 0;
 
     constructor(scene: Scene, config: PlayerConfig = {}) {
@@ -132,7 +132,7 @@ export class PlayerController {
         await this.loadAnimation(basePath, 'sword and shield idle.glb', 'idle', 'full');
         await this.loadAnimation(basePath, 'sword and shield walk.glb', 'walk', 'full');
         await this.loadAnimation(basePath, 'sword and shield run.glb', 'run', 'full');
-        await this.loadAnimation(basePath, 'sword and shield attack.glb', 'attack', 'none');
+        await this.loadAnimation(basePath, 'sword and shield attack (4).glb', 'attack', 'full');
         await this.loadAnimation(basePath, 'sword and shield block.glb', 'block', 'full');
         await this.loadAnimation(basePath, 'sword and shield block idle.glb', 'blockIdle', 'full');
         await this.loadAnimation(basePath, 'sword and shield jump.glb', 'jump', 'full');
@@ -339,30 +339,10 @@ export class PlayerController {
         if (this.isAttacking || !this.rootNode) return;
 
         this.isAttacking = true;
-
-        // Store initial Hips position to calculate root motion delta
-        const hipsNode = this.transformNodes.get('mixamorig:Hips') || this.transformNodes.get('Hips');
-        const initialHipsPos = hipsNode ? hipsNode.position.clone() : null;
-
         this.playAnimation('attack', false);
 
         if (this.animations.attack) {
             this.animations.attack.onAnimationEndObservable.addOnce(() => {
-                // Apply root motion delta to rootNode
-                if (hipsNode && initialHipsPos) {
-                    const delta = hipsNode.position.subtract(initialHipsPos);
-                    // Transform delta by character rotation (subtract PI because of visual rotation offset)
-                    const angle = this.rootNode!.rotation.y - Math.PI;
-                    const scale = 0.21; // Root motion scale correction for attack
-                    const worldDeltaX = (delta.x * Math.cos(angle) + delta.z * Math.sin(angle)) * scale;
-                    const worldDeltaZ = (-delta.x * Math.sin(angle) + delta.z * Math.cos(angle)) * scale;
-
-                    this.rootNode!.position.x += worldDeltaX;
-                    this.rootNode!.position.z += worldDeltaZ;
-
-                    // Reset Hips to initial position
-                    hipsNode.position.copyFrom(initialHipsPos);
-                }
                 this.isAttacking = false;
             });
         }
