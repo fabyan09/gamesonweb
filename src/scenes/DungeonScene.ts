@@ -67,6 +67,9 @@ export class DungeonScene {
             'Dungeon_set.glb'
         );
 
+        // Debug: log available meshes
+        console.log('[DungeonScene] Available meshes:', Array.from(assets.meshes.keys()));
+
         // Build level
         const placer = new MeshPlacer(assets);
         this.buildLevel(placer);
@@ -75,7 +78,7 @@ export class DungeonScene {
         // Note: meshYOffset compense le pivot du modèle pour aligner les pieds au sol
         // Une valeur positive remonte le mesh par rapport au rootNode
         this.player = new PlayerController(this.scene, {
-            position: new Vector3(0, 0.1, -2), // Y légèrement au-dessus pour compenser l'épaisseur du sol
+            position: new Vector3(0, 0, -6), // Près de l'entrée sud
             scale: 1,
             walkSpeed: 0.08,
             runSpeed: 0.15,
@@ -124,77 +127,111 @@ export class DungeonScene {
     }
 
     private buildLevel(placer: MeshPlacer): void {
-        // Floor grid
+        // ============================================
+        // SOL - Grande grille de dalles (20x20 = 400 dalles)
+        // ============================================
+        // Zone de -20 à +18 sur X et Z (40x40 unités)
         placer.placeGrid('floor_A', {
-            startX: -4,
-            startZ: -4,
-            countX: 3,
-            countZ: 3,
-            spacingX: 4,
-            spacingZ: 4
+            startX: -20,
+            startZ: -20,
+            countX: 20,
+            countZ: 20,
+            spacingX: 2,
+            spacingZ: 2,
+            y: -1
         });
 
-        // Back wall
-        placer.placeMultiple('wall_A', [
-            { position: { x: -4, y: 0, z: 6 } },
-            { position: { x: 0, y: 0, z: 6 } },
-            { position: { x: 4, y: 0, z: 6 } }
-        ]);
+        // ============================================
+        // MURS - Pièce principale fermée
+        // ============================================
+        // Zone du sol: -20 à +18, murs décalés pour être au bord
+        const wallMin = -22;
+        const wallMax = 20;
+        const wallSpacing = 2; // Espacement réduit pour coller les murs
 
-        // Side walls
-        const leftWallRotation = Math.PI / 2;
-        const rightWallRotation = -Math.PI / 2;
+        // Mur NORD (z = wallMax)
+        for (let x = wallMin; x <= wallMax; x += wallSpacing) {
+            placer.place('wall_A', { position: { x, y: 0, z: wallMax } });
+        }
 
-        placer.placeMultiple('wall_A', [
-            { position: { x: -6, y: 0, z: 4 }, rotation: leftWallRotation },
-            { position: { x: -6, y: 0, z: 0 }, rotation: leftWallRotation },
-            { position: { x: -6, y: 0, z: -4 }, rotation: leftWallRotation },
-            { position: { x: 6, y: 0, z: 4 }, rotation: rightWallRotation },
-            { position: { x: 6, y: 0, z: 0 }, rotation: rightWallRotation },
-            { position: { x: 6, y: 0, z: -4 }, rotation: rightWallRotation }
-        ]);
+        // Mur SUD (z = wallMin)
+        for (let x = wallMin; x <= wallMax; x += wallSpacing) {
+            placer.place('wall_A', { position: { x, y: 0, z: wallMin }, rotation: Math.PI });
+        }
 
-        // Pillars
-        placer.place('pillar_big', { position: { x: -3, y: 0, z: 3 } });
-        placer.place('pillar_big', { position: { x: 3, y: 0, z: 3 } });
-        placer.place('pillar_thin_A', { position: { x: -3, y: 0, z: -3 } });
-        placer.place('pillar_thin_A', { position: { x: 3, y: 0, z: -3 } });
+        // Mur OUEST (x = wallMin)
+        for (let z = wallMin + wallSpacing; z < wallMax; z += wallSpacing) {
+            placer.place('wall_A', { position: { x: wallMin, y: 0, z }, rotation: Math.PI / 2 });
+        }
 
-        // Torches + lights
-        placer.place('torch', { position: { x: -5.5, y: 1.5, z: 0 } });
-        placer.place('torch', { position: { x: 5.5, y: 1.5, z: 0 }, rotation: Math.PI });
-        this.addTorchLight(new Vector3(-5, 2.2, 0));
-        this.addTorchLight(new Vector3(5, 2.2, 0));
+        // Mur EST (x = wallMax)
+        for (let z = wallMin + wallSpacing; z < wallMax; z += wallSpacing) {
+            placer.place('wall_A', { position: { x: wallMax, y: 0, z }, rotation: -Math.PI / 2 });
+        }
 
-        // Central statue
-        placer.place('statue_A', { position: { x: 0, y: 0, z: 4 } });
+        // Coins
+        placer.place('wall_corner_A', { position: { x: wallMin, y: 0, z: wallMax }, rotation: 0 });
+        placer.place('wall_corner_A', { position: { x: wallMax, y: 0, z: wallMax }, rotation: -Math.PI / 2 });
+        placer.place('wall_corner_A', { position: { x: wallMin, y: 0, z: wallMin }, rotation: Math.PI / 2 });
+        placer.place('wall_corner_A', { position: { x: wallMax, y: 0, z: wallMin }, rotation: Math.PI });
 
-        // Braziers
-        placer.place('brazier_A', { position: { x: -2, y: 0, z: 0 } });
-        placer.place('brazier_B', { position: { x: 2, y: 0, z: 0 } });
+        // ============================================
+        // PILIERS - Grille intérieure
+        // ============================================
+        for (let x = -12; x <= 12; x += 8) {
+            for (let z = -12; z <= 12; z += 8) {
+                if (x !== 0 || z !== 0) { // pas au centre
+                    placer.place('pillar_big', { position: { x, y: 0, z } });
+                }
+            }
+        }
 
-        // Fountain
-        placer.place('fountain', { position: { x: 0, y: 0, z: -2 } });
+        // ============================================
+        // ÉCLAIRAGE - Torches sur les murs
+        // ============================================
+        // Torches le long des murs
+        for (let x = -16; x <= 16; x += 8) {
+            placer.place('torch', { position: { x, y: 1.5, z: 19 }, rotation: Math.PI });
+            this.addTorchLight(new Vector3(x, 2.5, 19));
+        }
+        for (let z = -16; z <= 16; z += 8) {
+            placer.place('torch', { position: { x: -21, y: 1.5, z } });
+            placer.place('torch', { position: { x: 19, y: 1.5, z }, rotation: Math.PI });
+            this.addTorchLight(new Vector3(-21, 2.5, z));
+            this.addTorchLight(new Vector3(19, 2.5, z));
+        }
 
-        // Tombs
-        placer.place('tomb_A', { position: { x: -4, y: 0, z: -2 } });
-        placer.place('tomb_B', { position: { x: 4, y: 0, z: -2 } });
+        // Braseros au centre
+        placer.place('brazier_A', { position: { x: -4, y: 0, z: 0 } });
+        placer.place('brazier_B', { position: { x: 4, y: 0, z: 0 } });
+        this.addTorchLight(new Vector3(-4, 1.5, 0));
+        this.addTorchLight(new Vector3(4, 1.5, 0));
 
-        // Hanging cage
-        placer.place('hanging_cage_A', { position: { x: -2, y: 2.5, z: 4 } });
+        // ============================================
+        // DÉCORATIONS
+        // ============================================
+        // Statue centrale au fond
+        placer.place('statue_A', { position: { x: 0, y: 0, z: 16 } });
 
-        // Door
-        placer.place('door_framebig_A', { position: { x: 0, y: 0, z: 6 } });
-        placer.place('door_bigleft', { position: { x: -0.8, y: 0, z: 6 } });
-        placer.place('door_bigright', { position: { x: 0.8, y: 0, z: 6 } });
+        // Fontaine décalée
+        placer.place('fountain', { position: { x: 0, y: 0, z: 8 } });
 
-        // Lever
-        placer.place('lever_base', { position: { x: 4.5, y: 0, z: 4 } });
-        placer.place('lever', { position: { x: 4.5, y: 0.5, z: 4 } });
+        // Tombes
+        placer.place('tomb_A', { position: { x: -10, y: 0, z: 14 } });
+        placer.place('tomb_B', { position: { x: 10, y: 0, z: 14 } });
 
-        // Gargoyles
-        placer.place('gargolyle_A', { position: { x: -5.5, y: 2.5, z: 4 } });
-        placer.place('gargolyle_B', { position: { x: 5.5, y: 2.5, z: 4 }, rotation: Math.PI });
+        // Cages suspendues
+        placer.place('hanging_cage_A', { position: { x: -6, y: 3, z: 16 } });
+        placer.place('hanging_cage_B', { position: { x: 6, y: 3, z: 16 } });
+
+        // Gargouilles dans les coins
+        placer.place('gargolyle_A', { position: { x: -18, y: 2.5, z: 18 } });
+        placer.place('gargolyle_B', { position: { x: 18, y: 2.5, z: 18 }, rotation: Math.PI });
+
+        // ============================================
+        // ENTRÉE (au milieu)
+        // ============================================
+        placer.place('door_framebig_A', { position: { x: 0, y: 0, z: 0 } });
     }
 
     render(): void {
