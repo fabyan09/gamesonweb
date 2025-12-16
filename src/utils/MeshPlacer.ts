@@ -43,6 +43,8 @@ export class MeshPlacer {
         clone.isVisible = true;
         clone.position = new Vector3(options.position.x, options.position.y, options.position.z);
 
+        // Reset rotation avant d'appliquer la nouvelle
+        clone.rotation = Vector3.Zero();
         if (options.rotation !== undefined) {
             clone.rotation.y = options.rotation;
         }
@@ -84,9 +86,9 @@ export class MeshPlacer {
             const clone = primitive.clone(`${primitive.name}_${groupId}`, parent);
             if (clone) {
                 clone.isVisible = true;
-                // Reset position/rotation since parent handles it
-                clone.position = primitive.position.clone();
-                clone.rotation = primitive.rotation.clone();
+                // Position/rotation à zéro - le parent gère tout
+                clone.position = Vector3.Zero();
+                clone.rotation = Vector3.Zero();
                 if (!firstClone) firstClone = clone;
             }
         }
