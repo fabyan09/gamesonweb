@@ -84,7 +84,8 @@ export class PlayerController {
             scale: config.scale ?? 0.01,
             rotationSpeed: config.rotationSpeed ?? 0.05,
             walkSpeed: config.walkSpeed ?? 0.05,
-            runSpeed: config.runSpeed ?? 0.1
+            runSpeed: config.runSpeed ?? 0.1,
+            meshYOffset: config.meshYOffset ?? 0
         };
     }
 
