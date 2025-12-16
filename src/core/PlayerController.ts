@@ -69,6 +69,12 @@ export class PlayerController {
     private skeleton: Skeleton | null = null;
     private transformNodes: Map<string, TransformNode> = new Map();
 
+    // Physics
+    private verticalVelocity = 0;
+    private readonly gravity = -0.010;
+    private readonly jumpForce = 0.18;
+    private groundY = 0;
+
     constructor(scene: Scene, config: PlayerConfig = {}) {
         this.scene = scene;
         this.config = {
@@ -120,15 +126,15 @@ export class PlayerController {
             console.log(`[PlayerController] Character has ${characterResult.animationGroups.length} built-in animations`);
         }
 
-        // Load animations (true = remove root motion for locomotion anims)
-        await this.loadAnimation(basePath, 'sword and shield idle.glb', 'idle', true);
-        await this.loadAnimation(basePath, 'sword and shield walk.glb', 'walk', true);
-        await this.loadAnimation(basePath, 'sword and shield run.glb', 'run', true);
-        await this.loadAnimation(basePath, 'sword and shield attack.glb', 'attack', false);
-        await this.loadAnimation(basePath, 'sword and shield block.glb', 'block', true);
-        await this.loadAnimation(basePath, 'sword and shield block idle.glb', 'blockIdle', true);
-        await this.loadAnimation(basePath, 'sword and shield jump.glb', 'jump', false);
-        await this.loadAnimation(basePath, 'sword and shield death.glb', 'death', false);
+        // Load animations ('full' = remove all root motion, 'horizontal' = remove only X/Z, 'none' = keep all)
+        await this.loadAnimation(basePath, 'sword and shield idle.glb', 'idle', 'full');
+        await this.loadAnimation(basePath, 'sword and shield walk.glb', 'walk', 'full');
+        await this.loadAnimation(basePath, 'sword and shield run.glb', 'run', 'full');
+        await this.loadAnimation(basePath, 'sword and shield attack.glb', 'attack', 'none');
+        await this.loadAnimation(basePath, 'sword and shield block.glb', 'block', 'full');
+        await this.loadAnimation(basePath, 'sword and shield block idle.glb', 'blockIdle', 'full');
+        await this.loadAnimation(basePath, 'sword and shield jump.glb', 'jump', 'full');
+        await this.loadAnimation(basePath, 'sword and shield death.glb', 'death', 'none');
 
         // Start with idle animation
         this.playAnimation('idle', true);
@@ -142,7 +148,7 @@ export class PlayerController {
         console.log('[PlayerController] Player loaded successfully');
     }
 
-    private async loadAnimation(basePath: string, filename: string, name: AnimationName, removeRootMotion: boolean = false): Promise<void> {
+    private async loadAnimation(basePath: string, filename: string, name: AnimationName, rootMotionMode: 'full' | 'horizontal' | 'none' = 'none'): Promise<void> {
         if (this.transformNodes.size === 0) {
             console.warn(`[PlayerController] No transform nodes to retarget animation ${name}`);
             return;
@@ -175,15 +181,29 @@ export class PlayerController {
             for (const targetedAnim of sourceAnimGroup.targetedAnimations) {
                 const sourceNode = targetedAnim.target;
                 if (sourceNode && sourceNode.name) {
-                    // Skip root motion if requested (position animations on root nodes)
-                    if (removeRootMotion) {
-                        const isRootNode = ROOT_MOTION_NODES.some(rootName =>
-                            sourceNode.name.includes(rootName)
-                        );
-                        const isPositionAnim = targetedAnim.animation.targetProperty === 'position';
+                    const isRootNode = ROOT_MOTION_NODES.some(rootName =>
+                        sourceNode.name.includes(rootName)
+                    );
+                    const isPositionAnim = targetedAnim.animation.targetProperty === 'position';
 
-                        if (isRootNode && isPositionAnim) {
-                            continue; // Skip root motion
+                    // Skip based on root motion mode
+                    if (isRootNode && isPositionAnim) {
+                        if (rootMotionMode === 'full') {
+                            continue; // Skip all position animations on root
+                        } else if (rootMotionMode === 'horizontal') {
+                            // Filter out X and Z movement, keep only Y (vertical)
+                            const anim = targetedAnim.animation;
+                            const keys = anim.getKeys();
+                            if (keys.length > 0) {
+                                // Use first frame's X and Z as base, only animate Y
+                                const baseX = keys[0].value.x;
+                                const baseZ = keys[0].value.z;
+                                const filteredKeys = keys.map(key => ({
+                                    frame: key.frame,
+                                    value: new Vector3(baseX, key.value.y, baseZ)
+                                }));
+                                anim.setKeys(filteredKeys);
+                            }
                         }
                     }
 
@@ -369,38 +389,27 @@ export class PlayerController {
         if (this.isJumping || !this.rootNode) return;
 
         this.isJumping = true;
-
-        // Store initial Hips position to calculate root motion delta
-        const hipsNode = this.transformNodes.get('mixamorig:Hips') || this.transformNodes.get('Hips');
-        const initialHipsPos = hipsNode ? hipsNode.position.clone() : null;
-
+        this.verticalVelocity = this.jumpForce; // Apply jump force
+        this.groundY = this.rootNode.position.y; // Remember ground level
         this.playAnimation('jump', false);
-
-        if (this.animations.jump) {
-            this.animations.jump.onAnimationEndObservable.addOnce(() => {
-                // Apply root motion delta to rootNode
-                if (hipsNode && initialHipsPos) {
-                    const delta = hipsNode.position.subtract(initialHipsPos);
-                    // Transform delta by character rotation (subtract PI because of visual rotation offset)
-                    const angle = this.rootNode!.rotation.y - Math.PI;
-                    const scale = 0.29; // Root motion scale correction for jump
-                    const worldDeltaX = (delta.x * Math.cos(angle) + delta.z * Math.sin(angle)) * scale;
-                    const worldDeltaZ = (-delta.x * Math.sin(angle) + delta.z * Math.cos(angle)) * scale;
-
-                    this.rootNode!.position.x += worldDeltaX;
-                    this.rootNode!.position.z += worldDeltaZ;
-
-                    // Reset Hips to initial position
-                    hipsNode.position.copyFrom(initialHipsPos);
-                }
-                this.isJumping = false;
-                this.keys.jump = false;
-            });
-        }
     }
 
     private update(): void {
         if (!this.rootNode) return;
+
+        // Apply gravity and vertical movement
+        if (this.isJumping) {
+            this.verticalVelocity += this.gravity;
+            this.rootNode.position.y += this.verticalVelocity;
+
+            // Check if landed
+            if (this.rootNode.position.y <= this.groundY) {
+                this.rootNode.position.y = this.groundY;
+                this.verticalVelocity = 0;
+                this.isJumping = false;
+                this.keys.jump = false;
+            }
+        }
 
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
         const speed = this.keys.run ? this.config.runSpeed : this.config.walkSpeed;
