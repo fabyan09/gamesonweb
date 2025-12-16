@@ -14,6 +14,8 @@ export interface PlayerConfig {
     rotationSpeed?: number;
     walkSpeed?: number;
     runSpeed?: number;
+    /** Offset vertical du mesh par rapport au rootNode (pour aligner les pieds au sol) */
+    meshYOffset?: number;
 }
 
 interface AnimationSet {
@@ -437,10 +439,8 @@ export class PlayerController {
             // Move in that direction
             this.rootNode.position.x += Math.sin(moveAngle) * speed;
             this.rootNode.position.z += Math.cos(moveAngle) * speed;
-        } else if (!isMoving) {
-            // When idle, face away from camera (same direction camera is looking)
-            this.rootNode.rotation.y = cameraAngle + Math.PI;
         }
+        // When idle, keep the last rotation (don't reset to camera direction)
 
         // Update animation based on state
         if (!this.isAttacking && !this.isJumping && !this.isBlocking) {

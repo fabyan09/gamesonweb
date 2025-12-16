@@ -72,11 +72,14 @@ export class DungeonScene {
         this.buildLevel(placer);
 
         // Load player
+        // Note: meshYOffset compense le pivot du modèle pour aligner les pieds au sol
+        // Une valeur positive remonte le mesh par rapport au rootNode
         this.player = new PlayerController(this.scene, {
-            position: new Vector3(0, 0, -2),
+            position: new Vector3(0, 0.1, -2), // Y légèrement au-dessus pour compenser l'épaisseur du sol
             scale: 1,
             walkSpeed: 0.08,
-            runSpeed: 0.15
+            runSpeed: 0.15,
+            meshYOffset: 0
         });
 
         const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
