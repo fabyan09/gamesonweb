@@ -1,14 +1,14 @@
 {
-    "name": "The Entrance Hall",
+    "name": "The Dungeon Hall",
     "version": "1.0",
 
     "playerSpawn": {
-        "position": { "x": 0, "y": 0, "z": -8 },
+        "position": { "x": 0, "y": 0, "z": -6 },
         "rotation": 0
     },
 
     "scene": {
-        "fogDensity": 0.03,
+        "fogDensity": 0.015,
         "fogColor": { "x": 0.05, "y": 0.05, "z": 0.08 },
         "ambientColor": { "x": 0.1, "y": 0.1, "z": 0.15 }
     },
@@ -16,9 +16,9 @@
     "floors": [
         {
             "mesh": "floor_A",
-            "start": { "x": -10, "y": -1, "z": -10 },
-            "countX": 10,
-            "countZ": 10,
+            "start": { "x": -24, "y": -1, "z": -22 },
+            "countX": 24,
+            "countZ": 22,
             "spacing": 2
         }
     ],
@@ -27,80 +27,116 @@
         {
             "mesh": "wall_A",
             "cornerMesh": "wall_corner_A",
-            "bounds": {
-                "minX": -12,
-                "maxX": 10,
-                "minZ": -12,
-                "maxZ": 10
-            },
+            "bounds": { "minX": -22, "maxX": 20, "minZ": -22, "maxZ": 20 },
             "y": 0,
+            "spacing": 2
+        },
+        {
+            "mesh": "wall_B",
+            "cornerMesh": "wall_corner_A",
+            "bounds": { "minX": -22, "maxX": 20, "minZ": -22, "maxZ": 20 },
+            "y": 2,
+            "spacing": 2
+        },
+        {
+            "mesh": "upper_wall",
+            "cornerMesh": "wall_corner_A",
+            "bounds": { "minX": -22, "maxX": 20, "minZ": -22, "maxZ": 20 },
+            "y": 4,
             "spacing": 2
         }
     ],
 
     "props": [
-        { "mesh": "pillar_big", "position": { "x": -6, "y": 0, "z": -6 } },
-        { "mesh": "pillar_big", "position": { "x": 6, "y": 0, "z": -6 } },
-        { "mesh": "pillar_big", "position": { "x": -6, "y": 0, "z": 6 } },
-        { "mesh": "pillar_big", "position": { "x": 6, "y": 0, "z": 6 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": 12 } },
 
-        { "mesh": "brazier_A", "position": { "x": -3, "y": 0, "z": 0 } },
-        { "mesh": "brazier_B", "position": { "x": 3, "y": 0, "z": 0 } },
+        { "mesh": "torch", "position": { "x": -16, "y": 3.5, "z": 19.7 }, "rotation": 180 },
+        { "mesh": "torch", "position": { "x": -8, "y": 3.5, "z": 19.7 }, "rotation": 180 },
+        { "mesh": "torch", "position": { "x": 0, "y": 3.5, "z": 19.7 }, "rotation": 180 },
+        { "mesh": "torch", "position": { "x": 8, "y": 3.5, "z": 19.7 }, "rotation": 180 },
+        { "mesh": "torch", "position": { "x": 16, "y": 3.5, "z": 19.7 }, "rotation": 180 },
 
-        { "mesh": "statue_A", "position": { "x": 0, "y": 0, "z": 8 } },
+        { "mesh": "torch", "position": { "x": -16, "y": 3.5, "z": -21.7 }, "rotation": 0 },
+        { "mesh": "torch", "position": { "x": -8, "y": 3.5, "z": -21.7 }, "rotation": 0 },
+        { "mesh": "torch", "position": { "x": 0, "y": 3.5, "z": -21.7 }, "rotation": 0 },
+        { "mesh": "torch", "position": { "x": 8, "y": 3.5, "z": -21.7 }, "rotation": 0 },
+        { "mesh": "torch", "position": { "x": 16, "y": 3.5, "z": -21.7 }, "rotation": 0 },
 
-        { "mesh": "torch", "position": { "x": -11, "y": 1.5, "z": 0 } },
-        { "mesh": "torch", "position": { "x": 9, "y": 1.5, "z": 0 }, "rotation": 180 },
-        { "mesh": "torch", "position": { "x": 0, "y": 1.5, "z": 9 }, "rotation": 180 },
-        { "mesh": "torch", "position": { "x": -6, "y": 1.5, "z": 9 }, "rotation": 180 },
-        { "mesh": "torch", "position": { "x": 6, "y": 1.5, "z": 9 }, "rotation": 180 },
+        { "mesh": "torch", "position": { "x": -19.8, "y": 3.5, "z": -12 }, "rotation": 90 },
+        { "mesh": "torch", "position": { "x": -19.8, "y": 3.5, "z": -4 }, "rotation": 90 },
+        { "mesh": "torch", "position": { "x": -19.8, "y": 3.5, "z": 4 }, "rotation": 90 },
+        { "mesh": "torch", "position": { "x": -19.8, "y": 3.5, "z": 12 }, "rotation": 90 },
 
-        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": -12 } },
+        { "mesh": "torch", "position": { "x": 21.7, "y": 3.5, "z": -12 }, "rotation": -90 },
+        { "mesh": "torch", "position": { "x": 21.7, "y": 3.5, "z": -4 }, "rotation": -90 },
+        { "mesh": "torch", "position": { "x": 21.7, "y": 3.5, "z": 4 }, "rotation": -90 },
+        { "mesh": "torch", "position": { "x": 21.7, "y": 3.5, "z": 12 }, "rotation": -90 },
 
-        { "mesh": "tomb_A", "position": { "x": -8, "y": 0, "z": 6 } },
-        { "mesh": "tomb_B", "position": { "x": 8, "y": 0, "z": 6 } },
+        { "mesh": "brazier_A", "position": { "x": -4, "y": 0, "z": 0 } },
+        { "mesh": "brazier_B", "position": { "x": 4, "y": 0, "z": 0 } },
 
-        { "mesh": "gargolyle_A", "position": { "x": -10, "y": 2.5, "z": 8 } },
-        { "mesh": "gargolyle_B", "position": { "x": 10, "y": 2.5, "z": 8 }, "rotation": 180 }
+        { "mesh": "statue_A", "position": { "x": 0, "y": 0, "z": 16 } },
+
+        { "mesh": "fountain", "position": { "x": 0, "y": 0, "z": 8 } },
+
+        { "mesh": "tomb_A", "position": { "x": -10, "y": 0, "z": 14 } },
+        { "mesh": "tomb_B", "position": { "x": 10, "y": 0, "z": 14 } },
+
+        { "mesh": "hanging_cage_A", "position": { "x": -6, "y": 3, "z": 16 } },
+        { "mesh": "hanging_cage_B", "position": { "x": 6, "y": 3, "z": 16 } },
+
+        { "mesh": "gargolyle_A", "position": { "x": -18, "y": 2.5, "z": 18 } },
+        { "mesh": "gargolyle_B", "position": { "x": 18, "y": 2.5, "z": 18 }, "rotation": 180 },
+
+        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": 0 } }
     ],
 
     "lights": [
-        {
-            "position": { "x": -6, "y": 2.5, "z": -6 },
-            "color": { "x": 1, "y": 0.6, "z": 0.2 },
-            "intensity": 0.7,
-            "range": 10
-        },
-        {
-            "position": { "x": 6, "y": 2.5, "z": -6 },
-            "color": { "x": 1, "y": 0.6, "z": 0.2 },
-            "intensity": 0.7,
-            "range": 10
-        },
-        {
-            "position": { "x": -6, "y": 2.5, "z": 6 },
-            "color": { "x": 1, "y": 0.6, "z": 0.2 },
-            "intensity": 0.7,
-            "range": 10
-        },
-        {
-            "position": { "x": 6, "y": 2.5, "z": 6 },
-            "color": { "x": 1, "y": 0.6, "z": 0.2 },
-            "intensity": 0.7,
-            "range": 10
-        },
-        {
-            "position": { "x": 0, "y": 1.5, "z": 0 },
-            "color": { "x": 1, "y": 0.5, "z": 0.1 },
-            "intensity": 1.0,
-            "range": 12
-        }
+        { "position": { "x": -16, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": -8, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 0, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 8, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 16, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+
+        { "position": { "x": -16, "y": 4.5, "z": -21 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": -8, "y": 4.5, "z": -21 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 0, "y": 4.5, "z": -21 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 8, "y": 4.5, "z": -21 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 16, "y": 4.5, "z": -21 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+
+        { "position": { "x": -21, "y": 4.5, "z": -12 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": -21, "y": 4.5, "z": -4 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": -21, "y": 4.5, "z": 4 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": -21, "y": 4.5, "z": 12 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+
+        { "position": { "x": 19, "y": 4.5, "z": -12 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 19, "y": 4.5, "z": -4 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 19, "y": 4.5, "z": 4 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 19, "y": 4.5, "z": 12 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+
+        { "position": { "x": -4, "y": 1.5, "z": 0 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
+        { "position": { "x": 4, "y": 1.5, "z": 0 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 }
     ],
 
     "enemies": [
         {
             "type": "vampire",
-            "position": { "x": 0, "y": 0, "z": 6 },
+            "position": { "x": 0, "y": 0, "z": 10 },
             "health": 50,
             "damage": 10
         }

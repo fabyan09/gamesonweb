@@ -14,6 +14,7 @@ import { PlayerController } from '../core/PlayerController';
 import { LevelLoader } from '../core/LevelLoader';
 import { LevelData } from '../core/LevelData';
 import { Enemy } from '../core/Enemy';
+import { MeshPlacer } from '../utils/MeshPlacer';
 
 export class DungeonScene {
     private canvas: HTMLCanvasElement;
@@ -73,7 +74,7 @@ export class DungeonScene {
         return light;
     }
 
-    async init(): Promise<void> {
+    async init(levelUrl?: string): Promise<void> {
         // Lighting
         this.setupLighting();
 
@@ -429,10 +430,6 @@ export class DungeonScene {
         const wallSpacing = 2;
         const wallHeight = 2;
         const wallLayers = 3;
-
-        // Types de murs par couche
-        const wallTypes = ['wall_A', 'wall_B', 'upper_wall'];
-        const cornerTypes = ['wall_corner_A', 'wall_corner_B', 'wall_corner_A'];
 
         // Fonction pour choisir un mur avec variation
         const getWallType = (layer: number, index: number): string => {
