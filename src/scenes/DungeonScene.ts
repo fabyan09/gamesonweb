@@ -5,6 +5,10 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 
+// Side-effect imports for collisions
+import '@babylonjs/core/Collisions/collisionCoordinator';
+import '@babylonjs/core/Culling/ray';
+
 import { AssetLoader } from '../core/AssetLoader';
 import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 import { PlayerController } from '../core/PlayerController';
