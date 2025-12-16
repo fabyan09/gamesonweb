@@ -7,14 +7,16 @@ import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { PointLight } from '@babylonjs/core/Lights/pointLight';
 
 import { AssetLoader } from '../core/AssetLoader';
-import { FPSCamera } from '../core/FPSCamera';
+import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
+import { PlayerController } from '../core/PlayerController';
 import { MeshPlacer } from '../utils/MeshPlacer';
 
 export class DungeonScene {
     private canvas: HTMLCanvasElement;
     private scene: Scene;
     private assetLoader: AssetLoader;
-    private camera: FPSCamera | null = null;
+    private camera: ThirdPersonCamera | null = null;
+    private player: PlayerController | null = null;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -55,15 +57,10 @@ export class DungeonScene {
     }
 
     async init(): Promise<void> {
-        // Camera
-        this.camera = new FPSCamera(this.scene, this.canvas, {
-            position: new Vector3(0, 2, -8)
-        });
-
         // Lighting
         this.setupLighting();
 
-        // Load assets
+        // Load dungeon assets
         const assets = await this.assetLoader.loadGLB(
             'dungeon',
             `${import.meta.env.BASE_URL}assets/Dungeon_set/`,
@@ -74,8 +71,53 @@ export class DungeonScene {
         const placer = new MeshPlacer(assets);
         this.buildLevel(placer);
 
+        // Load player
+        this.player = new PlayerController(this.scene, {
+            position: new Vector3(0, 0, -2),
+            scale: 1,
+            walkSpeed: 0.08,
+            runSpeed: 0.15
+        });
+
+        const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
+        await this.player.load(playerBasePath);
+
+        // Setup camera to follow player
+        this.camera = new ThirdPersonCamera(this.scene, this.canvas, {
+            distance: 5,
+            heightOffset: 1.5
+        });
+
+        if (this.player.rootMesh) {
+            this.camera.setTarget(this.player.rootMesh);
+        }
+        this.player.setCamera(this.camera);
+
+        // Setup mouse events for attack/block
+        this.setupMouseEvents();
+
+        // Update camera in render loop
+        this.scene.onBeforeRenderObservable.add(() => {
+            this.camera?.update();
+        });
+
         // Hide loading
         document.getElementById('loading')?.classList.add('hidden');
+    }
+
+    private setupMouseEvents(): void {
+        this.canvas.addEventListener('mousedown', (e) => {
+            this.player?.onMouseDown(e.button);
+        });
+
+        this.canvas.addEventListener('mouseup', (e) => {
+            this.player?.onMouseUp(e.button);
+        });
+
+        // Prevent context menu on right click
+        this.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
     }
 
     private buildLevel(placer: MeshPlacer): void {
