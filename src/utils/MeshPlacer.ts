@@ -1,14 +1,13 @@
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { LoadedAssets } from '../core/AssetLoader';
 
 export interface PlacementOptions {
     position: { x: number; y: number; z: number };
     rotation?: number;
     scale?: number;
-    /** Enable collision detection on this mesh (default: true for walls/pillars) */
-    checkCollisions?: boolean;
 }
 
 export class MeshPlacer {
@@ -67,33 +66,56 @@ export class MeshPlacer {
     }
 
     private placeGroup(baseName: string, primitives: AbstractMesh[], options: PlacementOptions): AbstractMesh {
-        // Create a parent node to group all primitives
         const groupId = this.cloneCounter++;
-        const parent = new TransformNode(`${baseName}_group_${groupId}`, this.scene);
-        parent.position = new Vector3(options.position.x, options.position.y, options.position.z);
+
+        // First, calculate the combined bounding box from all primitives
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+
+        for (const primitive of primitives) {
+            const bb = primitive.getBoundingInfo().boundingBox;
+            minX = Math.min(minX, bb.minimumWorld.x);
+            minY = Math.min(minY, bb.minimumWorld.y);
+            minZ = Math.min(minZ, bb.minimumWorld.z);
+            maxX = Math.max(maxX, bb.maximumWorld.x);
+            maxY = Math.max(maxY, bb.maximumWorld.y);
+            maxZ = Math.max(maxZ, bb.maximumWorld.z);
+        }
+
+        // Create a parent mesh (invisible box) with the correct bounding box
+        const width = maxX - minX;
+        const height = maxY - minY;
+        const depth = maxZ - minZ;
+
+        const parentMesh = MeshBuilder.CreateBox(`${baseName}_group_${groupId}`, {
+            width: width || 0.1,
+            height: height || 0.1,
+            depth: depth || 0.1
+        }, this.scene);
+
+        parentMesh.position = new Vector3(options.position.x, options.position.y, options.position.z);
+        parentMesh.isVisible = false; // Parent is invisible, children are visible
 
         if (options.rotation !== undefined) {
-            parent.rotation.y = options.rotation;
+            parentMesh.rotation.y = options.rotation;
         }
 
         if (options.scale !== undefined) {
-            parent.scaling = new Vector3(options.scale, options.scale, options.scale);
+            parentMesh.scaling = new Vector3(options.scale, options.scale, options.scale);
         }
 
         // Clone and attach all primitives to parent
-        let firstClone: AbstractMesh | null = null;
         for (const primitive of primitives) {
-            const clone = primitive.clone(`${primitive.name}_${groupId}`, parent);
+            const clone = primitive.clone(`${primitive.name}_${groupId}`, parentMesh);
             if (clone) {
                 clone.isVisible = true;
                 // Position/rotation à zéro - le parent gère tout
                 clone.position = Vector3.Zero();
                 clone.rotation = Vector3.Zero();
-                if (!firstClone) firstClone = clone;
             }
         }
 
-        return firstClone!;
+        return parentMesh;
     }
 
     placeMultiple(meshName: string, positions: PlacementOptions[]): AbstractMesh[] {

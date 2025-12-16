@@ -48,22 +48,54 @@
     ],
 
     "props": [
-        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": -12 } },
-        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": -4 } },
-        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": 4 } },
-        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": 12 } },
-        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": -12 } },
-        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": -4 } },
-        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": 4 } },
-        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": 12 } },
-        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": -12 } },
-        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": -4 } },
-        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": 4 } },
-        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": 12 } },
-        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": -12 } },
-        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": -4 } },
-        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": 4 } },
-        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": -12 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": -4 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": 4 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 0, "z": 12 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": -12 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": -4 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": 4 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 0, "z": 12 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": -12 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": -4 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": 4 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 0, "z": 12 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": -12 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": -4 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": 4 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 0, "z": 12 }, "collision": true },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 2, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 2, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 2, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 2, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 2, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 2, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 2, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 2, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 2, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 2, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 2, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 2, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 2, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 2, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 2, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 2, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 4, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 4, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 4, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": -12, "y": 4, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 4, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 4, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 4, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": -4, "y": 4, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 4, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 4, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 4, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": 4, "y": 4, "z": 12 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 4, "z": -12 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 4, "z": -4 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 4, "z": 4 } },
+        { "mesh": "pillar_big", "position": { "x": 12, "y": 4, "z": 12 } },
 
         { "mesh": "torch", "position": { "x": -16, "y": 3.5, "z": 19.7 }, "rotation": 180 },
         { "mesh": "torch", "position": { "x": -8, "y": 3.5, "z": 19.7 }, "rotation": 180 },
@@ -87,15 +119,15 @@
         { "mesh": "torch", "position": { "x": 21.7, "y": 3.5, "z": 4 }, "rotation": -90 },
         { "mesh": "torch", "position": { "x": 21.7, "y": 3.5, "z": 12 }, "rotation": -90 },
 
-        { "mesh": "brazier_A", "position": { "x": -4, "y": 0, "z": 0 } },
-        { "mesh": "brazier_B", "position": { "x": 4, "y": 0, "z": 0 } },
+        { "mesh": "brazier_A", "position": { "x": -4, "y": 0, "z": 0 }, "collision": true },
+        { "mesh": "brazier_B", "position": { "x": 4, "y": 0, "z": 0 }, "collision": true },
 
-        { "mesh": "statue_A", "position": { "x": 0, "y": 0, "z": 16 } },
+        { "mesh": "statue_A", "position": { "x": 0, "y": 0, "z": 16 }, "collision": true },
 
-        { "mesh": "fountain", "position": { "x": 0, "y": 0, "z": 8 } },
+        { "mesh": "fountain", "position": { "x": 0, "y": 0, "z": 8 }, "collision": true },
 
-        { "mesh": "tomb_A", "position": { "x": -10, "y": 0, "z": 14 } },
-        { "mesh": "tomb_B", "position": { "x": 10, "y": 0, "z": 14 } },
+        { "mesh": "tomb_A", "position": { "x": -10, "y": 0, "z": 14 }, "collision": true },
+        { "mesh": "tomb_B", "position": { "x": 10, "y": 0, "z": 14 }, "collision": true },
 
         { "mesh": "hanging_cage_A", "position": { "x": -6, "y": 3, "z": 16 } },
         { "mesh": "hanging_cage_B", "position": { "x": 6, "y": 3, "z": 16 } },
@@ -103,7 +135,7 @@
         { "mesh": "gargolyle_A", "position": { "x": -18, "y": 2.5, "z": 18 } },
         { "mesh": "gargolyle_B", "position": { "x": 18, "y": 2.5, "z": 18 }, "rotation": 180 },
 
-        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": 0 } }
+        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": 0 }, "collision": true }
     ],
 
     "lights": [
@@ -140,5 +172,13 @@
             "health": 50,
             "damage": 10
         }
-    ]
+    ],
+
+    "cameraBounds": {
+        "minX": -21,
+        "maxX": 19,
+        "minZ": -21,
+        "maxZ": 19,
+        "maxY": 5
+    }
 }

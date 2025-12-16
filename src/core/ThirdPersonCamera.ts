@@ -10,6 +10,13 @@ export interface ThirdPersonCameraConfig {
     lowerRadiusLimit?: number;
     upperRadiusLimit?: number;
     followSpeed?: number;
+    bounds?: {
+        minX: number;
+        maxX: number;
+        minZ: number;
+        maxZ: number;
+        maxY: number;
+    };
 }
 
 export class ThirdPersonCamera {
@@ -18,6 +25,7 @@ export class ThirdPersonCamera {
     private heightOffset: number;
     private followSpeed: number;
     private currentTarget: Vector3 = Vector3.Zero();
+    private bounds: { minX: number; maxX: number; minZ: number; maxZ: number; maxY: number } | null = null;
 
     constructor(scene: Scene, canvas: HTMLCanvasElement, config: ThirdPersonCameraConfig = {}) {
         const distance = config.distance ?? 5;
@@ -38,14 +46,23 @@ export class ThirdPersonCamera {
 
         // Camera settings
         this.camera.lowerRadiusLimit = config.lowerRadiusLimit ?? 2;
-        this.camera.upperRadiusLimit = config.upperRadiusLimit ?? 10;
-        this.camera.lowerBetaLimit = 0.1;
-        this.camera.upperBetaLimit = Math.PI / 2.2;
+        this.camera.upperRadiusLimit = config.upperRadiusLimit ?? 8;
+        this.camera.lowerBetaLimit = 0.3;  // Empêche de regarder trop vers le haut
+        this.camera.upperBetaLimit = Math.PI / 2.5;  // Empêche de regarder trop vers le bas
         this.camera.angularSensibilityX = config.rotationSensibility ?? 500;
         this.camera.angularSensibilityY = config.rotationSensibility ?? 500;
         this.camera.panningSensibility = 0; // Disable panning
         this.camera.inertia = 0.7;
         this.camera.minZ = 0.1;
+
+        // Collision de caméra - empêche de traverser les murs
+        this.camera.checkCollisions = true;
+        this.camera.collisionRadius = new Vector3(0.5, 0.5, 0.5);
+
+        // Limites de la caméra (bornes du donjon)
+        if (config.bounds) {
+            this.bounds = config.bounds;
+        }
 
         // Setup pointer lock
         this.setupPointerLock(canvas);
@@ -73,6 +90,38 @@ export class ThirdPersonCamera {
             // Smoothly interpolate to desired position
             this.currentTarget = Vector3.Lerp(this.currentTarget, desiredTarget, this.followSpeed);
             this.camera.target.copyFrom(this.currentTarget);
+
+            // Clamp camera position to bounds
+            if (this.bounds) {
+                const pos = this.camera.position;
+                let needsClamp = false;
+                const clampedPos = pos.clone();
+
+                if (pos.x < this.bounds.minX) {
+                    clampedPos.x = this.bounds.minX;
+                    needsClamp = true;
+                }
+                if (pos.x > this.bounds.maxX) {
+                    clampedPos.x = this.bounds.maxX;
+                    needsClamp = true;
+                }
+                if (pos.z < this.bounds.minZ) {
+                    clampedPos.z = this.bounds.minZ;
+                    needsClamp = true;
+                }
+                if (pos.z > this.bounds.maxZ) {
+                    clampedPos.z = this.bounds.maxZ;
+                    needsClamp = true;
+                }
+                if (pos.y > this.bounds.maxY) {
+                    clampedPos.y = this.bounds.maxY;
+                    needsClamp = true;
+                }
+
+                if (needsClamp) {
+                    this.camera.setPosition(clampedPos);
+                }
+            }
         }
     }
 

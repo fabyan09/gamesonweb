@@ -5,6 +5,8 @@ import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { Skeleton } from '@babylonjs/core/Bones/skeleton';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/loaders/glTF';
 import { ThirdPersonCamera } from './ThirdPersonCamera';
 
@@ -38,6 +40,7 @@ export class PlayerController {
     private scene: Scene;
     private mesh: AbstractMesh | null = null;
     private rootNode: TransformNode | null = null;
+    private colliderMesh: Mesh | null = null;
     private animations: AnimationSet = {
         idle: null,
         walk: null,
@@ -101,6 +104,21 @@ export class PlayerController {
             'Paladin WProp J Nordstrom.glb',
             this.scene
         );
+
+        // Create a simple collider mesh for collision detection
+        // Using a box as the collision proxy - the ellipsoid is what matters for moveWithCollisions
+        this.colliderMesh = MeshBuilder.CreateBox('playerCollider', {
+            width: 0.1,
+            height: 0.1,
+            depth: 0.1
+        }, this.scene);
+        this.colliderMesh.position = this.config.position.clone();
+        this.colliderMesh.isVisible = false;
+        this.colliderMesh.checkCollisions = true;
+        // Ellipsoid defines the collision volume (radius X, half-height Y, radius Z)
+        this.colliderMesh.ellipsoid = new Vector3(0.4, 0.9, 0.4);
+        // Offset so the ellipsoid is centered on the player's body, not feet
+        this.colliderMesh.ellipsoidOffset = new Vector3(0, 0.9, 0);
 
         // Create a root node for proper rotation control
         this.rootNode = new TransformNode('playerRoot', this.scene);
@@ -418,7 +436,7 @@ export class PlayerController {
     }
 
     private update(): void {
-        if (!this.rootNode) return;
+        if (!this.rootNode || !this.colliderMesh) return;
 
         // Apply gravity and vertical movement
         if (this.isJumping) {
@@ -457,11 +475,23 @@ export class PlayerController {
             // Rotate character to face movement direction (flip 180° so character faces forward)
             this.rootNode.rotation.y = moveAngle + Math.PI;
 
-            // Move in that direction
-            this.rootNode.position.x += Math.sin(moveAngle) * speed;
-            this.rootNode.position.z += Math.cos(moveAngle) * speed;
+            // Calculate movement velocity
+            const velocity = new Vector3(
+                Math.sin(moveAngle) * speed,
+                0,
+                Math.cos(moveAngle) * speed
+            );
+
+            // Move with collision detection
+            this.colliderMesh.moveWithCollisions(velocity);
+
+            // Sync rootNode position with collider
+            this.rootNode.position.x = this.colliderMesh.position.x;
+            this.rootNode.position.z = this.colliderMesh.position.z;
         }
-        // When idle, keep the last rotation (don't reset to camera direction)
+
+        // Keep collider synced with player position (for Y position during jumps)
+        this.colliderMesh.position.copyFrom(this.rootNode.position);
 
         // Update animation based on state
         if (!this.isAttacking && !this.isJumping && !this.isBlocking) {
@@ -492,5 +522,6 @@ export class PlayerController {
     dispose(): void {
         Object.values(this.animations).forEach(anim => anim?.dispose());
         this.mesh?.dispose();
+        this.colliderMesh?.dispose();
     }
 }

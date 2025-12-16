@@ -17,6 +17,8 @@ export interface PropPlacement {
     rotation?: number;
     /** Uniform scale factor */
     scale?: number;
+    /** Enable collision detection for this prop (default: false) */
+    collision?: boolean;
 }
 
 export interface GridPlacement {
@@ -109,5 +111,14 @@ export interface LevelData {
         fogDensity?: number;
         fogColor?: Vec3;
         ambientColor?: Vec3;
+    };
+
+    /** Camera bounds to prevent seeing outside the level */
+    cameraBounds?: {
+        minX: number;
+        maxX: number;
+        minZ: number;
+        maxZ: number;
+        maxY: number;
     };
 }

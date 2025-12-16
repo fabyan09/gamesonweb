@@ -4,6 +4,10 @@ import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture';
+import { Rectangle } from '@babylonjs/gui/2D/controls/rectangle';
 import '@babylonjs/loaders/glTF';
 
 export interface EnemyConfig {
@@ -35,6 +39,7 @@ export class Enemy {
     private scene: Scene;
     private mesh: AbstractMesh | null = null;
     private rootNode: TransformNode | null = null;
+    private colliderMesh: Mesh | null = null;
     private transformNodes: Map<string, TransformNode> = new Map();
 
     private animations: EnemyAnimationSet = {
@@ -55,6 +60,13 @@ export class Enemy {
 
     private onDeathCallback: (() => void) | null = null;
     private onPlayerHitCallback: ((damage: number) => void) | null = null;
+
+    // Health bar GUI elements
+    private healthBarMesh: Mesh | null = null;
+    private healthBarTexture: AdvancedDynamicTexture | null = null;
+    private healthBarFill: Rectangle | null = null;
+    private healthBarBackground: Rectangle | null = null;
+    private healthBarGlow: Rectangle | null = null;
 
     constructor(scene: Scene, config: EnemyConfig) {
         this.scene = scene;
@@ -87,6 +99,16 @@ export class Enemy {
         this.rootNode = new TransformNode('enemyRoot', this.scene);
         this.rootNode.position = this.config.position.clone();
 
+        // Create collider for collision detection
+        this.colliderMesh = MeshBuilder.CreateBox('enemyCollider', {
+            width: 0.1, height: 0.1, depth: 0.1
+        }, this.scene);
+        this.colliderMesh.position = this.config.position.clone();
+        this.colliderMesh.isVisible = false;
+        this.colliderMesh.checkCollisions = true;
+        this.colliderMesh.ellipsoid = new Vector3(0.5, 0.9, 0.5);
+        this.colliderMesh.ellipsoidOffset = new Vector3(0, 0.9, 0);
+
         // The first mesh is usually __root__, parent it to our rootNode
         this.mesh = characterResult.meshes[0];
         this.mesh.parent = this.rootNode;
@@ -115,10 +137,83 @@ export class Enemy {
         // Start with idle
         this.playAnimation('idle', true);
 
+        // Create health bar above enemy
+        this.createHealthBar();
+
         // Register update loop
         this.scene.onBeforeRenderObservable.add(() => this.update());
 
         console.log('[Enemy] Enemy loaded successfully');
+    }
+
+    private createHealthBar(): void {
+        if (!this.rootNode) return;
+
+        // Create a plane mesh for the health bar to attach to
+        this.healthBarMesh = MeshBuilder.CreatePlane('healthBarPlane', {
+            width: 1.0,
+            height: 0.08
+        }, this.scene);
+        this.healthBarMesh.parent = this.rootNode;
+        this.healthBarMesh.position = new Vector3(0, 2.3, 0); // Above enemy head
+        this.healthBarMesh.billboardMode = Mesh.BILLBOARDMODE_ALL; // Always face camera
+
+        // Create GUI texture on the plane
+        this.healthBarTexture = AdvancedDynamicTexture.CreateForMesh(
+            this.healthBarMesh,
+            256,
+            24,
+            false
+        );
+
+        // Background (dark/empty part)
+        this.healthBarBackground = new Rectangle('healthBarBg');
+        this.healthBarBackground.width = '100%';
+        this.healthBarBackground.height = '100%';
+        this.healthBarBackground.color = '#555555';
+        this.healthBarBackground.thickness = 3;
+        this.healthBarBackground.background = '#1a0a0a';
+        this.healthBarBackground.cornerRadius = 6;
+        this.healthBarTexture.addControl(this.healthBarBackground);
+
+        // Health fill (dark blood red)
+        this.healthBarFill = new Rectangle('healthBarFill');
+        this.healthBarFill.width = '100%';
+        this.healthBarFill.height = '100%';
+        this.healthBarFill.color = 'transparent';
+        this.healthBarFill.thickness = 0;
+        this.healthBarFill.background = 'linear-gradient(to right, #4a0000, #8b0000)';
+        this.healthBarFill.horizontalAlignment = Rectangle.HORIZONTAL_ALIGNMENT_LEFT;
+        this.healthBarFill.cornerRadius = 4;
+        this.healthBarBackground.addControl(this.healthBarFill);
+
+        // Glow indicator at the end
+        this.healthBarGlow = new Rectangle('healthBarGlow');
+        this.healthBarGlow.width = '4px';
+        this.healthBarGlow.height = '20px';
+        this.healthBarGlow.color = 'transparent';
+        this.healthBarGlow.thickness = 0;
+        this.healthBarGlow.background = '#ffd700';
+        this.healthBarGlow.horizontalAlignment = Rectangle.HORIZONTAL_ALIGNMENT_RIGHT;
+        this.healthBarGlow.cornerRadius = 2;
+        this.healthBarGlow.shadowColor = '#ffd700';
+        this.healthBarGlow.shadowBlur = 15;
+        this.healthBarFill.addControl(this.healthBarGlow);
+
+        this.updateHealthBar();
+    }
+
+    private updateHealthBar(): void {
+        if (!this.healthBarFill || !this.healthBarGlow) return;
+
+        const healthPercent = Math.max(0, this.health / this.config.health);
+        this.healthBarFill.width = `${healthPercent * 100}%`;
+
+        // Hide glow when at full health
+        this.healthBarGlow.isVisible = healthPercent < 1;
+
+        // Dark blood red gradient
+        this.healthBarFill.background = '#8b0000';
     }
 
     private async loadAnimation(basePath: string, filename: string, name: EnemyAnimationName): Promise<void> {
@@ -229,7 +324,7 @@ export class Enemy {
     }
 
     private chaseTarget(): void {
-        if (!this.rootNode || !this.target || this.isAttacking) return;
+        if (!this.rootNode || !this.target || this.isAttacking || !this.colliderMesh) return;
 
         this.faceTarget();
 
@@ -238,7 +333,14 @@ export class Enemy {
         direction.y = 0;
         direction.normalize();
 
-        this.rootNode.position.addInPlace(direction.scale(this.config.moveSpeed));
+        // Use moveWithCollisions for collision detection
+        const velocity = direction.scale(this.config.moveSpeed);
+        this.colliderMesh.moveWithCollisions(velocity);
+
+        // Sync rootNode with collider
+        this.rootNode.position.x = this.colliderMesh.position.x;
+        this.rootNode.position.z = this.colliderMesh.position.z;
+
         this.playAnimation('walk', true);
     }
 
@@ -286,6 +388,9 @@ export class Enemy {
         this.health -= damage;
         console.log(`[Enemy] Took ${damage} damage, health: ${this.health}`);
 
+        // Update health bar
+        this.updateHealthBar();
+
         if (this.health <= 0) {
             this.die();
         }
@@ -295,6 +400,11 @@ export class Enemy {
         this.state = 'dead';
         this.playAnimation('death', false);
         console.log('[Enemy] Enemy died');
+
+        // Hide health bar when dead
+        if (this.healthBarMesh) {
+            this.healthBarMesh.isVisible = false;
+        }
 
         const onDeathComplete = () => {
             this.onDeathCallback?.();
@@ -337,7 +447,10 @@ export class Enemy {
 
     dispose(): void {
         Object.values(this.animations).forEach(anim => anim?.dispose());
+        this.healthBarTexture?.dispose();
+        this.healthBarMesh?.dispose();
         this.mesh?.dispose();
         this.rootNode?.dispose();
+        this.colliderMesh?.dispose();
     }
 }

@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon FPS</title>
+    <title>Dungeon Crawler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montaga&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -31,57 +34,187 @@
             top: 0;
             left: 0;
             pointer-events: none;
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-family: 'Montaga', 'Georgia', serif;
             z-index: 100;
         }
 
+        /* Controls UI */
         #instructions {
             position: fixed;
             top: 20px;
-            left: 20px;
-            color: #e0e0e0;
-            font-size: 13px;
-            background: rgba(0, 0, 0, 0.75);
+            right: 20px;
+            color: #b8a070;
+            font-size: 12px;
+            background: linear-gradient(180deg, rgba(20, 15, 10, 0.9) 0%, rgba(10, 8, 5, 0.95) 100%);
             padding: 15px 20px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            line-height: 1.6;
+            border-radius: 4px;
+            border: 1px solid #3d2f1f;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 200, 100, 0.05);
+            line-height: 1.8;
+            min-width: 180px;
         }
 
-        #instructions strong {
-            color: #fff;
+        #instructions .title {
+            color: #ffd700;
             font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
         }
 
+        #instructions .key {
+            display: inline-block;
+            background: linear-gradient(180deg, #2a2015 0%, #1a1510 100%);
+            color: #d4c4a0;
+            padding: 2px 8px;
+            border-radius: 3px;
+            border: 1px solid #4a3a25;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            margin-right: 8px;
+            min-width: 45px;
+            text-align: center;
+            box-shadow: 0 2px 0 #0a0805;
+        }
+
+        #instructions .row {
+            display: flex;
+            align-items: center;
+            margin: 6px 0;
+        }
+
+        #instructions .action {
+            color: #998060;
+            font-size: 11px;
+        }
+
+        /* Loading Screen */
         #loading {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff;
-            font-size: 18px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, #1a1510 0%, #0a0805 100%);
             display: flex;
             flex-direction: column;
+            justify-content: center;
             align-items: center;
-            gap: 20px;
             z-index: 200;
+            transition: opacity 0.5s ease-out;
         }
 
         #loading.hidden {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: #fff;
+        .loading-content {
+            text-align: center;
+        }
+
+        .loading-title {
+            font-size: 3rem;
+            color: #ffd700;
+            letter-spacing: 0.3em;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.5), 0 0 60px rgba(255, 140, 0, 0.3);
+            margin-bottom: 3rem;
+            animation: titlePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { text-shadow: 0 0 30px rgba(255, 215, 0, 0.5), 0 0 60px rgba(255, 140, 0, 0.3); }
+            50% { text-shadow: 0 0 40px rgba(255, 215, 0, 0.7), 0 0 80px rgba(255, 140, 0, 0.5); }
+        }
+
+        .loading-spinner {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+        }
+
+        .loading-spinner::before,
+        .loading-spinner::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            border: 3px solid transparent;
         }
 
-        @keyframes spin {
+        .loading-spinner::before {
+            border-top-color: #ffd700;
+            border-right-color: #ffd700;
+            animation: spinOuter 1.2s linear infinite;
+        }
+
+        .loading-spinner::after {
+            width: 60%;
+            height: 60%;
+            top: 20%;
+            left: 20%;
+            border-bottom-color: #ff8c00;
+            border-left-color: #ff8c00;
+            animation: spinInner 0.8s linear infinite reverse;
+        }
+
+        @keyframes spinOuter {
             to { transform: rotate(360deg); }
+        }
+
+        @keyframes spinInner {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #b8a070;
+            font-size: 1rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        .loading-dots {
+            display: inline-block;
+            width: 20px;
+            text-align: left;
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
+        }
+
+        .loading-tip {
+            margin-top: 3rem;
+            padding: 1rem 2rem;
+            background: rgba(255, 215, 0, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.1);
+            border-radius: 4px;
+            color: #706040;
+            font-size: 0.85rem;
+            font-style: italic;
+            max-width: 400px;
+        }
+
+        .loading-tip::before {
+            content: '• ';
+            color: #ffd700;
         }
     </style>
 </head>
@@ -90,15 +223,35 @@
 
     <div id="ui">
         <div id="instructions">
-            <strong>Controles</strong><br>
-            ZQSD - Se deplacer<br>
-            Souris - Regarder<br>
-            Clic - Capturer souris<br>
-            Espace - Monter | Shift - Descendre
+            <div class="title">Contrôles</div>
+            <div class="row">
+                <span class="key">ZQSD</span>
+                <span class="action">Se déplacer</span>
+            </div>
+            <div class="row">
+                <span class="key">Shift</span>
+                <span class="action">Courir</span>
+            </div>
+            <div class="row">
+                <span class="key">Souris</span>
+                <span class="action">Regarder</span>
+            </div>
+            <div class="row">
+                <span class="key">Clic G</span>
+                <span class="action">Attaquer</span>
+            </div>
+            <div class="row">
+                <span class="key">Clic D</span>
+                <span class="action">Bloquer</span>
+            </div>
         </div>
         <div id="loading">
-            <div class="spinner"></div>
-            <span>Chargement...</span>
+            <div class="loading-content">
+                <h1 class="loading-title">DUNGEON</h1>
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Chargement<span class="loading-dots"></span></p>
+                <p class="loading-tip">Utilisez le bouclier pour bloquer les attaques ennemies</p>
+            </div>
         </div>
     </div>
 

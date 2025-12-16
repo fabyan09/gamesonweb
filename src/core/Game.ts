@@ -17,8 +17,13 @@ export class Game {
     }
 
     async init(): Promise<void> {
+        // Read level from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const levelParam = urlParams.get('level');
+        const levelIndex = levelParam ? parseInt(levelParam, 10) : 0;
+
         this.currentScene = new DungeonScene(this.engine, this.canvas);
-        await this.currentScene.init();
+        await this.currentScene.init(levelIndex);
     }
 
     run(): void {

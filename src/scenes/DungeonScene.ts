@@ -16,6 +16,12 @@ import { LevelData } from '../core/LevelData';
 import { Enemy } from '../core/Enemy';
 import { MeshPlacer } from '../utils/MeshPlacer';
 
+// List of available levels
+const LEVELS = [
+    'level1.json',
+    'level2.json'
+];
+
 export class DungeonScene {
     private canvas: HTMLCanvasElement;
     private scene: Scene;
@@ -24,6 +30,7 @@ export class DungeonScene {
     private camera: ThirdPersonCamera | null = null;
     private player: PlayerController | null = null;
     private currentLevel: LevelData | null = null;
+    private currentLevelIndex: number = 0;
     private enemies: Enemy[] = [];
     private playerHealth: number = 100;
     private isLevelComplete: boolean = false;
@@ -46,6 +53,10 @@ export class DungeonScene {
         this.scene.fogDensity = 0.015;
         this.scene.fogColor = new Color3(0.05, 0.05, 0.08);
 
+        // Enable collisions on the scene
+        this.scene.collisionsEnabled = true;
+        this.scene.gravity = new Vector3(0, -0.5, 0);
+
         // Augmenter la limite de lumières simultanées (par défaut 4)
         this.scene.onNewMeshAddedObservable.add((mesh) => {
             if (mesh.material) {
@@ -55,15 +66,16 @@ export class DungeonScene {
     }
 
     private setupLighting(): void {
-        // Ambient
+        // Ambient - lumière hémisphérique pour éclairer globalement
         const ambient = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene);
-        ambient.intensity = 0.3;
-        ambient.diffuse = new Color3(0.6, 0.6, 0.8);
-        ambient.groundColor = new Color3(0.2, 0.15, 0.1);
+        ambient.intensity = 0.6;
+        ambient.diffuse = new Color3(0.7, 0.7, 0.85);
+        ambient.groundColor = new Color3(0.3, 0.25, 0.2);
 
-        // Directional
+        // Directional - lumière directionnelle pour les ombres
         const dir = new DirectionalLight('dirLight', new Vector3(-1, -2, 1), this.scene);
-        dir.intensity = 0.4;
+        dir.intensity = 0.5;
+        dir.diffuse = new Color3(1, 0.95, 0.8);
     }
 
     private addTorchLight(position: Vector3): PointLight {
@@ -74,7 +86,10 @@ export class DungeonScene {
         return light;
     }
 
-    async init(levelUrl?: string): Promise<void> {
+    async init(levelIndex: number = 0): Promise<void> {
+        // Set current level index (clamped to valid range)
+        this.currentLevelIndex = Math.max(0, Math.min(levelIndex, LEVELS.length - 1));
+
         // Lighting
         this.setupLighting();
 
@@ -88,8 +103,11 @@ export class DungeonScene {
         // Debug: log available meshes
         console.log('[DungeonScene] Available meshes:', Array.from(assets.meshes.keys()));
 
+        // Determine level to load
+        const levelPath = `${import.meta.env.BASE_URL}levels/${LEVELS[this.currentLevelIndex]}`;
+        console.log(`[DungeonScene] Loading level ${this.currentLevelIndex + 1}/${LEVELS.length}: ${LEVELS[this.currentLevelIndex]}`);
+
         // Load and build level
-        const levelPath = levelUrl ?? `${import.meta.env.BASE_URL}levels/level1.json`;
         this.currentLevel = await this.levelLoader.loadFromUrl(levelPath);
         this.levelLoader.buildLevel(this.currentLevel, assets);
 
@@ -111,10 +129,11 @@ export class DungeonScene {
         // Load enemies
         await this.loadEnemies();
 
-        // Setup camera to follow player
+        // Setup camera to follow player with bounds from level data
         this.camera = new ThirdPersonCamera(this.scene, this.canvas, {
             distance: 5,
-            heightOffset: 1.5
+            heightOffset: 1.5,
+            bounds: this.currentLevel.cameraBounds
         });
 
         if (this.player.rootMesh) {
@@ -217,58 +236,160 @@ export class DungeonScene {
     private showVictoryMessage(): void {
         console.log('[DungeonScene] Level Complete!');
 
+        const hasNextLevel = this.currentLevelIndex < LEVELS.length - 1;
+        const nextLevelIndex = this.currentLevelIndex + 1;
+
         const overlay = document.createElement('div');
         overlay.id = 'victory-overlay';
         overlay.innerHTML = `
+            <div class="victory-particles"></div>
             <div class="victory-content">
-                <h1>VICTOIRE!</h1>
-                <p>Niveau ${this.currentLevel?.name || '1'} termine!</p>
-                <p class="sub">Tous les ennemis ont ete vaincus</p>
+                <h1>VICTOIRE</h1>
+                <div class="victory-divider"></div>
+                <p class="level-name">${this.currentLevel?.name || 'Unknown'}</p>
+                <p class="sub">Tous les ennemis ont été vaincus</p>
+                ${hasNextLevel ? `
+                    <button id="next-level-btn">Niveau Suivant</button>
+                ` : `
+                    <p class="complete">Félicitations ! Vous avez terminé le jeu !</p>
+                    <button id="restart-btn">Rejouer</button>
+                `}
             </div>
-        `;
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            animation: fadeIn 0.5s ease-out;
         `;
 
         const style = document.createElement('style');
         style.textContent = `
-            @keyframes fadeIn {
+            #victory-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: radial-gradient(ellipse at center, rgba(20, 15, 0, 0.95) 0%, rgba(0, 0, 0, 0.98) 100%);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                animation: victoryFadeIn 0.8s ease-out forwards;
+            }
+            @keyframes victoryFadeIn {
                 from { opacity: 0; }
                 to { opacity: 1; }
+            }
+            .victory-particles {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-image:
+                    radial-gradient(2px 2px at 20% 30%, #ffd700, transparent),
+                    radial-gradient(2px 2px at 40% 70%, #ffaa00, transparent),
+                    radial-gradient(2px 2px at 60% 20%, #ffd700, transparent),
+                    radial-gradient(2px 2px at 80% 60%, #ffaa00, transparent),
+                    radial-gradient(3px 3px at 10% 80%, #ffd700, transparent),
+                    radial-gradient(3px 3px at 90% 40%, #ffaa00, transparent);
+                animation: sparkle 3s ease-in-out infinite;
+            }
+            @keyframes sparkle {
+                0%, 100% { opacity: 0.3; transform: scale(1); }
+                50% { opacity: 0.8; transform: scale(1.1); }
             }
             .victory-content {
                 text-align: center;
                 color: #ffd700;
-                font-family: 'Georgia', serif;
+                font-family: 'Montaga', 'Georgia', serif;
+                position: relative;
+                z-index: 1;
             }
             .victory-content h1 {
-                font-size: 4rem;
-                margin-bottom: 1rem;
-                text-shadow: 0 0 20px #ffd700, 0 0 40px #ff8c00;
+                font-size: 5rem;
+                margin: 0;
+                letter-spacing: 0.3em;
+                text-shadow: 0 0 30px #ffd700, 0 0 60px #ff8c00, 0 0 90px #ff6600;
+                opacity: 0;
+                animation: victoryTitle 1s ease-out 0.3s forwards;
             }
-            .victory-content p {
-                font-size: 1.5rem;
+            @keyframes victoryTitle {
+                from { transform: translateY(-30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .victory-divider {
+                width: 0;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #ffd700, transparent);
+                margin: 1.5rem auto;
+                animation: victoryDivider 1s ease-out 0.5s forwards;
+            }
+            @keyframes victoryDivider {
+                from { width: 0; opacity: 0; }
+                to { width: 200px; opacity: 1; }
+            }
+            .victory-content .level-name {
+                font-size: 1.8rem;
                 color: #fff;
                 margin: 0.5rem 0;
+                font-style: italic;
+                opacity: 0;
+                animation: victoryText 0.8s ease-out 0.6s forwards;
             }
             .victory-content .sub {
                 font-size: 1rem;
-                color: #aaa;
+                color: #888;
+                margin-top: 0.5rem;
+                opacity: 0;
+                animation: victoryText 0.8s ease-out 0.7s forwards;
+            }
+            @keyframes victoryText {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .victory-content .complete {
+                font-size: 1.3rem;
+                color: #ffd700;
+                margin-top: 1.5rem;
+            }
+            .victory-content button {
+                margin-top: 2.5rem;
+                padding: 1rem 2.5rem;
+                font-size: 1.2rem;
+                font-family: 'Montaga', 'Georgia', serif;
+                background: linear-gradient(180deg, #ffd700 0%, #cc9900 50%, #aa7700 100%);
+                color: #1a1000;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+                opacity: 0;
+                animation: victoryBtn 0.8s ease-out 0.9s forwards;
+            }
+            @keyframes victoryBtn {
+                from { transform: translateY(30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .victory-content button:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+                background: linear-gradient(180deg, #ffe44d 0%, #ddaa00 50%, #bb8800 100%);
             }
         `;
 
         document.head.appendChild(style);
         document.body.appendChild(overlay);
+
+        // Add event listeners
+        if (hasNextLevel) {
+            document.getElementById('next-level-btn')?.addEventListener('click', () => {
+                window.location.href = `${window.location.pathname}?level=${nextLevelIndex}`;
+            });
+        } else {
+            document.getElementById('restart-btn')?.addEventListener('click', () => {
+                window.location.href = window.location.pathname;
+            });
+        }
     }
 
     private updateHealthUI(): void {
@@ -283,31 +404,42 @@ export class DungeonScene {
             healthBar.style.cssText = `
                 position: fixed;
                 bottom: 20px;
-                left: 20px;
-                width: 200px;
-                height: 20px;
-                background: #333;
-                border: 2px solid #666;
-                border-radius: 10px;
-                overflow: hidden;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 250px;
+                height: 8px;
+                background: #1a0a0a;
+                border: 2px solid #555;
+                border-radius: 3px;
+                overflow: visible;
             `;
 
             const style = document.createElement('style');
             style.textContent = `
                 #health-bar .health-fill {
                     height: 100%;
-                    background: linear-gradient(to right, #ff0000, #ff4444);
+                    background: linear-gradient(to right, #4a0000, #8b0000);
                     transition: width 0.3s ease;
+                    border-radius: 2px;
+                    position: relative;
+                }
+                #health-bar .health-fill::after {
+                    content: '';
+                    position: absolute;
+                    right: -1px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 2px;
+                    height: 10px;
+                    background: #ffd700;
+                    border-radius: 1px;
+                    box-shadow: 0 0 6px #ffd700, 0 0 12px #ffaa00, 0 0 20px #ff8800;
+                }
+                #health-bar.full .health-fill::after {
+                    display: none;
                 }
                 #health-bar .health-text {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    color: white;
-                    font-size: 12px;
-                    font-weight: bold;
-                    text-shadow: 1px 1px 2px black;
+                    display: none;
                 }
             `;
             document.head.appendChild(style);
@@ -315,10 +447,15 @@ export class DungeonScene {
         }
 
         const fill = healthBar.querySelector('.health-fill') as HTMLElement;
-        const text = healthBar.querySelector('.health-text') as HTMLElement;
         const percent = Math.max(0, this.playerHealth);
         fill.style.width = `${percent}%`;
-        text.textContent = `${percent}/100`;
+
+        // Hide glow when at full health
+        if (percent >= 100) {
+            healthBar.classList.add('full');
+        } else {
+            healthBar.classList.remove('full');
+        }
     }
 
     private handlePlayerDeath(): void {
@@ -327,57 +464,125 @@ export class DungeonScene {
         const overlay = document.createElement('div');
         overlay.id = 'death-overlay';
         overlay.innerHTML = `
+            <div class="death-vignette"></div>
             <div class="death-content">
                 <h1>MORT</h1>
-                <p>Vous avez ete vaincu...</p>
-                <button onclick="location.reload()">Reessayer</button>
+                <div class="death-divider"></div>
+                <p>Vous avez été vaincu...</p>
+                <button id="retry-btn">
+                    <span>Réessayer</span>
+                </button>
             </div>
-        `;
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(80, 0, 0, 0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
         `;
 
         const style = document.createElement('style');
         style.textContent = `
+            #death-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: radial-gradient(ellipse at center, rgba(40, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.98) 100%);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                animation: deathFadeIn 1.5s ease-out forwards;
+            }
+            @keyframes deathFadeIn {
+                0% { opacity: 0; }
+                30% { opacity: 0; }
+                100% { opacity: 1; }
+            }
+            .death-vignette {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                box-shadow: inset 0 0 200px rgba(100, 0, 0, 0.8);
+                pointer-events: none;
+            }
             .death-content {
                 text-align: center;
-                color: #ff4444;
-                font-family: 'Georgia', serif;
+                color: #aa0000;
+                font-family: 'Montaga', 'Georgia', serif;
+                position: relative;
+                z-index: 1;
             }
             .death-content h1 {
-                font-size: 4rem;
-                margin-bottom: 1rem;
+                font-size: 6rem;
+                margin: 0;
+                letter-spacing: 0.5em;
+                color: #8b0000;
+                text-shadow: 0 0 20px #ff0000, 0 0 40px #aa0000, 0 4px 0 #330000;
+                animation: deathTitle 1.2s ease-out 0.3s forwards;
+                opacity: 0;
+            }
+            @keyframes deathTitle {
+                0% { transform: scale(2); opacity: 0; letter-spacing: 1em; }
+                100% { transform: scale(1); opacity: 1; letter-spacing: 0.5em; }
+            }
+            .death-divider {
+                width: 0;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #8b0000, transparent);
+                margin: 1.5rem auto;
+                animation: deathDivider 1s ease-out 0.8s forwards;
+            }
+            @keyframes deathDivider {
+                from { width: 0; opacity: 0; }
+                to { width: 150px; opacity: 1; }
             }
             .death-content p {
-                font-size: 1.5rem;
-                color: #fff;
-                margin-bottom: 2rem;
+                font-size: 1.4rem;
+                color: #666;
+                margin: 0;
+                font-style: italic;
+                opacity: 0;
+                animation: deathText 0.8s ease-out 1s forwards;
+            }
+            @keyframes deathText {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
             }
             .death-content button {
-                padding: 1rem 2rem;
+                margin-top: 2.5rem;
+                padding: 1rem 2.5rem;
                 font-size: 1.2rem;
-                background: #8b0000;
-                color: white;
-                border: 2px solid #ff4444;
-                border-radius: 5px;
+                font-family: 'Montaga', 'Georgia', serif;
+                background: linear-gradient(180deg, #4a0000 0%, #2a0000 50%, #1a0000 100%);
+                color: #cc4444;
+                border: 2px solid #660000;
+                border-radius: 4px;
                 cursor: pointer;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(100, 0, 0, 0.5), inset 0 1px 0 rgba(255, 100, 100, 0.1);
+                opacity: 0;
+                animation: deathBtn 0.8s ease-out 1.2s forwards;
+            }
+            @keyframes deathBtn {
+                from { transform: translateY(30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
             }
             .death-content button:hover {
-                background: #a00000;
+                transform: translateY(-3px);
+                background: linear-gradient(180deg, #5a0000 0%, #3a0000 50%, #2a0000 100%);
+                border-color: #880000;
+                color: #ff6666;
+                box-shadow: 0 8px 25px rgba(150, 0, 0, 0.6), inset 0 1px 0 rgba(255, 100, 100, 0.2);
             }
         `;
 
         document.head.appendChild(style);
         document.body.appendChild(overlay);
+
+        document.getElementById('retry-btn')?.addEventListener('click', () => {
+            location.reload();
+        });
     }
 
     private setupGUI(): void {
