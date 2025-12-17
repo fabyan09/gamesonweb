@@ -307,18 +307,22 @@
     ],
 
     "enemies": [
-        { "type": "vampire", "position": { "x": -10, "y": 0, "z": -20 }, "health": 60, "damage": 12 },
-        { "type": "vampire", "position": { "x": 10, "y": 0, "z": -20 }, "health": 60, "damage": 12 },
+        { "type": "vampire", "position": { "x": -10, "y": 0, "z": -20 } },
+        { "type": "vampire", "position": { "x": 10, "y": 0, "z": -20 } },
 
-        { "type": "vampire", "position": { "x": -18, "y": 0, "z": -4 }, "health": 70, "damage": 15 },
-        { "type": "vampire", "position": { "x": 18, "y": 0, "z": -4 }, "health": 70, "damage": 15 },
+        { "type": "parasite", "position": { "x": -18, "y": 0, "z": -4 } },
+        { "type": "parasite", "position": { "x": 18, "y": 0, "z": -4 } },
 
-        { "type": "vampire", "position": { "x": -10, "y": 0, "z": 16 }, "health": 80, "damage": 15 },
-        { "type": "vampire", "position": { "x": 10, "y": 0, "z": 16 }, "health": 80, "damage": 15 },
+        { "type": "mutant", "position": { "x": -10, "y": 0, "z": 0 } },
+        { "type": "mutant", "position": { "x": 10, "y": 0, "z": 0 } },
 
-        { "type": "vampire", "position": { "x": -6, "y": 0, "z": 22 }, "health": 100, "damage": 20 },
-        { "type": "vampire", "position": { "x": 6, "y": 0, "z": 22 }, "health": 100, "damage": 20 },
-        { "type": "vampire", "position": { "x": 0, "y": 0, "z": 20 }, "health": 150, "damage": 25 }
+        { "type": "skeletonzombie", "position": { "x": -10, "y": 0, "z": 16 } },
+        { "type": "skeletonzombie", "position": { "x": 10, "y": 0, "z": 16 } },
+
+        { "type": "parasite", "position": { "x": -6, "y": 0, "z": 22 } },
+        { "type": "parasite", "position": { "x": 6, "y": 0, "z": 22 } },
+
+        { "type": "warrok", "position": { "x": 0, "y": 0, "z": 20 } }
     ],
 
     "cameraBounds": {

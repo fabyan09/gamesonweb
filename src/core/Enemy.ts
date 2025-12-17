@@ -9,15 +9,25 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture';
 import { Rectangle } from '@babylonjs/gui/2D/controls/rectangle';
 import '@babylonjs/loaders/glTF';
+import { EnemyTypeName, EnemyTypeConfig, getEnemyTypeConfig } from './EnemyTypes';
 
 export interface EnemyConfig {
     position: Vector3;
+    /** Enemy type (vampire, parasite, mutant, skeletonzombie, warrok) */
+    type?: EnemyTypeName | string;
+    /** Override default scale */
     scale?: number;
+    /** Override default health */
     health?: number;
+    /** Override default damage */
     damage?: number;
+    /** Override default move speed */
     moveSpeed?: number;
+    /** Override default attack range */
     attackRange?: number;
+    /** Override default detection range */
     detectionRange?: number;
+    /** Override default attack cooldown */
     attackCooldown?: number;
 }
 
@@ -51,8 +61,10 @@ export class Enemy {
     private currentAnimation: AnimationGroup | null = null;
     private currentAnimationName: EnemyAnimationName | null = null;
 
-    private config: Required<EnemyConfig>;
+    private config: Required<Omit<EnemyConfig, 'type'>> & { type: string };
+    private typeConfig: EnemyTypeConfig;
     private health: number;
+    private maxHealth: number;
     private state: EnemyState = 'idle';
     private target: TransformNode | null = null;
     private lastAttackTime: number = 0;
@@ -70,29 +82,40 @@ export class Enemy {
 
     constructor(scene: Scene, config: EnemyConfig) {
         this.scene = scene;
+
+        // Get type configuration (defaults to vampire)
+        this.typeConfig = getEnemyTypeConfig(config.type);
+
+        // Merge type defaults with config overrides
         this.config = {
             position: config.position,
-            scale: config.scale ?? 1,
-            health: config.health ?? 100,
-            damage: config.damage ?? 10,
-            moveSpeed: config.moveSpeed ?? 0.04,
-            attackRange: config.attackRange ?? 2,
-            detectionRange: config.detectionRange ?? 10,
-            attackCooldown: config.attackCooldown ?? 1500
+            type: config.type ?? 'vampire',
+            scale: config.scale ?? this.typeConfig.scale,
+            health: config.health ?? this.typeConfig.health,
+            damage: config.damage ?? this.typeConfig.damage,
+            moveSpeed: config.moveSpeed ?? this.typeConfig.moveSpeed,
+            attackRange: config.attackRange ?? this.typeConfig.attackRange,
+            detectionRange: config.detectionRange ?? this.typeConfig.detectionRange,
+            attackCooldown: config.attackCooldown ?? this.typeConfig.attackCooldown
         };
+
         this.health = this.config.health;
+        this.maxHealth = this.config.health;
     }
 
     async load(basePath: string): Promise<void> {
-        // Load vampire mesh
+        // Load enemy mesh based on type
+        const modelFile = this.typeConfig.modelFile;
+        console.log(`[Enemy] Loading ${this.typeConfig.name} (${modelFile})`);
+
         const characterResult = await SceneLoader.ImportMeshAsync(
             '',
             basePath,
-            'Vampire A Lusth.glb',
+            modelFile,
             this.scene
         );
 
-        console.log(`[Enemy] Loaded meshes:`, characterResult.meshes.map(m => m.name));
+        console.log(`[Enemy] Loaded ${this.typeConfig.name} meshes:`, characterResult.meshes.map(m => m.name));
         console.log(`[Enemy] Loaded transform nodes:`, characterResult.transformNodes.map(n => n.name));
 
         // Create root node for movement
@@ -125,8 +148,8 @@ export class Enemy {
             this.transformNodes.set(node.name, node);
         });
 
-        console.log(`[Enemy] Position: ${this.rootNode.position}, Scale: ${this.config.scale}`);
-        console.log(`[Enemy] Loaded vampire with ${this.transformNodes.size} transform nodes`);
+        console.log(`[Enemy] ${this.typeConfig.name} at ${this.rootNode.position}, Scale: ${this.config.scale}`);
+        console.log(`[Enemy] Loaded ${this.typeConfig.name} with ${this.transformNodes.size} transform nodes`);
 
         // Load animations
         await this.loadAnimation(basePath, 'mutant idle.glb', 'idle');
@@ -143,7 +166,7 @@ export class Enemy {
         // Register update loop
         this.scene.onBeforeRenderObservable.add(() => this.update());
 
-        console.log('[Enemy] Enemy loaded successfully');
+        console.log(`[Enemy] ${this.typeConfig.name} loaded successfully`);
     }
 
     private createHealthBar(): void {
@@ -155,7 +178,7 @@ export class Enemy {
             height: 0.08
         }, this.scene);
         this.healthBarMesh.parent = this.rootNode;
-        this.healthBarMesh.position = new Vector3(0, 2.3, 0); // Above enemy head
+        this.healthBarMesh.position = new Vector3(0, this.typeConfig.healthBarHeight, 0); // Above enemy head
         this.healthBarMesh.billboardMode = Mesh.BILLBOARDMODE_ALL; // Always face camera
 
         // Create GUI texture on the plane
@@ -206,14 +229,14 @@ export class Enemy {
     private updateHealthBar(): void {
         if (!this.healthBarFill || !this.healthBarGlow) return;
 
-        const healthPercent = Math.max(0, this.health / this.config.health);
+        const healthPercent = Math.max(0, this.health / this.maxHealth);
         this.healthBarFill.width = `${healthPercent * 100}%`;
 
         // Hide glow when at full health
         this.healthBarGlow.isVisible = healthPercent < 1;
 
-        // Dark blood red gradient
-        this.healthBarFill.background = '#8b0000';
+        // Use type-specific health bar color
+        this.healthBarFill.background = this.typeConfig.healthBarColor;
     }
 
     private async loadAnimation(basePath: string, filename: string, name: EnemyAnimationName): Promise<void> {
@@ -399,7 +422,7 @@ export class Enemy {
     private die(): void {
         this.state = 'dead';
         this.playAnimation('death', false);
-        console.log('[Enemy] Enemy died');
+        console.log(`[Enemy] ${this.typeConfig.name} died`);
 
         // Hide health bar when dead
         if (this.healthBarMesh) {
@@ -443,6 +466,14 @@ export class Enemy {
 
     get rootMesh(): TransformNode | null {
         return this.rootNode;
+    }
+
+    get enemyType(): string {
+        return this.config.type;
+    }
+
+    get typeName(): string {
+        return this.typeConfig.name;
     }
 
     dispose(): void {

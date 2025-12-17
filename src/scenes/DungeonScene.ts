@@ -166,9 +166,9 @@ export class DungeonScene {
                     enemySpawn.position.y,
                     enemySpawn.position.z
                 ),
+                type: enemySpawn.type,
                 health: enemySpawn.health,
-                damage: enemySpawn.damage,
-                scale: 1
+                damage: enemySpawn.damage
             });
 
             await enemy.load(enemyBasePath);

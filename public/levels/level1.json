@@ -168,9 +168,15 @@
     "enemies": [
         {
             "type": "vampire",
-            "position": { "x": 0, "y": 0, "z": 10 },
-            "health": 50,
-            "damage": 10
+            "position": { "x": -8, "y": 0, "z": 8 }
+        },
+        {
+            "type": "vampire",
+            "position": { "x": 8, "y": 0, "z": 8 }
+        },
+        {
+            "type": "parasite",
+            "position": { "x": 0, "y": 0, "z": 14 }
         }
     ],
 
