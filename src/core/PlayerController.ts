@@ -113,11 +113,12 @@ export class PlayerController {
     private readonly jumpForce = 0.14;
     private groundY = 0;
 
-    // Crouch offset (how much to lower the mesh when crouching)
-    private readonly crouchMeshOffset = -0.5;
+    // Mesh Y offsets
+    private readonly standingMeshY = -0.08;  // Slight offset to plant feet on ground
+    private readonly crouchMeshOffset = -0.5;  // Additional offset when crouching
     private readonly standingEllipsoid = new Vector3(0.4, 0.9, 0.4);
     private readonly crouchingEllipsoid = new Vector3(0.4, 0.5, 0.4);
-    private targetMeshY = 0;  // Target Y position for smooth crouch transition
+    private targetMeshY = -0.08;  // Target Y position for smooth crouch transition
     private readonly crouchTransitionSpeed = 0.09;  // How fast to interpolate (0-1 per frame)
 
     // Attack callback
@@ -167,7 +168,7 @@ export class PlayerController {
 
         this.mesh = characterResult.meshes[0];
         this.mesh.parent = this.rootNode;
-        this.mesh.position = Vector3.Zero(); // Reset position since parent handles it
+        this.mesh.position = new Vector3(0, this.standingMeshY, 0); // Slight Y offset to plant feet on ground
         this.mesh.scaling.setAll(this.config.scale);
 
         // Get skeleton
@@ -464,10 +465,24 @@ export class PlayerController {
 
             const observer = this.scene.onBeforeRenderObservable.add(checkHit);
 
+            // Safety timeout - reset isAttacking after 2 seconds max
+            const safetyTimeout = setTimeout(() => {
+                if (this.isAttacking) {
+                    console.warn('[PlayerController] Attack animation timeout - forcing reset');
+                    this.isAttacking = false;
+                    this.scene.onBeforeRenderObservable.remove(observer);
+                }
+            }, 2000);
+
             currentAttackAnim.onAnimationEndObservable.addOnce(() => {
+                clearTimeout(safetyTimeout);
                 this.isAttacking = false;
                 this.scene.onBeforeRenderObservable.remove(observer);
             });
+        } else {
+            // Animation doesn't exist - reset immediately
+            console.warn(`[PlayerController] Attack animation '${attackAnim}' not found - resetting`);
+            this.isAttacking = false;
         }
     }
 
@@ -518,7 +533,16 @@ export class PlayerController {
 
             const anim = this.animations[blockAnim];
             if (anim) {
+                // Safety timeout - switch to blockIdle after max time
+                const safetyTimeout = setTimeout(() => {
+                    if (this.isBlocking && this.currentAnimationName === blockAnim) {
+                        console.warn('[PlayerController] Block animation timeout - switching to blockIdle');
+                        this.playAnimation(blockIdleAnim, true);
+                    }
+                }, 2000);
+
                 anim.onAnimationEndObservable.addOnce(() => {
+                    clearTimeout(safetyTimeout);
                     // Only switch to blockIdle if still blocking
                     if (this.isBlocking) {
                         this.playAnimation(blockIdleAnim, true);
@@ -533,7 +557,17 @@ export class PlayerController {
             if (!this.isCrouching && this.animations.blockEnd) {
                 this.isBlockEnding = true;  // Prevent update() from overriding
                 this.playAnimation('blockEnd', false);
+
+                // Safety timeout for blockEnd
+                const safetyTimeout = setTimeout(() => {
+                    if (this.isBlockEnding) {
+                        console.warn('[PlayerController] BlockEnd animation timeout - forcing reset');
+                        this.isBlockEnding = false;
+                    }
+                }, 2000);
+
                 this.animations.blockEnd.onAnimationEndObservable.addOnce(() => {
+                    clearTimeout(safetyTimeout);
                     this.isBlockEnding = false;
                     // Return to random idle after block end animation
                     if (!this.isBlocking && !this.isAttacking) {
@@ -571,7 +605,7 @@ export class PlayerController {
 
         // Set target for smooth transition after small delay (wait for animation to start)
         setTimeout(() => {
-            this.targetMeshY = this.crouchMeshOffset;
+            this.targetMeshY = this.standingMeshY + this.crouchMeshOffset;
         }, 200);
 
         // Reduce collider size for crouching
@@ -580,9 +614,20 @@ export class PlayerController {
             this.colliderMesh.ellipsoidOffset = new Vector3(0, 0.5, 0);
         }
 
+        // Safety timeout for crouch transition
+        const safetyTimeout = setTimeout(() => {
+            if (this.isCrouchTransitioning) {
+                console.warn('[PlayerController] Crouch animation timeout - forcing completion');
+                this.isCrouching = true;
+                this.isCrouchTransitioning = false;
+                this.updateCrouchMetadata();
+            }
+        }, 2000);
+
         // When crouch animation ends, switch to crouch idle
         if (this.animations.crouch) {
             this.animations.crouch.onAnimationEndObservable.addOnce(() => {
+                clearTimeout(safetyTimeout);
                 this.isCrouching = true;
                 this.isCrouchTransitioning = false;
                 this.updateCrouchMetadata();
@@ -594,6 +639,7 @@ export class PlayerController {
                 }
             });
         } else {
+            clearTimeout(safetyTimeout);
             this.isCrouching = true;
             this.isCrouchTransitioning = false;
             this.updateCrouchMetadata();
@@ -608,7 +654,7 @@ export class PlayerController {
 
         // Set target for smooth transition after small delay (wait for animation to start)
         setTimeout(() => {
-            this.targetMeshY = 0;
+            this.targetMeshY = this.standingMeshY;
         }, 100);
 
         // Restore collider size for standing
@@ -617,9 +663,20 @@ export class PlayerController {
             this.colliderMesh.ellipsoidOffset = new Vector3(0, 0.9, 0);
         }
 
+        // Safety timeout for stand up transition
+        const safetyTimeout = setTimeout(() => {
+            if (this.isCrouchTransitioning) {
+                console.warn('[PlayerController] StandUp animation timeout - forcing completion');
+                this.isCrouching = false;
+                this.isCrouchTransitioning = false;
+                this.updateCrouchMetadata();
+            }
+        }, 2000);
+
         // When stand up animation ends, return to normal idle
         if (this.animations.crouchStandUp) {
             this.animations.crouchStandUp.onAnimationEndObservable.addOnce(() => {
+                clearTimeout(safetyTimeout);
                 this.isCrouching = false;
                 this.isCrouchTransitioning = false;
                 this.updateCrouchMetadata();
@@ -630,6 +687,7 @@ export class PlayerController {
                 }
             });
         } else {
+            clearTimeout(safetyTimeout);
             this.isCrouching = false;
             this.isCrouchTransitioning = false;
             this.updateCrouchMetadata();
@@ -679,7 +737,10 @@ export class PlayerController {
         }
 
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
-        const speed = this.keys.run ? this.config.runSpeed : this.config.walkSpeed;
+        // Crouch speed is much slower (30% of walk speed)
+        const speed = this.isCrouching
+            ? this.config.walkSpeed * 0.3
+            : (this.keys.run ? this.config.runSpeed : this.config.walkSpeed);
 
         // Get camera angle for movement
         const cameraAngle = this.camera ? -this.camera.alpha - Math.PI / 2 : 0;

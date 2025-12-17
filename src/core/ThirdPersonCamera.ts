@@ -1,5 +1,5 @@
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector2, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Scene } from '@babylonjs/core/scene';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { GameSettings } from './GameSettings';
@@ -28,10 +28,14 @@ export class ThirdPersonCamera {
     private currentTarget: Vector3 = Vector3.Zero();
     private bounds: { minX: number; maxX: number; minZ: number; maxZ: number; maxY: number } | null = null;
 
+    // Over-the-shoulder offset (right shoulder)
+    private readonly shoulderOffsetX = 0.6;  // Décalage à droite
+    private readonly shoulderOffsetY = 1.6;  // Hauteur de l'épaule
+
     constructor(scene: Scene, canvas: HTMLCanvasElement, config: ThirdPersonCameraConfig = {}) {
-        const distance = config.distance ?? 5;
-        this.heightOffset = config.heightOffset ?? 1.5;
-        this.followSpeed = config.followSpeed ?? 0.1;
+        const distance = config.distance ?? 3;  // Encore plus proche
+        this.heightOffset = config.heightOffset ?? 1.6;
+        this.followSpeed = config.followSpeed ?? 0.15;  // Plus réactif
 
         // Get sensitivity from settings
         const settings = GameSettings.getInstance();
@@ -41,28 +45,32 @@ export class ThirdPersonCamera {
         this.camera = new ArcRotateCamera(
             'thirdPersonCamera',
             -Math.PI / 2,  // alpha (horizontal rotation)
-            Math.PI / 3,   // beta (vertical angle)
-            distance,       // radius (distance from target)
+            Math.PI / 2.8, // beta - angle plus horizontal pour OTS
+            distance,
             new Vector3(0, this.heightOffset, 0),
             scene
         );
 
         this.camera.attachControl(canvas, true);
 
-        // Camera settings
-        this.camera.lowerRadiusLimit = config.lowerRadiusLimit ?? 2;
-        this.camera.upperRadiusLimit = config.upperRadiusLimit ?? 8;
-        this.camera.lowerBetaLimit = 0.3;  // Empêche de regarder trop vers le haut
-        this.camera.upperBetaLimit = Math.PI / 2.5;  // Empêche de regarder trop vers le bas
+        // Camera settings - Style Over The Shoulder
+        this.camera.lowerRadiusLimit = config.lowerRadiusLimit ?? 2.5;
+        this.camera.upperRadiusLimit = config.upperRadiusLimit ?? 5;
+        this.camera.lowerBetaLimit = Math.PI / 3;     // Limite angle vers le haut
+        this.camera.upperBetaLimit = Math.PI / 2.2;   // Limite angle vers le bas (plus restreint)
         this.camera.angularSensibilityX = sensitivity;
-        this.camera.angularSensibilityY = sensitivity;
-        this.camera.panningSensibility = 0; // Disable panning
-        this.camera.inertia = 0.7;
+        this.camera.angularSensibilityY = sensitivity * 1.5;  // Moins sensible verticalement
+        this.camera.panningSensibility = 0;
+        this.camera.inertia = 0.85;  // Plus d'inertie pour smoothness
         this.camera.minZ = 0.1;
 
-        // Collision de caméra - empêche de traverser les murs
+        // Target screen offset - décale le point de visée vers la gauche
+        // pour que le personnage soit à droite de l'écran
+        this.camera.targetScreenOffset = new Vector2(-0.8, 0);
+
+        // Collision de caméra
         this.camera.checkCollisions = true;
-        this.camera.collisionRadius = new Vector3(0.5, 0.5, 0.5);
+        this.camera.collisionRadius = new Vector3(0.3, 0.3, 0.3);
 
         // Limites de la caméra (bornes du donjon)
         if (config.bounds) {
@@ -88,9 +96,9 @@ export class ThirdPersonCamera {
 
     update(): void {
         if (this.target) {
-            // Calculate desired target position
+            // Calculate desired target position (at shoulder height)
             const desiredTarget = this.target.position.clone();
-            desiredTarget.y += this.heightOffset;
+            desiredTarget.y += this.shoulderOffsetY;
 
             // Smoothly interpolate to desired position
             this.currentTarget = Vector3.Lerp(this.currentTarget, desiredTarget, this.followSpeed);
@@ -149,6 +157,6 @@ export class ThirdPersonCamera {
     updateSensitivity(): void {
         const settings = GameSettings.getInstance();
         this.camera.angularSensibilityX = settings.cameraSensitivity;
-        this.camera.angularSensibilityY = settings.cameraSensitivity;
+        this.camera.angularSensibilityY = settings.cameraSensitivity * 1.5;
     }
 }

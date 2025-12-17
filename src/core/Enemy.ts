@@ -31,7 +31,7 @@ export interface EnemyConfig {
     attackCooldown?: number;
 }
 
-type EnemyAnimationName = 'idle' | 'walk' | 'attack' | 'death' | 'celebrate';
+type EnemyAnimationName = 'idle' | 'walk' | 'attack' | 'death' | 'celebrate' | 'jump';
 
 interface EnemyAnimationSet {
     idle: AnimationGroup | null;
@@ -39,6 +39,7 @@ interface EnemyAnimationSet {
     attack: AnimationGroup | null;
     death: AnimationGroup | null;
     celebrate: AnimationGroup | null;
+    jump: AnimationGroup | null;
 }
 
 export type EnemyState = 'idle' | 'chasing' | 'attacking' | 'dead' | 'celebrating';
@@ -58,10 +59,20 @@ export class Enemy {
         walk: null,
         attack: null,
         death: null,
-        celebrate: null
+        celebrate: null,
+        jump: null
     };
     private currentAnimation: AnimationGroup | null = null;
     private currentAnimationName: EnemyAnimationName | null = null;
+
+    // Jump over obstacles
+    private isJumping: boolean = false;
+    private jumpVelocityY: number = 0;
+    private jumpStartY: number = 0;
+    private previousPosition: Vector3 = Vector3.Zero();
+    private stuckFrames: number = 0;
+    private readonly jumpForce: number = 0.15;
+    private readonly gravity: number = -0.008;
 
     private config: Required<Omit<EnemyConfig, 'type'>> & { type: string };
     private typeConfig: EnemyTypeConfig;
@@ -159,6 +170,7 @@ export class Enemy {
         await this.loadAnimation(basePath, 'mutant swiping.glb', 'attack');
         await this.loadAnimation(basePath, 'mutant dying.glb', 'death');
         await this.loadAnimation(basePath, 'mutant jumping.glb', 'celebrate');
+        await this.loadAnimation(basePath, 'mutant jumping.glb', 'jump');
 
         // Start with idle
         this.playAnimation('idle', true);
@@ -317,6 +329,12 @@ export class Enemy {
         // Don't update if game is paused
         if (this.scene.metadata?.isPaused) return;
 
+        // Handle jumping physics
+        if (this.isJumping) {
+            this.updateJump();
+            return; // Don't do normal AI while jumping
+        }
+
         if (!this.target) {
             this.playAnimation('idle', true);
             return;
@@ -359,9 +377,12 @@ export class Enemy {
     }
 
     private chaseTarget(): void {
-        if (!this.rootNode || !this.target || this.isAttacking || !this.colliderMesh) return;
+        if (!this.rootNode || !this.target || this.isAttacking || !this.colliderMesh || this.isJumping) return;
 
         this.faceTarget();
+
+        // Save position before movement to detect if stuck
+        const posBeforeMove = this.colliderMesh.position.clone();
 
         // Move towards target
         const direction = this.target.position.subtract(this.rootNode.position);
@@ -376,7 +397,62 @@ export class Enemy {
         this.rootNode.position.x = this.colliderMesh.position.x;
         this.rootNode.position.z = this.colliderMesh.position.z;
 
-        this.playAnimation('walk', true);
+        // Check if stuck (position barely changed but we're trying to move)
+        const movedDistance = Vector3.Distance(posBeforeMove, this.colliderMesh.position);
+        const expectedDistance = this.config.moveSpeed * 0.8; // 80% of expected movement
+
+        if (movedDistance < expectedDistance * 0.1) {
+            // Barely moved - might be stuck
+            this.stuckFrames++;
+            if (this.stuckFrames > 15) { // Stuck for 15+ frames, try to jump
+                this.startJump(direction);
+                this.stuckFrames = 0;
+            }
+        } else {
+            this.stuckFrames = 0;
+        }
+
+        if (!this.isJumping) {
+            this.playAnimation('walk', true);
+        }
+    }
+
+    private startJump(direction: Vector3): void {
+        if (this.isJumping || !this.rootNode || !this.colliderMesh) return;
+
+        this.isJumping = true;
+        this.jumpVelocityY = this.jumpForce;
+        this.jumpStartY = this.rootNode.position.y;
+        this.playAnimation('jump', false);
+
+        // Store direction for forward movement during jump
+        this.previousPosition = direction.clone();
+    }
+
+    private updateJump(): void {
+        if (!this.rootNode || !this.colliderMesh) return;
+
+        // Apply gravity
+        this.jumpVelocityY += this.gravity;
+        this.rootNode.position.y += this.jumpVelocityY;
+        this.colliderMesh.position.y = this.rootNode.position.y;
+
+        // Move forward while jumping (to clear the obstacle)
+        const forwardSpeed = this.config.moveSpeed * 1.5;
+        const forwardVelocity = this.previousPosition.scale(forwardSpeed);
+        this.rootNode.position.x += forwardVelocity.x;
+        this.rootNode.position.z += forwardVelocity.z;
+        this.colliderMesh.position.x = this.rootNode.position.x;
+        this.colliderMesh.position.z = this.rootNode.position.z;
+
+        // Check if landed
+        if (this.rootNode.position.y <= this.jumpStartY) {
+            this.rootNode.position.y = this.jumpStartY;
+            this.colliderMesh.position.y = this.jumpStartY;
+            this.isJumping = false;
+            this.jumpVelocityY = 0;
+            this.playAnimation('walk', true);
+        }
     }
 
     private tryAttack(): void {
@@ -394,14 +470,30 @@ export class Enemy {
         this.playAnimation('attack', false);
 
         if (this.animations.attack) {
-            this.animations.attack.onAnimationEndObservable.addOnce(() => {
-                // Deal damage at end of attack animation
-                if (this.state !== 'dead' && this.target) {
-                    const dist = Vector3.Distance(this.rootNode!.position, this.target.position);
-                    if (dist <= this.config.attackRange * 1.5) {
-                        this.onPlayerHitCallback?.(this.config.damage);
+            // Deal damage at MIDPOINT of animation (when the hit visually lands)
+            const hitFrame = (this.animations.attack.from + this.animations.attack.to) / 2;
+            let hitTriggered = false;
+
+            const checkHit = () => {
+                if (!hitTriggered && this.animations.attack?.animatables[0]) {
+                    const currentFrame = this.animations.attack.animatables[0].masterFrame;
+                    if (currentFrame >= hitFrame) {
+                        hitTriggered = true;
+                        // Deal damage at midpoint
+                        if (this.state !== 'dead' && this.target) {
+                            const dist = Vector3.Distance(this.rootNode!.position, this.target.position);
+                            if (dist <= this.config.attackRange * 1.5) {
+                                this.onPlayerHitCallback?.(this.config.damage);
+                            }
+                        }
                     }
                 }
+            };
+
+            const observer = this.scene.onBeforeRenderObservable.add(checkHit);
+
+            this.animations.attack.onAnimationEndObservable.addOnce(() => {
+                this.scene.onBeforeRenderObservable.remove(observer);
                 this.isAttacking = false;
                 // Go back to idle after attack
                 if (this.state !== 'dead') {
