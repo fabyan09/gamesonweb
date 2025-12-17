@@ -724,6 +724,34 @@ export class DungeonScene {
 
         // Setup key binding listeners
         this.setupKeyBindingListeners();
+
+        // Setup toggle switches (for in-game settings)
+        document.getElementById('toggle-fps')?.addEventListener('click', (e) => {
+            (e.target as HTMLElement).classList.toggle('active');
+        });
+
+        document.getElementById('toggle-controls')?.addEventListener('click', (e) => {
+            (e.target as HTMLElement).classList.toggle('active');
+        });
+
+        // Setup slider value displays
+        document.getElementById('music-volume')?.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            const display = document.getElementById('music-value');
+            if (display) display.textContent = value;
+        });
+
+        document.getElementById('sfx-volume')?.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            const display = document.getElementById('sfx-value');
+            if (display) display.textContent = value;
+        });
+
+        document.getElementById('mouse-sensitivity')?.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            const display = document.getElementById('sensitivity-value');
+            if (display) display.textContent = value;
+        });
     }
 
     private setupKeyBindingListeners(): void {
