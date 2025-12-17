@@ -23,11 +23,19 @@ export interface PlayerConfig {
 
 interface AnimationSet {
     idle: AnimationGroup | null;
+    idle2: AnimationGroup | null;
+    idle3: AnimationGroup | null;
+    idle4: AnimationGroup | null;
     walk: AnimationGroup | null;
     run: AnimationGroup | null;
     attack: AnimationGroup | null;
+    attack2: AnimationGroup | null;  // slash
+    attack3: AnimationGroup | null;  // slash (3)
+    kick: AnimationGroup | null;
+    crouchAttack: AnimationGroup | null;  // slash (5)
     block: AnimationGroup | null;
     blockIdle: AnimationGroup | null;
+    blockEnd: AnimationGroup | null;  // block (2) - transition back to idle
     jump: AnimationGroup | null;
     death: AnimationGroup | null;
     crouch: AnimationGroup | null;
@@ -49,11 +57,19 @@ export class PlayerController {
     private colliderMesh: Mesh | null = null;
     private animations: AnimationSet = {
         idle: null,
+        idle2: null,
+        idle3: null,
+        idle4: null,
         walk: null,
         run: null,
         attack: null,
+        attack2: null,
+        attack3: null,
+        kick: null,
+        crouchAttack: null,
         block: null,
         blockIdle: null,
+        blockEnd: null,
         jump: null,
         death: null,
         crouch: null,
@@ -81,6 +97,7 @@ export class PlayerController {
     private velocity: Vector3 = Vector3.Zero();
     private isAttacking = false;
     private isBlocking = false;
+    private isBlockEnding = false;  // True while playing block end transition
     private isJumping = false;
     private isDead = false;
     private isCrouching = false;
@@ -177,11 +194,19 @@ export class PlayerController {
 
         // Load animations ('full' = remove all root motion, 'horizontal' = remove only X/Z, 'none' = keep all)
         await this.loadAnimation(basePath, 'sword and shield idle.glb', 'idle', 'full');
+        await this.loadAnimation(basePath, 'sword and shield idle (2).glb', 'idle2', 'full');
+        await this.loadAnimation(basePath, 'sword and shield idle (3).glb', 'idle3', 'full');
+        await this.loadAnimation(basePath, 'sword and shield idle (4).glb', 'idle4', 'full');
         await this.loadAnimation(basePath, 'sword and shield walk.glb', 'walk', 'full');
         await this.loadAnimation(basePath, 'sword and shield run.glb', 'run', 'full');
         await this.loadAnimation(basePath, 'sword and shield attack (4).glb', 'attack', 'full');
+        await this.loadAnimation(basePath, 'sword and shield slash.glb', 'attack2', 'full');
+        await this.loadAnimation(basePath, 'sword and shield slash (3).glb', 'attack3', 'full');
+        await this.loadAnimation(basePath, 'sword and shield kick.glb', 'kick', 'full');
+        await this.loadAnimation(basePath, 'sword and shield slash (5).glb', 'crouchAttack', 'full');
         await this.loadAnimation(basePath, 'sword and shield block.glb', 'block', 'full');
         await this.loadAnimation(basePath, 'sword and shield block idle.glb', 'blockIdle', 'full');
+        await this.loadAnimation(basePath, 'sword and shield block (2).glb', 'blockEnd', 'full');
         await this.loadAnimation(basePath, 'sword and shield jump.glb', 'jump', 'full');
         await this.loadAnimation(basePath, 'sword and shield death (2).glb', 'death', 'none');
 
@@ -399,16 +424,37 @@ export class PlayerController {
         if (this.isAttacking || !this.rootNode) return;
 
         this.isAttacking = true;
-        this.playAnimation('attack', false);
 
-        if (this.animations.attack) {
+        // Choose attack animation based on state and randomness
+        let attackAnim: AnimationName;
+        if (this.isCrouching) {
+            // Crouch attack always uses slash (5)
+            attackAnim = 'crouchAttack';
+        } else {
+            // Random attack: 30% attack(4), 30% slash, 30% slash(3), 10% kick
+            const rand = Math.random();
+            if (rand < 0.3) {
+                attackAnim = 'attack';      // 30%
+            } else if (rand < 0.6) {
+                attackAnim = 'attack2';     // 30% (slash)
+            } else if (rand < 0.9) {
+                attackAnim = 'attack3';     // 30% (slash 3)
+            } else {
+                attackAnim = 'kick';        // 10%
+            }
+        }
+
+        this.playAnimation(attackAnim, false);
+
+        const currentAttackAnim = this.animations[attackAnim];
+        if (currentAttackAnim) {
             // Trigger hit detection at animation midpoint
-            const hitFrame = (this.animations.attack.from + this.animations.attack.to) / 2;
+            const hitFrame = (currentAttackAnim.from + currentAttackAnim.to) / 2;
             let hitTriggered = false;
 
             const checkHit = () => {
-                if (!hitTriggered && this.animations.attack!.animatables[0]) {
-                    const currentFrame = this.animations.attack!.animatables[0].masterFrame;
+                if (!hitTriggered && currentAttackAnim.animatables[0]) {
+                    const currentFrame = currentAttackAnim.animatables[0].masterFrame;
                     if (currentFrame >= hitFrame) {
                         hitTriggered = true;
                         this.triggerAttackHit();
@@ -418,7 +464,7 @@ export class PlayerController {
 
             const observer = this.scene.onBeforeRenderObservable.add(checkHit);
 
-            this.animations.attack.onAnimationEndObservable.addOnce(() => {
+            currentAttackAnim.onAnimationEndObservable.addOnce(() => {
                 this.isAttacking = false;
                 this.scene.onBeforeRenderObservable.remove(observer);
             });
@@ -444,7 +490,23 @@ export class PlayerController {
         this.attackHitCallback = callback;
     }
 
+    /** Get a random idle animation: 70% idle, 10% each for idle2/3/4 */
+    private getRandomIdleAnim(): AnimationName {
+        const rand = Math.random();
+        if (rand < 0.7) {
+            return 'idle';
+        } else if (rand < 0.8) {
+            return 'idle2';
+        } else if (rand < 0.9) {
+            return 'idle3';
+        } else {
+            return 'idle4';
+        }
+    }
+
     private triggerBlock(active: boolean): void {
+        console.log(`[PlayerController] triggerBlock(${active}) - isBlocking: ${this.isBlocking}, isCrouching: ${this.isCrouching}, blockEnd exists: ${!!this.animations.blockEnd}`);
+
         if (active && !this.isBlocking) {
             this.isBlocking = true;
             // Play block animation once, then switch to blockIdle
@@ -463,8 +525,24 @@ export class PlayerController {
                     }
                 });
             }
-        } else if (!active) {
+        } else if (!active && this.isBlocking) {
+            console.log(`[PlayerController] -> Ending block, playing blockEnd animation`);
             this.isBlocking = false;
+
+            // Play block end transition animation before returning to idle
+            if (!this.isCrouching && this.animations.blockEnd) {
+                this.isBlockEnding = true;  // Prevent update() from overriding
+                this.playAnimation('blockEnd', false);
+                this.animations.blockEnd.onAnimationEndObservable.addOnce(() => {
+                    this.isBlockEnding = false;
+                    // Return to random idle after block end animation
+                    if (!this.isBlocking && !this.isAttacking) {
+                        this.playAnimation(this.getRandomIdleAnim(), true);
+                    }
+                });
+            } else {
+                console.log(`[PlayerController] -> blockEnd not played: isCrouching=${this.isCrouching}, blockEnd=${!!this.animations.blockEnd}`);
+            }
         }
     }
 
@@ -548,7 +626,7 @@ export class PlayerController {
                 if (this.isBlocking) {
                     this.playAnimation('blockIdle', true);
                 } else {
-                    this.playAnimation('idle', true);
+                    this.playAnimation(this.getRandomIdleAnim(), true);
                 }
             });
         } else {
@@ -642,14 +720,21 @@ export class PlayerController {
         this.colliderMesh.position.copyFrom(this.rootNode.position);
 
         // Update animation based on state
-        if (!this.isAttacking && !this.isJumping && !this.isBlocking && !this.isCrouchTransitioning) {
+        if (!this.isAttacking && !this.isJumping && !this.isBlocking && !this.isBlockEnding && !this.isCrouchTransitioning) {
             if (this.isCrouching) {
                 // Crouching animations - no movement while crouching
                 this.playAnimation('crouchIdle', true);
             } else if (isMoving) {
                 this.playAnimation(this.keys.run ? 'run' : 'walk', true);
             } else {
-                this.playAnimation('idle', true);
+                // Only switch to random idle if not already in an idle animation
+                const isInIdle = this.currentAnimationName === 'idle' ||
+                    this.currentAnimationName === 'idle2' ||
+                    this.currentAnimationName === 'idle3' ||
+                    this.currentAnimationName === 'idle4';
+                if (!isInIdle) {
+                    this.playAnimation(this.getRandomIdleAnim(), true);
+                }
             }
         }
     }
