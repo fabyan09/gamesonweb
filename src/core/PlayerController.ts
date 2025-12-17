@@ -96,6 +96,13 @@ export class PlayerController {
     private readonly jumpForce = 0.14;
     private groundY = 0;
 
+    // Crouch offset (how much to lower the mesh when crouching)
+    private readonly crouchMeshOffset = -0.5;
+    private readonly standingEllipsoid = new Vector3(0.4, 0.9, 0.4);
+    private readonly crouchingEllipsoid = new Vector3(0.4, 0.5, 0.4);
+    private targetMeshY = 0;  // Target Y position for smooth crouch transition
+    private readonly crouchTransitionSpeed = 0.09;  // How fast to interpolate (0-1 per frame)
+
     // Attack callback
     private attackHitCallback: ((position: Vector3, range: number) => void) | null = null;
     private readonly attackRange = 2.5;
@@ -370,15 +377,20 @@ export class PlayerController {
     }
 
     onMouseDown(button: number): void {
+        console.log(`[PlayerController] onMouseDown(${button}) - isAttacking: ${this.isAttacking}, isBlocking: ${this.isBlocking}`);
         if (button === 0 && !this.isAttacking) {
+            console.log(`[PlayerController] -> Triggering attack`);
             this.triggerAttack();
         } else if (button === 2 && !this.isBlocking) {
+            console.log(`[PlayerController] -> Triggering block`);
             this.triggerBlock(true);
         }
     }
 
     onMouseUp(button: number): void {
+        console.log(`[PlayerController] onMouseUp(${button})`);
         if (button === 2) {
+            console.log(`[PlayerController] -> Ending block`);
             this.triggerBlock(false);
         }
     }
@@ -479,6 +491,17 @@ export class PlayerController {
         this.isCrouchTransitioning = true;
         this.playAnimation('crouch', false);
 
+        // Set target for smooth transition after small delay (wait for animation to start)
+        setTimeout(() => {
+            this.targetMeshY = this.crouchMeshOffset;
+        }, 200);
+
+        // Reduce collider size for crouching
+        if (this.colliderMesh) {
+            this.colliderMesh.ellipsoid = this.crouchingEllipsoid.clone();
+            this.colliderMesh.ellipsoidOffset = new Vector3(0, 0.5, 0);
+        }
+
         // When crouch animation ends, switch to crouch idle
         if (this.animations.crouch) {
             this.animations.crouch.onAnimationEndObservable.addOnce(() => {
@@ -504,6 +527,17 @@ export class PlayerController {
 
         this.isCrouchTransitioning = true;
         this.playAnimation('crouchStandUp', false);
+
+        // Set target for smooth transition after small delay (wait for animation to start)
+        setTimeout(() => {
+            this.targetMeshY = 0;
+        }, 100);
+
+        // Restore collider size for standing
+        if (this.colliderMesh) {
+            this.colliderMesh.ellipsoid = this.standingEllipsoid.clone();
+            this.colliderMesh.ellipsoidOffset = new Vector3(0, 0.9, 0);
+        }
 
         // When stand up animation ends, return to normal idle
         if (this.animations.crouchStandUp) {
@@ -540,6 +574,17 @@ export class PlayerController {
 
         // Don't update if game is paused
         if (this.scene.metadata?.isPaused) return;
+
+        // Smooth crouch transition - interpolate mesh Y position
+        if (this.mesh) {
+            const currentY = this.mesh.position.y;
+            if (Math.abs(currentY - this.targetMeshY) > 0.001) {
+                // Lerp towards target
+                this.mesh.position.y = currentY + (this.targetMeshY - currentY) * this.crouchTransitionSpeed;
+            } else {
+                this.mesh.position.y = this.targetMeshY;
+            }
+        }
 
         // Apply gravity and vertical movement
         if (this.isJumping) {

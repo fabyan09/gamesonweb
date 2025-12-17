@@ -630,18 +630,49 @@ export class DungeonScene {
     }
 
     private setupMouseEvents(): void {
-        this.canvas.addEventListener('mousedown', (e) => {
-            this.player?.onMouseDown(e.button);
-        });
+        // Handler for mouse/pointer down
+        const handleDown = (button: number, eventType: string) => {
+            console.log(`[Mouse] ${eventType} - button: ${button}, pointerLock: ${document.pointerLockElement === this.canvas}`);
+            if (document.pointerLockElement === this.canvas) {
+                console.log(`[Mouse] -> Processing button ${button}`);
+                this.player?.onMouseDown(button);
+            }
+        };
 
-        this.canvas.addEventListener('mouseup', (e) => {
-            this.player?.onMouseUp(e.button);
-        });
+        // Handler for mouse/pointer up
+        const handleUp = (button: number, eventType: string) => {
+            console.log(`[Mouse] ${eventType} - button: ${button}`);
+            if (document.pointerLockElement === this.canvas) {
+                this.player?.onMouseUp(button);
+            }
+        };
+
+        // Try multiple event types for maximum compatibility
+        // 1. Standard mouse events
+        document.addEventListener('mousedown', (e) => handleDown(e.button, 'mousedown'));
+        document.addEventListener('mouseup', (e) => handleUp(e.button, 'mouseup'));
+
+        // 2. Pointer events (better for some gaming mice)
+        document.addEventListener('pointerdown', (e) => handleDown(e.button, 'pointerdown'));
+        document.addEventListener('pointerup', (e) => handleUp(e.button, 'pointerup'));
+
+        // 3. Also try on window with capture phase
+        window.addEventListener('mousedown', (e) => {
+            console.log(`[Window] mousedown captured - button: ${e.button}`);
+        }, true);
 
         // Prevent context menu on right click
         this.canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
         });
+
+        document.addEventListener('contextmenu', (e) => {
+            if (document.pointerLockElement === this.canvas) {
+                e.preventDefault();
+            }
+        });
+
+        console.log('[Mouse] Event listeners setup complete');
     }
 
     get levelData(): LevelData | null {

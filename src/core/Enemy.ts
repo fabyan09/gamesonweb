@@ -327,7 +327,7 @@ export class Enemy {
         // Reduce detection range when player is crouching (stealth mechanic)
         const playerCrouching = this.scene.metadata?.playerCrouching === true;
         const effectiveDetectionRange = playerCrouching
-            ? this.config.detectionRange * 0.2  // Only 20% of normal detection when crouching
+            ? this.config.detectionRange * 0.5  // 50% of normal detection when crouching
             : this.config.detectionRange;
 
         // State machine
