@@ -34,6 +34,7 @@ export class DungeonScene {
     private enemies: Enemy[] = [];
     private playerHealth: number = 100;
     private isLevelComplete: boolean = false;
+    private isPlayerDead: boolean = false;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -183,6 +184,9 @@ export class DungeonScene {
 
             // Handle player getting hit
             enemy.onPlayerHit((damage) => {
+                // Don't process damage if player is already dead
+                if (this.isPlayerDead) return;
+
                 // Check if player is blocking
                 if (this.player?.isCurrentlyBlocking) {
                     console.log(`[DungeonScene] Player blocked ${damage} damage!`);
@@ -226,8 +230,12 @@ export class DungeonScene {
     private showVictoryMessage(): void {
         console.log('[DungeonScene] Level Complete!');
 
+        // Release pointer lock so user can click buttons
+        document.exitPointerLock();
+
         const hasNextLevel = this.currentLevelIndex < LEVELS.length - 1;
-        const nextLevelIndex = this.currentLevelIndex + 1;
+        // Convert to 1-indexed for user-friendly URLs
+        const nextLevelNumber = this.currentLevelIndex + 2;
 
         const overlay = document.createElement('div');
         overlay.id = 'victory-overlay';
@@ -373,7 +381,7 @@ export class DungeonScene {
         // Add event listeners
         if (hasNextLevel) {
             document.getElementById('next-level-btn')?.addEventListener('click', () => {
-                window.location.href = `${window.location.pathname}?level=${nextLevelIndex}`;
+                window.location.href = `${window.location.pathname}?level=${nextLevelNumber}`;
             });
         } else {
             document.getElementById('restart-btn')?.addEventListener('click', () => {
@@ -448,8 +456,37 @@ export class DungeonScene {
         }
     }
 
-    private handlePlayerDeath(): void {
+    private async handlePlayerDeath(): Promise<void> {
+        if (this.isPlayerDead) return;
+        this.isPlayerDead = true;
+
         console.log('[DungeonScene] Player died!');
+
+        // Make all living enemies celebrate
+        for (const enemy of this.enemies) {
+            if (!enemy.isDead) {
+                enemy.celebrate();
+            }
+        }
+
+        // Play player death animation and wait for it to complete
+        if (this.player) {
+            await this.player.playDeath();
+        }
+
+        // Dispose all enemies and player to free resources
+        for (const enemy of this.enemies) {
+            enemy.dispose();
+        }
+        this.enemies = [];
+
+        if (this.player) {
+            this.player.dispose();
+            this.player = null;
+        }
+
+        // Release pointer lock so user can click buttons
+        document.exitPointerLock();
 
         const overlay = document.createElement('div');
         overlay.id = 'death-overlay';

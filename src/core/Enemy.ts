@@ -31,16 +31,17 @@ export interface EnemyConfig {
     attackCooldown?: number;
 }
 
-type EnemyAnimationName = 'idle' | 'walk' | 'attack' | 'death';
+type EnemyAnimationName = 'idle' | 'walk' | 'attack' | 'death' | 'celebrate';
 
 interface EnemyAnimationSet {
     idle: AnimationGroup | null;
     walk: AnimationGroup | null;
     attack: AnimationGroup | null;
     death: AnimationGroup | null;
+    celebrate: AnimationGroup | null;
 }
 
-export type EnemyState = 'idle' | 'chasing' | 'attacking' | 'dead';
+export type EnemyState = 'idle' | 'chasing' | 'attacking' | 'dead' | 'celebrating';
 
 // Root nodes to exclude from animations
 const ROOT_MOTION_NODES = ['Armature', 'Hips', 'mixamorig:Hips'];
@@ -56,7 +57,8 @@ export class Enemy {
         idle: null,
         walk: null,
         attack: null,
-        death: null
+        death: null,
+        celebrate: null
     };
     private currentAnimation: AnimationGroup | null = null;
     private currentAnimationName: EnemyAnimationName | null = null;
@@ -156,6 +158,7 @@ export class Enemy {
         await this.loadAnimation(basePath, 'mutant walking.glb', 'walk');
         await this.loadAnimation(basePath, 'mutant swiping.glb', 'attack');
         await this.loadAnimation(basePath, 'mutant dying.glb', 'death');
+        await this.loadAnimation(basePath, 'mutant jumping.glb', 'celebrate');
 
         // Start with idle
         this.playAnimation('idle', true);
@@ -309,7 +312,7 @@ export class Enemy {
     }
 
     private update(): void {
-        if (!this.rootNode || this.state === 'dead') return;
+        if (!this.rootNode || this.state === 'dead' || this.state === 'celebrating') return;
 
         if (!this.target) {
             this.playAnimation('idle', true);
@@ -431,10 +434,8 @@ export class Enemy {
 
         const onDeathComplete = () => {
             this.onDeathCallback?.();
-            // Fade out and dispose after a short delay
-            setTimeout(() => {
-                this.dispose();
-            }, 1000);
+            // Dispose immediately after death animation completes
+            this.dispose();
         };
 
         if (this.animations.death) {
@@ -474,6 +475,17 @@ export class Enemy {
 
     get typeName(): string {
         return this.typeConfig.name;
+    }
+
+    /**
+     * Make enemy celebrate (stop attacking and play jump animation)
+     */
+    celebrate(): void {
+        if (this.state === 'dead') return;
+
+        this.state = 'celebrating';
+        this.isAttacking = false;
+        this.playAnimation('celebrate', true);
     }
 
     dispose(): void {

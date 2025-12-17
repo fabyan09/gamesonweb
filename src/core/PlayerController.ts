@@ -70,6 +70,7 @@ export class PlayerController {
     private isAttacking = false;
     private isBlocking = false;
     private isJumping = false;
+    private isDead = false;
     private camera: ThirdPersonCamera | null = null;
     private skeleton: Skeleton | null = null;
     private transformNodes: Map<string, TransformNode> = new Map();
@@ -159,7 +160,7 @@ export class PlayerController {
         await this.loadAnimation(basePath, 'sword and shield block.glb', 'block', 'full');
         await this.loadAnimation(basePath, 'sword and shield block idle.glb', 'blockIdle', 'full');
         await this.loadAnimation(basePath, 'sword and shield jump.glb', 'jump', 'full');
-        await this.loadAnimation(basePath, 'sword and shield death.glb', 'death', 'none');
+        await this.loadAnimation(basePath, 'sword and shield death (2).glb', 'death', 'none');
 
         // Start with idle animation
         this.playAnimation('idle', true);
@@ -436,7 +437,7 @@ export class PlayerController {
     }
 
     private update(): void {
-        if (!this.rootNode || !this.colliderMesh) return;
+        if (!this.rootNode || !this.colliderMesh || this.isDead) return;
 
         // Apply gravity and vertical movement
         if (this.isJumping) {
@@ -517,6 +518,33 @@ export class PlayerController {
 
     setCamera(camera: ThirdPersonCamera): void {
         this.camera = camera;
+    }
+
+    /**
+     * Play death animation and return a Promise that resolves when complete
+     */
+    playDeath(): Promise<void> {
+        return new Promise((resolve) => {
+            if (this.isDead) {
+                resolve();
+                return;
+            }
+
+            this.isDead = true;
+            this.playAnimation('death', false);
+
+            if (this.animations.death) {
+                this.animations.death.onAnimationEndObservable.addOnce(() => {
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    get isPlayerDead(): boolean {
+        return this.isDead;
     }
 
     dispose(): void {
