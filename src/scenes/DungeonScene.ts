@@ -164,6 +164,9 @@ export class DungeonScene {
         // Show health bar
         this.updateHealthUI();
 
+        // Update controls display with current keybindings
+        this.updateControlsDisplay();
+
         // Hide loading
         document.getElementById('loading')?.classList.add('hidden');
     }
@@ -414,15 +417,16 @@ export class DungeonScene {
             `;
             healthBar.style.cssText = `
                 position: fixed;
-                bottom: 20px;
+                bottom: 30px;
                 left: 50%;
                 transform: translateX(-50%);
-                width: 250px;
-                height: 8px;
+                width: 350px;
+                height: 16px;
                 background: #1a0a0a;
-                border: 2px solid #555;
-                border-radius: 3px;
+                border: 2px solid #4a3a25;
+                border-radius: 4px;
                 overflow: visible;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.5);
             `;
 
             const style = document.createElement('style');
@@ -440,11 +444,11 @@ export class DungeonScene {
                     right: -1px;
                     top: 50%;
                     transform: translateY(-50%);
-                    width: 2px;
-                    height: 10px;
+                    width: 3px;
+                    height: 20px;
                     background: #ffd700;
-                    border-radius: 1px;
-                    box-shadow: 0 0 6px #ffd700, 0 0 12px #ffaa00, 0 0 20px #ff8800;
+                    border-radius: 2px;
+                    box-shadow: 0 0 8px #ffd700, 0 0 16px #ffaa00, 0 0 24px #ff8800;
                 }
                 #health-bar.full .health-fill::after {
                     display: none;
@@ -734,6 +738,10 @@ export class DungeonScene {
             (e.target as HTMLElement).classList.toggle('active');
         });
 
+        document.getElementById('toggle-crouch-mode')?.addEventListener('click', (e) => {
+            (e.target as HTMLElement).classList.toggle('active');
+        });
+
         // Setup slider value displays
         document.getElementById('music-volume')?.addEventListener('input', (e) => {
             const value = (e.target as HTMLInputElement).value;
@@ -807,6 +815,7 @@ export class DungeonScene {
         updateButton('right');
         updateButton('run');
         updateButton('jump');
+        updateButton('crouch');
         updateButton('pause');
     }
 
@@ -859,6 +868,7 @@ export class DungeonScene {
         const sensitivitySlider = document.getElementById('mouse-sensitivity') as HTMLInputElement;
         const fpsToggle = document.getElementById('toggle-fps');
         const controlsToggle = document.getElementById('toggle-controls');
+        const crouchModeToggle = document.getElementById('toggle-crouch-mode');
 
         if (musicSlider) {
             musicSlider.value = String(this.settings.musicVolume);
@@ -885,6 +895,11 @@ export class DungeonScene {
         if (controlsToggle) {
             controlsToggle.classList.toggle('active', this.settings.showControls);
         }
+
+        if (crouchModeToggle) {
+            // Active = hold mode, Inactive = toggle mode
+            crouchModeToggle.classList.toggle('active', this.settings.crouchMode === 'hold');
+        }
     }
 
     private saveSettingsFromUI(): void {
@@ -893,6 +908,7 @@ export class DungeonScene {
         const sensitivitySlider = document.getElementById('mouse-sensitivity') as HTMLInputElement;
         const fpsToggle = document.getElementById('toggle-fps');
         const controlsToggle = document.getElementById('toggle-controls');
+        const crouchModeToggle = document.getElementById('toggle-crouch-mode');
 
         if (musicSlider) {
             this.settings.musicVolume = parseInt(musicSlider.value, 10);
@@ -914,10 +930,53 @@ export class DungeonScene {
             this.settings.showControls = controlsToggle.classList.contains('active');
         }
 
+        if (crouchModeToggle) {
+            // Active = hold mode, Inactive = toggle mode
+            this.settings.crouchMode = crouchModeToggle.classList.contains('active') ? 'hold' : 'toggle';
+        }
+
         this.settings.save();
 
         // Apply sensitivity immediately
         this.camera?.updateSensitivity();
+
+        // Update controls display
+        this.updateControlsDisplay();
+    }
+
+    private updateControlsDisplay(): void {
+        // Get display names for movement keys (combine forward, left, backward, right)
+        const forward = this.settings.getBindingDisplay('forward');
+        const left = this.settings.getBindingDisplay('left');
+        const backward = this.settings.getBindingDisplay('backward');
+        const right = this.settings.getBindingDisplay('right');
+        const movementKeys = `${forward}${left}${backward}${right}`;
+
+        const runKey = this.settings.getBindingDisplay('run');
+        const jumpKey = this.settings.getBindingDisplay('jump');
+        const crouchKey = this.settings.getBindingDisplay('crouch');
+        const pauseKey = this.settings.getBindingDisplay('pause');
+
+        // Update all elements with data-control attribute
+        document.querySelectorAll('[data-control="movement"]').forEach(el => {
+            el.textContent = movementKeys;
+        });
+
+        document.querySelectorAll('[data-control="run"]').forEach(el => {
+            el.textContent = runKey;
+        });
+
+        document.querySelectorAll('[data-control="jump"]').forEach(el => {
+            el.textContent = jumpKey;
+        });
+
+        document.querySelectorAll('[data-control="crouch"]').forEach(el => {
+            el.textContent = crouchKey;
+        });
+
+        document.querySelectorAll('[data-control="pause"]').forEach(el => {
+            el.textContent = pauseKey;
+        });
     }
 
     private updateFpsCounter(): void {

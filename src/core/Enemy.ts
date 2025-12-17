@@ -324,18 +324,24 @@ export class Enemy {
 
         const distanceToTarget = Vector3.Distance(this.rootNode.position, this.target.position);
 
+        // Reduce detection range when player is crouching (stealth mechanic)
+        const playerCrouching = this.scene.metadata?.playerCrouching === true;
+        const effectiveDetectionRange = playerCrouching
+            ? this.config.detectionRange * 0.2  // Only 20% of normal detection when crouching
+            : this.config.detectionRange;
+
         // State machine
         if (distanceToTarget <= this.config.attackRange) {
             // In attack range
             this.state = 'attacking';
             this.faceTarget();
             this.tryAttack();
-        } else if (distanceToTarget <= this.config.detectionRange) {
+        } else if (distanceToTarget <= effectiveDetectionRange) {
             // Chase the player
             this.state = 'chasing';
             this.chaseTarget();
         } else {
-            // Too far, idle
+            // Too far, idle (or player is sneaking)
             this.state = 'idle';
             if (!this.isAttacking) {
                 this.playAnimation('idle', true);

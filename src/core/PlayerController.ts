@@ -30,6 +30,11 @@ interface AnimationSet {
     blockIdle: AnimationGroup | null;
     jump: AnimationGroup | null;
     death: AnimationGroup | null;
+    crouch: AnimationGroup | null;
+    crouchIdle: AnimationGroup | null;
+    crouchBlock: AnimationGroup | null;
+    crouchBlockIdle: AnimationGroup | null;
+    crouchStandUp: AnimationGroup | null;
 }
 
 type AnimationName = keyof AnimationSet;
@@ -50,7 +55,12 @@ export class PlayerController {
         block: null,
         blockIdle: null,
         jump: null,
-        death: null
+        death: null,
+        crouch: null,
+        crouchIdle: null,
+        crouchBlock: null,
+        crouchBlockIdle: null,
+        crouchStandUp: null
     };
     private currentAnimation: AnimationGroup | null = null;
     private currentAnimationName: AnimationName | null = null;
@@ -63,7 +73,8 @@ export class PlayerController {
         run: false,
         attack: false,
         block: false,
-        jump: false
+        jump: false,
+        crouch: false
     };
 
     private config: Required<PlayerConfig>;
@@ -72,6 +83,8 @@ export class PlayerController {
     private isBlocking = false;
     private isJumping = false;
     private isDead = false;
+    private isCrouching = false;
+    private isCrouchTransitioning = false;
     private camera: ThirdPersonCamera | null = null;
     private skeleton: Skeleton | null = null;
     private transformNodes: Map<string, TransformNode> = new Map();
@@ -164,6 +177,13 @@ export class PlayerController {
         await this.loadAnimation(basePath, 'sword and shield block idle.glb', 'blockIdle', 'full');
         await this.loadAnimation(basePath, 'sword and shield jump.glb', 'jump', 'full');
         await this.loadAnimation(basePath, 'sword and shield death (2).glb', 'death', 'none');
+
+        // Crouch animations
+        await this.loadAnimation(basePath, 'sword and shield crouch.glb', 'crouch', 'full');
+        await this.loadAnimation(basePath, 'sword and shield crouch idle.glb', 'crouchIdle', 'full');
+        await this.loadAnimation(basePath, 'sword and shield crouch block.glb', 'crouchBlock', 'full');
+        await this.loadAnimation(basePath, 'sword and shield crouch block idle.glb', 'crouchBlockIdle', 'full');
+        await this.loadAnimation(basePath, 'sword and shield crouching.glb', 'crouchStandUp', 'full');
 
         // Start with idle animation
         this.playAnimation('idle', true);
@@ -310,6 +330,19 @@ export class PlayerController {
                 this.triggerJump();
             }
         }
+        if (this.settings.isKeyBound('crouch', e.code)) {
+            if (this.settings.crouchMode === 'toggle') {
+                // Toggle mode: pressing toggles crouch
+                if (!this.isCrouchTransitioning) {
+                    this.toggleCrouch();
+                }
+            } else {
+                // Hold mode: pressing starts crouch
+                if (!this.isCrouching && !this.isCrouchTransitioning) {
+                    this.startCrouch();
+                }
+            }
+        }
     }
 
     private onKeyUp(e: KeyboardEvent): void {
@@ -327,6 +360,12 @@ export class PlayerController {
         }
         if (this.settings.isKeyBound('run', e.code)) {
             this.keys.run = false;
+        }
+        if (this.settings.isKeyBound('crouch', e.code)) {
+            // Hold mode: releasing ends crouch
+            if (this.settings.crouchMode === 'hold' && this.isCrouching && !this.isCrouchTransitioning) {
+                this.endCrouch();
+            }
         }
     }
 
@@ -397,13 +436,18 @@ export class PlayerController {
         if (active && !this.isBlocking) {
             this.isBlocking = true;
             // Play block animation once, then switch to blockIdle
-            this.playAnimation('block', false);
+            // Use crouch versions if crouching
+            const blockAnim = this.isCrouching ? 'crouchBlock' : 'block';
+            const blockIdleAnim = this.isCrouching ? 'crouchBlockIdle' : 'blockIdle';
 
-            if (this.animations.block) {
-                this.animations.block.onAnimationEndObservable.addOnce(() => {
+            this.playAnimation(blockAnim, false);
+
+            const anim = this.animations[blockAnim];
+            if (anim) {
+                anim.onAnimationEndObservable.addOnce(() => {
                     // Only switch to blockIdle if still blocking
                     if (this.isBlocking) {
-                        this.playAnimation('blockIdle', true);
+                        this.playAnimation(blockIdleAnim, true);
                     }
                 });
             }
@@ -413,12 +457,82 @@ export class PlayerController {
     }
 
     private triggerJump(): void {
-        if (this.isJumping || !this.rootNode) return;
+        if (this.isJumping || !this.rootNode || this.isCrouching) return;
 
         this.isJumping = true;
         this.verticalVelocity = this.jumpForce; // Apply jump force
         this.groundY = this.rootNode.position.y; // Remember ground level
         this.playAnimation('jump', false);
+    }
+
+    private toggleCrouch(): void {
+        if (this.isCrouching) {
+            this.endCrouch();
+        } else {
+            this.startCrouch();
+        }
+    }
+
+    private startCrouch(): void {
+        if (this.isCrouching || this.isCrouchTransitioning || this.isJumping) return;
+
+        this.isCrouchTransitioning = true;
+        this.playAnimation('crouch', false);
+
+        // When crouch animation ends, switch to crouch idle
+        if (this.animations.crouch) {
+            this.animations.crouch.onAnimationEndObservable.addOnce(() => {
+                this.isCrouching = true;
+                this.isCrouchTransitioning = false;
+                this.updateCrouchMetadata();
+                // Play appropriate idle animation
+                if (this.isBlocking) {
+                    this.playAnimation('crouchBlockIdle', true);
+                } else {
+                    this.playAnimation('crouchIdle', true);
+                }
+            });
+        } else {
+            this.isCrouching = true;
+            this.isCrouchTransitioning = false;
+            this.updateCrouchMetadata();
+        }
+    }
+
+    private endCrouch(): void {
+        if (!this.isCrouching || this.isCrouchTransitioning) return;
+
+        this.isCrouchTransitioning = true;
+        this.playAnimation('crouchStandUp', false);
+
+        // When stand up animation ends, return to normal idle
+        if (this.animations.crouchStandUp) {
+            this.animations.crouchStandUp.onAnimationEndObservable.addOnce(() => {
+                this.isCrouching = false;
+                this.isCrouchTransitioning = false;
+                this.updateCrouchMetadata();
+                if (this.isBlocking) {
+                    this.playAnimation('blockIdle', true);
+                } else {
+                    this.playAnimation('idle', true);
+                }
+            });
+        } else {
+            this.isCrouching = false;
+            this.isCrouchTransitioning = false;
+            this.updateCrouchMetadata();
+        }
+    }
+
+    private updateCrouchMetadata(): void {
+        if (!this.scene.metadata) {
+            this.scene.metadata = {};
+        }
+        this.scene.metadata.playerCrouching = this.isCrouching;
+    }
+
+    get crouching(): boolean {
+        return this.isCrouching;
     }
 
     private update(): void {
@@ -483,8 +597,11 @@ export class PlayerController {
         this.colliderMesh.position.copyFrom(this.rootNode.position);
 
         // Update animation based on state
-        if (!this.isAttacking && !this.isJumping && !this.isBlocking) {
-            if (isMoving) {
+        if (!this.isAttacking && !this.isJumping && !this.isBlocking && !this.isCrouchTransitioning) {
+            if (this.isCrouching) {
+                // Crouching animations - no movement while crouching
+                this.playAnimation('crouchIdle', true);
+            } else if (isMoving) {
                 this.playAnimation(this.keys.run ? 'run' : 'walk', true);
             } else {
                 this.playAnimation('idle', true);

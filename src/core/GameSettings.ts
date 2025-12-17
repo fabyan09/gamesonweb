@@ -12,8 +12,11 @@ export interface KeyBindings {
     right: string[];
     run: string[];
     jump: string[];
+    crouch: string[];
     pause: string[];
 }
+
+export type CrouchMode = 'toggle' | 'hold';
 
 interface SettingsData {
     musicVolume: number;
@@ -22,6 +25,7 @@ interface SettingsData {
     showFps: boolean;
     showControls: boolean;
     keyBindings: KeyBindings;
+    crouchMode: CrouchMode;
 }
 
 export const DEFAULT_KEYBINDINGS: KeyBindings = {
@@ -31,6 +35,7 @@ export const DEFAULT_KEYBINDINGS: KeyBindings = {
     right: ['KeyD', 'ArrowRight'],
     run: ['ShiftLeft', 'ShiftRight'],
     jump: ['Space'],
+    crouch: ['ControlLeft', 'ControlRight'],
     pause: ['KeyP']
 };
 
@@ -40,7 +45,8 @@ const DEFAULT_SETTINGS: SettingsData = {
     mouseSensitivity: 5,
     showFps: false,
     showControls: true,
-    keyBindings: { ...DEFAULT_KEYBINDINGS }
+    keyBindings: { ...DEFAULT_KEYBINDINGS },
+    crouchMode: 'toggle'
 };
 
 export class GameSettings {
@@ -52,6 +58,7 @@ export class GameSettings {
     private _showFps: boolean;
     private _showControls: boolean;
     private _keyBindings: KeyBindings;
+    private _crouchMode: CrouchMode;
 
     private constructor() {
         const saved = this.load();
@@ -61,6 +68,7 @@ export class GameSettings {
         this._showFps = saved.showFps;
         this._showControls = saved.showControls;
         this._keyBindings = saved.keyBindings;
+        this._crouchMode = saved.crouchMode;
     }
 
     static getInstance(): GameSettings {
@@ -95,7 +103,8 @@ export class GameSettings {
                 mouseSensitivity: this._mouseSensitivity,
                 showFps: this._showFps,
                 showControls: this._showControls,
-                keyBindings: this._keyBindings
+                keyBindings: this._keyBindings,
+                crouchMode: this._crouchMode
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             console.log('[GameSettings] Settings saved');
@@ -209,6 +218,14 @@ export class GameSettings {
 
     get keyBindings(): KeyBindings {
         return this._keyBindings;
+    }
+
+    get crouchMode(): CrouchMode {
+        return this._crouchMode;
+    }
+
+    set crouchMode(value: CrouchMode) {
+        this._crouchMode = value;
     }
 
     /**

@@ -121,6 +121,10 @@ function setupMenuListeners(): void {
         (e.target as HTMLElement).classList.toggle('active');
     });
 
+    document.getElementById('toggle-crouch-mode')?.addEventListener('click', (e) => {
+        (e.target as HTMLElement).classList.toggle('active');
+    });
+
     // Settings cancel
     document.getElementById('settings-cancel')?.addEventListener('click', () => {
         document.getElementById('settings-panel')?.classList.remove('visible');
@@ -181,6 +185,7 @@ function loadControlsToUI(): void {
     updateButton('right');
     updateButton('run');
     updateButton('jump');
+    updateButton('crouch');
     updateButton('pause');
 }
 
@@ -227,6 +232,7 @@ function loadSettingsToUI(): void {
     const sensitivitySlider = document.getElementById('mouse-sensitivity') as HTMLInputElement;
     const fpsToggle = document.getElementById('toggle-fps');
     const controlsToggle = document.getElementById('toggle-controls');
+    const crouchModeToggle = document.getElementById('toggle-crouch-mode');
 
     if (musicSlider) {
         musicSlider.value = String(settings.musicVolume);
@@ -253,6 +259,11 @@ function loadSettingsToUI(): void {
     if (controlsToggle) {
         controlsToggle.classList.toggle('active', settings.showControls);
     }
+
+    if (crouchModeToggle) {
+        // Active = hold mode, Inactive = toggle mode
+        crouchModeToggle.classList.toggle('active', settings.crouchMode === 'hold');
+    }
 }
 
 function saveSettingsFromUI(): void {
@@ -261,6 +272,7 @@ function saveSettingsFromUI(): void {
     const sensitivitySlider = document.getElementById('mouse-sensitivity') as HTMLInputElement;
     const fpsToggle = document.getElementById('toggle-fps');
     const controlsToggle = document.getElementById('toggle-controls');
+    const crouchModeToggle = document.getElementById('toggle-crouch-mode');
 
     if (musicSlider) {
         settings.musicVolume = parseInt(musicSlider.value, 10);
@@ -282,5 +294,49 @@ function saveSettingsFromUI(): void {
         settings.showControls = controlsToggle.classList.contains('active');
     }
 
+    if (crouchModeToggle) {
+        // Active = hold mode, Inactive = toggle mode
+        settings.crouchMode = crouchModeToggle.classList.contains('active') ? 'hold' : 'toggle';
+    }
+
     settings.save();
+    updateControlsDisplay();
 }
+
+function updateControlsDisplay(): void {
+    // Get display names for movement keys (combine forward, left, backward, right)
+    const forward = settings.getBindingDisplay('forward');
+    const left = settings.getBindingDisplay('left');
+    const backward = settings.getBindingDisplay('backward');
+    const right = settings.getBindingDisplay('right');
+    const movementKeys = `${forward}${left}${backward}${right}`;
+
+    const runKey = settings.getBindingDisplay('run');
+    const jumpKey = settings.getBindingDisplay('jump');
+    const crouchKey = settings.getBindingDisplay('crouch');
+    const pauseKey = settings.getBindingDisplay('pause');
+
+    // Update all elements with data-control attribute
+    document.querySelectorAll('[data-control="movement"]').forEach(el => {
+        el.textContent = movementKeys;
+    });
+
+    document.querySelectorAll('[data-control="run"]').forEach(el => {
+        el.textContent = runKey;
+    });
+
+    document.querySelectorAll('[data-control="jump"]').forEach(el => {
+        el.textContent = jumpKey;
+    });
+
+    document.querySelectorAll('[data-control="crouch"]').forEach(el => {
+        el.textContent = crouchKey;
+    });
+
+    document.querySelectorAll('[data-control="pause"]').forEach(el => {
+        el.textContent = pauseKey;
+    });
+}
+
+// Update controls display on page load
+updateControlsDisplay();

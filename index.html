@@ -934,6 +934,11 @@
                 <div class="toggle-switch active" id="toggle-controls"></div>
             </div>
 
+            <div class="setting-group setting-toggle">
+                <label class="setting-label">Mode accroupi (Toggle = cliquer, Hold = maintenir)</label>
+                <div class="toggle-switch" id="toggle-crouch-mode"></div>
+            </div>
+
             <button class="panel-btn btn-controls" id="btn-controls">Changer les Contrôles</button>
 
             <div class="panel-buttons">
@@ -969,6 +974,9 @@
                 <span class="control-label">Sauter</span>
                 <button class="key-bind-btn" data-action="jump">Espace</button>
 
+                <span class="control-label">S'accroupir</span>
+                <button class="key-bind-btn" data-action="crouch">Ctrl</button>
+
                 <div class="controls-section-title">Système</div>
 
                 <span class="control-label">Pause</span>
@@ -1000,14 +1008,15 @@
 
             <div class="rules-section">
                 <h3>Contrôles</h3>
-                <ul>
-                    <li><strong>ZQSD / Flèches</strong> — Se déplacer</li>
-                    <li><strong>Shift</strong> — Courir</li>
+                <ul id="rules-controls-list">
+                    <li><strong data-control="movement">ZQSD</strong> — Se déplacer</li>
+                    <li><strong data-control="run">Shift</strong> — Courir</li>
                     <li><strong>Souris</strong> — Regarder autour</li>
                     <li><strong>Clic Gauche</strong> — Attaquer à l'épée</li>
                     <li><strong>Clic Droit</strong> — Lever le bouclier (bloque les attaques)</li>
-                    <li><strong>Espace</strong> — Sauter</li>
-                    <li><strong>P</strong> — Mettre le jeu en pause</li>
+                    <li><strong data-control="jump">Espace</strong> — Sauter</li>
+                    <li><strong data-control="crouch">Ctrl</strong> — S'accroupir (réduit la détection ennemie)</li>
+                    <li><strong data-control="pause">P</strong> — Mettre le jeu en pause</li>
                 </ul>
 
                 <h3>Objectif</h3>
@@ -1089,11 +1098,11 @@
         <div id="instructions">
             <div class="title">Contrôles</div>
             <div class="row">
-                <span class="key">ZQSD</span>
+                <span class="key" data-control="movement">ZQSD</span>
                 <span class="action">Se déplacer</span>
             </div>
             <div class="row">
-                <span class="key">Shift</span>
+                <span class="key" data-control="run">Shift</span>
                 <span class="action">Courir</span>
             </div>
             <div class="row">
@@ -1109,7 +1118,11 @@
                 <span class="action">Bloquer</span>
             </div>
             <div class="row">
-                <span class="key">P</span>
+                <span class="key" data-control="crouch">Ctrl</span>
+                <span class="action">S'accroupir</span>
+            </div>
+            <div class="row">
+                <span class="key" data-control="pause">P</span>
                 <span class="action">Pause</span>
             </div>
         </div>
