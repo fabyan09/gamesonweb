@@ -2,6 +2,7 @@ import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Scene } from '@babylonjs/core/scene';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { GameSettings } from './GameSettings';
 
 export interface ThirdPersonCameraConfig {
     distance?: number;
@@ -32,6 +33,10 @@ export class ThirdPersonCamera {
         this.heightOffset = config.heightOffset ?? 1.5;
         this.followSpeed = config.followSpeed ?? 0.1;
 
+        // Get sensitivity from settings
+        const settings = GameSettings.getInstance();
+        const sensitivity = config.rotationSensibility ?? settings.cameraSensitivity;
+
         // Create arc rotate camera
         this.camera = new ArcRotateCamera(
             'thirdPersonCamera',
@@ -49,8 +54,8 @@ export class ThirdPersonCamera {
         this.camera.upperRadiusLimit = config.upperRadiusLimit ?? 8;
         this.camera.lowerBetaLimit = 0.3;  // Empêche de regarder trop vers le haut
         this.camera.upperBetaLimit = Math.PI / 2.5;  // Empêche de regarder trop vers le bas
-        this.camera.angularSensibilityX = config.rotationSensibility ?? 500;
-        this.camera.angularSensibilityY = config.rotationSensibility ?? 500;
+        this.camera.angularSensibilityX = sensitivity;
+        this.camera.angularSensibilityY = sensitivity;
         this.camera.panningSensibility = 0; // Disable panning
         this.camera.inertia = 0.7;
         this.camera.minZ = 0.1;
@@ -139,5 +144,11 @@ export class ThirdPersonCamera {
 
     get alpha(): number {
         return this.camera.alpha;
+    }
+
+    updateSensitivity(): void {
+        const settings = GameSettings.getInstance();
+        this.camera.angularSensibilityX = settings.cameraSensitivity;
+        this.camera.angularSensibilityY = settings.cameraSensitivity;
     }
 }

@@ -314,6 +314,9 @@ export class Enemy {
     private update(): void {
         if (!this.rootNode || this.state === 'dead' || this.state === 'celebrating') return;
 
+        // Don't update if game is paused
+        if (this.scene.metadata?.isPaused) return;
+
         if (!this.target) {
             this.playAnimation('idle', true);
             return;

@@ -1,13 +1,17 @@
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { DungeonScene } from '../scenes/DungeonScene';
+import { GameSettings } from './GameSettings';
 
 export class Game {
     private engine: Engine;
     private canvas: HTMLCanvasElement;
     private currentScene: DungeonScene | null = null;
+    private settings: GameSettings;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
+        this.settings = GameSettings.getInstance();
+
         this.engine = new Engine(canvas, true, {
             preserveDrawingBuffer: true,
             stencil: true
@@ -26,6 +30,9 @@ export class Game {
 
         this.currentScene = new DungeonScene(this.engine, this.canvas);
         await this.currentScene.init(levelIndex);
+
+        // Apply settings after scene is loaded
+        this.settings.apply();
     }
 
     run(): void {

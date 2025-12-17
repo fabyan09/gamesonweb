@@ -4,6 +4,7 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
+import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 
 // Side-effect imports for collisions
 import '@babylonjs/core/Collisions/collisionCoordinator';
@@ -15,6 +16,7 @@ import { PlayerController } from '../core/PlayerController';
 import { LevelLoader } from '../core/LevelLoader';
 import { LevelData } from '../core/LevelData';
 import { Enemy } from '../core/Enemy';
+import { GameSettings, KeyBindings } from '../core/GameSettings';
 
 // List of available levels
 const LEVELS = [
@@ -35,14 +37,23 @@ export class DungeonScene {
     private playerHealth: number = 100;
     private isLevelComplete: boolean = false;
     private isPlayerDead: boolean = false;
+    private isPaused: boolean = false;
+    private settings: GameSettings;
+    private lastFpsUpdate: number = 0;
+    private frameCount: number = 0;
+    private engine: Engine;
+    private pausedAnimations: Map<AnimationGroup, boolean> = new Map();
 
     constructor(engine: Engine, canvas: HTMLCanvasElement) {
         this.canvas = canvas;
+        this.engine = engine;
         this.scene = new Scene(engine);
         this.assetLoader = new AssetLoader(this.scene);
         this.levelLoader = new LevelLoader(this.scene);
+        this.settings = GameSettings.getInstance();
 
         this.setupScene();
+        this.setupPauseMenu();
     }
 
     private setupScene(): void {
@@ -143,9 +154,11 @@ export class DungeonScene {
         // Setup mouse events for attack/block
         this.setupMouseEvents();
 
-        // Update camera in render loop
+        // Update camera in render loop (only when not paused)
         this.scene.onBeforeRenderObservable.add(() => {
-            this.camera?.update();
+            if (!this.scene.metadata?.isPaused) {
+                this.camera?.update();
+            }
         });
 
         // Show health bar
@@ -631,7 +644,299 @@ export class DungeonScene {
         return this.currentLevel;
     }
 
+    private setupPauseMenu(): void {
+        // P key to toggle pause (configurable)
+        window.addEventListener('keydown', (e) => {
+            // Check if pause key is pressed
+            if (this.settings.isKeyBound('pause', e.code)) {
+                // Don't pause if game is over
+                if (this.isPlayerDead || this.isLevelComplete) return;
+
+                // If settings or controls panel is open, close it
+                const settingsPanel = document.getElementById('settings-panel');
+                const controlsPanel = document.getElementById('controls-panel');
+                if (settingsPanel?.classList.contains('visible')) {
+                    settingsPanel.classList.remove('visible');
+                    return;
+                }
+                if (controlsPanel?.classList.contains('visible')) {
+                    controlsPanel.classList.remove('visible');
+                    return;
+                }
+
+                this.togglePause();
+            }
+        });
+
+        // Resume button
+        document.getElementById('pause-resume')?.addEventListener('click', () => {
+            this.resumeGame();
+        });
+
+        // Settings button in pause menu
+        document.getElementById('pause-settings')?.addEventListener('click', () => {
+            document.getElementById('pause-menu')?.classList.remove('visible');
+            this.loadSettingsToUI();
+            document.getElementById('settings-panel')?.classList.add('visible');
+        });
+
+        // Controls button in settings
+        document.getElementById('btn-controls')?.addEventListener('click', () => {
+            document.getElementById('settings-panel')?.classList.remove('visible');
+            this.loadControlsToUI();
+            document.getElementById('controls-panel')?.classList.add('visible');
+        });
+
+        // Controls panel buttons
+        document.getElementById('controls-back')?.addEventListener('click', () => {
+            document.getElementById('controls-panel')?.classList.remove('visible');
+            document.getElementById('settings-panel')?.classList.add('visible');
+        });
+
+        document.getElementById('controls-reset')?.addEventListener('click', () => {
+            this.settings.resetKeyBindings();
+            this.loadControlsToUI();
+        });
+
+        // Quit to main menu
+        document.getElementById('pause-quit')?.addEventListener('click', () => {
+            window.location.href = window.location.pathname;
+        });
+
+        // Settings save from pause menu
+        document.getElementById('settings-save')?.addEventListener('click', () => {
+            this.saveSettingsFromUI();
+            document.getElementById('settings-panel')?.classList.remove('visible');
+            // Re-show pause menu if game is paused
+            if (this.isPaused) {
+                document.getElementById('pause-menu')?.classList.add('visible');
+            }
+        });
+
+        // Settings cancel from pause menu
+        document.getElementById('settings-cancel')?.addEventListener('click', () => {
+            document.getElementById('settings-panel')?.classList.remove('visible');
+            // Re-show pause menu if game is paused
+            if (this.isPaused) {
+                document.getElementById('pause-menu')?.classList.add('visible');
+            }
+        });
+
+        // Setup key binding listeners
+        this.setupKeyBindingListeners();
+    }
+
+    private setupKeyBindingListeners(): void {
+        // Add click listeners to all key binding buttons
+        document.querySelectorAll('.key-bind-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const button = e.currentTarget as HTMLElement;
+                const action = button.dataset.action as keyof KeyBindings;
+                if (!action) return;
+
+                // Mark as listening
+                button.classList.add('listening');
+                button.textContent = '...';
+
+                // Listen for next key press
+                const keyHandler = (keyEvent: KeyboardEvent) => {
+                    keyEvent.preventDefault();
+                    keyEvent.stopPropagation();
+
+                    // Don't allow Escape as a binding
+                    if (keyEvent.code === 'Escape') {
+                        button.classList.remove('listening');
+                        this.loadControlsToUI();
+                        return;
+                    }
+
+                    // Set the new binding
+                    this.settings.setBinding(action, [keyEvent.code]);
+                    button.classList.remove('listening');
+                    this.loadControlsToUI();
+
+                    window.removeEventListener('keydown', keyHandler, true);
+                };
+
+                window.addEventListener('keydown', keyHandler, true);
+            });
+        });
+    }
+
+    private loadControlsToUI(): void {
+        const bindings = this.settings.keyBindings;
+
+        const updateButton = (action: string) => {
+            const btn = document.querySelector(`.key-bind-btn[data-action="${action}"]`);
+            if (btn) {
+                btn.textContent = this.settings.getBindingDisplay(action as keyof KeyBindings);
+            }
+        };
+
+        updateButton('forward');
+        updateButton('backward');
+        updateButton('left');
+        updateButton('right');
+        updateButton('run');
+        updateButton('jump');
+        updateButton('pause');
+    }
+
+    private togglePause(): void {
+        if (this.isPaused) {
+            this.resumeGame();
+        } else {
+            this.pauseGame();
+        }
+    }
+
+    private pauseGame(): void {
+        this.isPaused = true;
+        this.scene.metadata = this.scene.metadata || {};
+        this.scene.metadata.isPaused = true;
+
+        // Store which animations were playing (with their loop state) and pause them
+        this.pausedAnimations.clear();
+        for (const animGroup of this.scene.animationGroups) {
+            if (animGroup.isPlaying) {
+                this.pausedAnimations.set(animGroup, animGroup.loopAnimation);
+                animGroup.pause();
+            }
+        }
+
+        document.getElementById('pause-menu')?.classList.add('visible');
+        document.exitPointerLock();
+    }
+
+    private resumeGame(): void {
+        this.isPaused = false;
+        if (this.scene.metadata) {
+            this.scene.metadata.isPaused = false;
+        }
+
+        // Resume only the animations that were playing before pause
+        for (const [animGroup, wasLooping] of this.pausedAnimations) {
+            animGroup.play(wasLooping);
+        }
+        this.pausedAnimations.clear();
+
+        document.getElementById('pause-menu')?.classList.remove('visible');
+        document.getElementById('settings-panel')?.classList.remove('visible');
+        document.getElementById('controls-panel')?.classList.remove('visible');
+    }
+
+    private loadSettingsToUI(): void {
+        const musicSlider = document.getElementById('music-volume') as HTMLInputElement;
+        const sfxSlider = document.getElementById('sfx-volume') as HTMLInputElement;
+        const sensitivitySlider = document.getElementById('mouse-sensitivity') as HTMLInputElement;
+        const fpsToggle = document.getElementById('toggle-fps');
+        const controlsToggle = document.getElementById('toggle-controls');
+
+        if (musicSlider) {
+            musicSlider.value = String(this.settings.musicVolume);
+            const display = document.getElementById('music-value');
+            if (display) display.textContent = String(this.settings.musicVolume);
+        }
+
+        if (sfxSlider) {
+            sfxSlider.value = String(this.settings.sfxVolume);
+            const display = document.getElementById('sfx-value');
+            if (display) display.textContent = String(this.settings.sfxVolume);
+        }
+
+        if (sensitivitySlider) {
+            sensitivitySlider.value = String(this.settings.mouseSensitivity);
+            const display = document.getElementById('sensitivity-value');
+            if (display) display.textContent = String(this.settings.mouseSensitivity);
+        }
+
+        if (fpsToggle) {
+            fpsToggle.classList.toggle('active', this.settings.showFps);
+        }
+
+        if (controlsToggle) {
+            controlsToggle.classList.toggle('active', this.settings.showControls);
+        }
+    }
+
+    private saveSettingsFromUI(): void {
+        const musicSlider = document.getElementById('music-volume') as HTMLInputElement;
+        const sfxSlider = document.getElementById('sfx-volume') as HTMLInputElement;
+        const sensitivitySlider = document.getElementById('mouse-sensitivity') as HTMLInputElement;
+        const fpsToggle = document.getElementById('toggle-fps');
+        const controlsToggle = document.getElementById('toggle-controls');
+
+        if (musicSlider) {
+            this.settings.musicVolume = parseInt(musicSlider.value, 10);
+        }
+
+        if (sfxSlider) {
+            this.settings.sfxVolume = parseInt(sfxSlider.value, 10);
+        }
+
+        if (sensitivitySlider) {
+            this.settings.mouseSensitivity = parseInt(sensitivitySlider.value, 10);
+        }
+
+        if (fpsToggle) {
+            this.settings.showFps = fpsToggle.classList.contains('active');
+        }
+
+        if (controlsToggle) {
+            this.settings.showControls = controlsToggle.classList.contains('active');
+        }
+
+        this.settings.save();
+
+        // Apply sensitivity immediately
+        this.camera?.updateSensitivity();
+    }
+
+    private updateFpsCounter(): void {
+        const fpsCounter = document.getElementById('fps-counter');
+        if (!fpsCounter) return;
+
+        // Show/hide based on settings
+        if (this.settings.showFps) {
+            fpsCounter.classList.add('visible');
+        } else {
+            fpsCounter.classList.remove('visible');
+            return;
+        }
+
+        // Update FPS every 500ms
+        this.frameCount++;
+        const now = performance.now();
+        if (now - this.lastFpsUpdate >= 500) {
+            const fps = Math.round((this.frameCount * 1000) / (now - this.lastFpsUpdate));
+            const fpsValue = fpsCounter.querySelector('.fps-value');
+            if (fpsValue) {
+                fpsValue.textContent = String(fps);
+            }
+
+            // Color based on performance
+            fpsCounter.classList.remove('low', 'medium');
+            if (fps < 30) {
+                fpsCounter.classList.add('low');
+            } else if (fps < 50) {
+                fpsCounter.classList.add('medium');
+            }
+
+            this.frameCount = 0;
+            this.lastFpsUpdate = now;
+        }
+    }
+
     render(): void {
-        this.scene.render();
+        // Update FPS counter
+        this.updateFpsCounter();
+
+        // Don't update game logic if paused, but still render
+        if (!this.isPaused) {
+            this.scene.render();
+        } else {
+            // Still render but without animation updates
+            this.scene.render();
+        }
     }
 }

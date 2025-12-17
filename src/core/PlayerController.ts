@@ -9,6 +9,7 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/loaders/glTF';
 import { ThirdPersonCamera } from './ThirdPersonCamera';
+import { GameSettings } from './GameSettings';
 
 export interface PlayerConfig {
     position?: Vector3;
@@ -74,6 +75,7 @@ export class PlayerController {
     private camera: ThirdPersonCamera | null = null;
     private skeleton: Skeleton | null = null;
     private transformNodes: Map<string, TransformNode> = new Map();
+    private settings: GameSettings;
 
     // Physics
     private verticalVelocity = 0;
@@ -87,6 +89,7 @@ export class PlayerController {
 
     constructor(scene: Scene, config: PlayerConfig = {}) {
         this.scene = scene;
+        this.settings = GameSettings.getInstance();
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -286,62 +289,44 @@ export class PlayerController {
     }
 
     private onKeyDown(e: KeyboardEvent): void {
-        switch (e.code) {
-            case 'KeyW':
-            case 'KeyZ':
-            case 'ArrowUp':
-                this.keys.forward = true;
-                break;
-            case 'KeyS':
-            case 'ArrowDown':
-                this.keys.backward = true;
-                break;
-            case 'KeyA':
-            case 'KeyQ':
-            case 'ArrowLeft':
-                this.keys.left = true;
-                break;
-            case 'KeyD':
-            case 'ArrowRight':
-                this.keys.right = true;
-                break;
-            case 'ShiftLeft':
-            case 'ShiftRight':
-                this.keys.run = true;
-                break;
-            case 'Space':
-                if (!this.isJumping) {
-                    this.keys.jump = true;
-                    this.triggerJump();
-                }
-                break;
+        if (this.settings.isKeyBound('forward', e.code)) {
+            this.keys.forward = true;
+        }
+        if (this.settings.isKeyBound('backward', e.code)) {
+            this.keys.backward = true;
+        }
+        if (this.settings.isKeyBound('left', e.code)) {
+            this.keys.left = true;
+        }
+        if (this.settings.isKeyBound('right', e.code)) {
+            this.keys.right = true;
+        }
+        if (this.settings.isKeyBound('run', e.code)) {
+            this.keys.run = true;
+        }
+        if (this.settings.isKeyBound('jump', e.code)) {
+            if (!this.isJumping) {
+                this.keys.jump = true;
+                this.triggerJump();
+            }
         }
     }
 
     private onKeyUp(e: KeyboardEvent): void {
-        switch (e.code) {
-            case 'KeyW':
-            case 'KeyZ':
-            case 'ArrowUp':
-                this.keys.forward = false;
-                break;
-            case 'KeyS':
-            case 'ArrowDown':
-                this.keys.backward = false;
-                break;
-            case 'KeyA':
-            case 'KeyQ':
-            case 'ArrowLeft':
-                this.keys.left = false;
-                break;
-            case 'KeyD':
-            case 'ArrowRight':
-                this.keys.right = false;
-                break;
-            case 'ShiftLeft':
-            case 'ShiftRight':
-                this.keys.run = false;
-                break;
+        if (this.settings.isKeyBound('forward', e.code)) {
+            this.keys.forward = false;
+        }
+        if (this.settings.isKeyBound('backward', e.code)) {
+            this.keys.backward = false;
+        }
+        if (this.settings.isKeyBound('left', e.code)) {
+            this.keys.left = false;
+        }
+        if (this.settings.isKeyBound('right', e.code)) {
+            this.keys.right = false;
+        }
+        if (this.settings.isKeyBound('run', e.code)) {
+            this.keys.run = false;
         }
     }
 
@@ -438,6 +423,9 @@ export class PlayerController {
 
     private update(): void {
         if (!this.rootNode || !this.colliderMesh || this.isDead) return;
+
+        // Don't update if game is paused
+        if (this.scene.metadata?.isPaused) return;
 
         // Apply gravity and vertical movement
         if (this.isJumping) {
