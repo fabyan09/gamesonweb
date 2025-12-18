@@ -6,6 +6,7 @@ import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { Ray } from '@babylonjs/core/Culling/ray';
 import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture';
 import { Rectangle } from '@babylonjs/gui/2D/controls/rectangle';
 import '@babylonjs/loaders/glTF';
@@ -69,10 +70,11 @@ export class Enemy {
     private isJumping: boolean = false;
     private jumpVelocityY: number = 0;
     private jumpStartY: number = 0;
-    private previousPosition: Vector3 = Vector3.Zero();
     private stuckFrames: number = 0;
     private readonly jumpForce: number = 0.15;
     private readonly gravity: number = -0.008;
+    private readonly maxJumpableHeight: number = 1.0; // Can only jump over obstacles up to 1m tall
+    private jumpDirection: Vector3 = Vector3.Zero();
 
     private config: Required<Omit<EnemyConfig, 'type'>> & { type: string };
     private typeConfig: EnemyTypeConfig;
@@ -420,13 +422,59 @@ export class Enemy {
     private startJump(direction: Vector3): void {
         if (this.isJumping || !this.rootNode || !this.colliderMesh) return;
 
+        // Check if the obstacle ahead can be jumped over using raycasts
+        if (!this.canJumpOverObstacle(direction)) {
+            // Obstacle is too tall - don't jump, try to go around instead
+            this.stuckFrames = 0;
+            return;
+        }
+
         this.isJumping = true;
         this.jumpVelocityY = this.jumpForce;
         this.jumpStartY = this.rootNode.position.y;
+        this.jumpDirection = direction.clone();
         this.playAnimation('jump', false);
+    }
 
-        // Store direction for forward movement during jump
-        this.previousPosition = direction.clone();
+    private canJumpOverObstacle(direction: Vector3): boolean {
+        if (!this.rootNode) return false;
+
+        // Cast a ray forward at jump height to see if the obstacle is low enough
+        const rayOrigin = this.rootNode.position.clone();
+        rayOrigin.y += this.maxJumpableHeight + 0.2; // Check just above max jumpable height
+
+        const rayDirection = direction.clone();
+        rayDirection.y = 0;
+        rayDirection.normalize();
+
+        const ray = new Ray(rayOrigin, rayDirection, 2.0); // Check 2 units ahead
+
+        // Get all meshes with collision enabled
+        const collisionMeshes = this.scene.meshes.filter(mesh =>
+            mesh.checkCollisions && mesh !== this.colliderMesh
+        );
+
+        // Check if ray hits anything at jump height
+        const hit = this.scene.pickWithRay(ray, (mesh) => {
+            return collisionMeshes.includes(mesh);
+        });
+
+        // If we hit something at jump height, the obstacle is too tall
+        if (hit?.hit) {
+            return false;
+        }
+
+        // Also verify there IS an obstacle at ground level (otherwise why jump?)
+        const groundRayOrigin = this.rootNode.position.clone();
+        groundRayOrigin.y += 0.5; // Check at half height
+
+        const groundRay = new Ray(groundRayOrigin, rayDirection, 1.5);
+        const groundHit = this.scene.pickWithRay(groundRay, (mesh) => {
+            return collisionMeshes.includes(mesh);
+        });
+
+        // Only jump if there's actually a low obstacle ahead
+        return groundHit?.hit === true;
     }
 
     private updateJump(): void {
@@ -437,13 +485,17 @@ export class Enemy {
         this.rootNode.position.y += this.jumpVelocityY;
         this.colliderMesh.position.y = this.rootNode.position.y;
 
-        // Move forward while jumping (to clear the obstacle)
+        // Move forward while jumping using collision detection
+        // This prevents going through walls/pillars even while jumping
         const forwardSpeed = this.config.moveSpeed * 1.5;
-        const forwardVelocity = this.previousPosition.scale(forwardSpeed);
-        this.rootNode.position.x += forwardVelocity.x;
-        this.rootNode.position.z += forwardVelocity.z;
-        this.colliderMesh.position.x = this.rootNode.position.x;
-        this.colliderMesh.position.z = this.rootNode.position.z;
+        const forwardVelocity = this.jumpDirection.scale(forwardSpeed);
+
+        // Use moveWithCollisions for horizontal movement to respect walls/pillars
+        this.colliderMesh.moveWithCollisions(new Vector3(forwardVelocity.x, 0, forwardVelocity.z));
+
+        // Sync rootNode with collider
+        this.rootNode.position.x = this.colliderMesh.position.x;
+        this.rootNode.position.z = this.colliderMesh.position.z;
 
         // Check if landed
         if (this.rootNode.position.y <= this.jumpStartY) {
