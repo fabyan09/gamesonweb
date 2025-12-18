@@ -453,33 +453,89 @@ export class ArcherController implements CharacterController {
     }
 
     private triggerArrowHit(): void {
-        if (!this.rootNode || !this.attackHitCallback) return;
+        if (!this.rootNode || !this.attackHitCallback || !this.camera) return;
 
-        // Calculate attack position using raycast from archer forward
-        const forward = new Vector3(
-            Math.sin(this.rootNode.rotation.y + Math.PI),
-            0,
-            Math.cos(this.rootNode.rotation.y + Math.PI)
-        );
+        // Get camera direction (where the crosshair is pointing)
+        const cameraInstance = this.camera.instance;
+        const cameraForward = cameraInstance.getForwardRay().direction.clone();
 
-        // Raycast to find what we hit
-        const rayOrigin = this.rootNode.position.clone();
-        rayOrigin.y += 1.5; // Chest height
+        // Raycast from camera position through the crosshair
+        const cameraPosition = cameraInstance.position.clone();
 
-        const ray = new Ray(rayOrigin, forward, this.attackRange);
-        const hit = this.scene.pickWithRay(ray, (mesh) => {
-            // Only hit enemies (meshes with collision that aren't the player)
-            return mesh.checkCollisions && mesh !== this.colliderMesh;
+        // Find where the crosshair points in the world
+        const cameraRay = new Ray(cameraPosition, cameraForward, this.attackRange + 50);
+        const cameraHit = this.scene.pickWithRay(cameraRay, (mesh) => {
+            // Ignore player collider and very small meshes
+            return mesh.checkCollisions && mesh !== this.colliderMesh && mesh.name !== 'archerCollider';
         });
 
-        if (hit?.pickedPoint) {
-            // Hit something - deal damage at that point
-            this.attackHitCallback(hit.pickedPoint, 2.0);
+        // Determine the target point (where the crosshair is aiming)
+        let targetPoint: Vector3;
+        if (cameraHit?.pickedPoint) {
+            targetPoint = cameraHit.pickedPoint;
         } else {
-            // No hit - use max range position
-            const maxRangePosition = rayOrigin.add(forward.scale(this.attackRange));
-            this.attackHitCallback(maxRangePosition, 2.0);
+            // No hit - aim at max range in camera direction
+            targetPoint = cameraPosition.add(cameraForward.scale(this.attackRange + 50));
         }
+
+        // Arrow starts from the archer's chest
+        const arrowOrigin = this.rootNode.position.clone();
+        arrowOrigin.y += 1.5; // Chest height
+
+        // Calculate direction from archer to target
+        const arrowDirection = targetPoint.subtract(arrowOrigin);
+        const distanceToTarget = arrowDirection.length();
+        arrowDirection.normalize();
+
+        // Calculate the arrow end point (either the target or max range)
+        const arrowEndPoint = arrowOrigin.add(arrowDirection.scale(Math.min(distanceToTarget, this.attackRange)));
+
+        // Use the arrow trajectory for hit detection
+        // Pass the direction info via a special encoding: negative range means "use line check"
+        // We'll pass the midpoint of the trajectory with a large range to catch enemies along the path
+        const trajectoryMidpoint = arrowOrigin.add(arrowDirection.scale(Math.min(distanceToTarget, this.attackRange) / 2));
+
+        // Store trajectory info for the hit callback to use
+        this.lastArrowTrajectory = {
+            origin: arrowOrigin,
+            direction: arrowDirection,
+            maxDistance: Math.min(distanceToTarget, this.attackRange)
+        };
+
+        // Use a generous hit radius along the trajectory
+        this.attackHitCallback(trajectoryMidpoint, Math.min(distanceToTarget, this.attackRange) / 2 + 1.5);
+    }
+
+    // Store arrow trajectory for accurate hit detection
+    private lastArrowTrajectory: { origin: Vector3; direction: Vector3; maxDistance: number } | null = null;
+
+    /**
+     * Check if a point is close to the last arrow trajectory
+     * Used by external hit detection systems
+     */
+    isPointOnArrowTrajectory(point: Vector3, tolerance: number = 1.0): boolean {
+        if (!this.lastArrowTrajectory) return false;
+
+        const { origin, direction, maxDistance } = this.lastArrowTrajectory;
+
+        // Vector from arrow origin to the point
+        const toPoint = point.subtract(origin);
+
+        // Project the point onto the arrow line
+        const projectionLength = Vector3.Dot(toPoint, direction);
+
+        // Check if projection is within arrow range
+        if (projectionLength < 0 || projectionLength > maxDistance) {
+            return false;
+        }
+
+        // Calculate closest point on arrow trajectory
+        const closestPointOnLine = origin.add(direction.scale(projectionLength));
+
+        // Calculate perpendicular distance from point to line
+        const perpendicularDistance = Vector3.Distance(point, closestPointOnLine);
+
+        return perpendicularDistance <= tolerance;
     }
 
     private triggerBlock(): void {

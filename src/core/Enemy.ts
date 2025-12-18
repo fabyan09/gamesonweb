@@ -32,15 +32,17 @@ export interface EnemyConfig {
     attackCooldown?: number;
 }
 
-type EnemyAnimationName = 'idle' | 'walk' | 'attack' | 'death' | 'celebrate' | 'jump';
+type EnemyAnimationName = 'idle' | 'walk' | 'run' | 'attack' | 'death' | 'celebrate' | 'jump' | 'roar';
 
 interface EnemyAnimationSet {
     idle: AnimationGroup | null;
     walk: AnimationGroup | null;
+    run: AnimationGroup | null;
     attack: AnimationGroup | null;
     death: AnimationGroup | null;
     celebrate: AnimationGroup | null;
     jump: AnimationGroup | null;
+    roar: AnimationGroup | null;
 }
 
 export type EnemyState = 'idle' | 'chasing' | 'attacking' | 'dead' | 'celebrating';
@@ -58,10 +60,12 @@ export class Enemy {
     private animations: EnemyAnimationSet = {
         idle: null,
         walk: null,
+        run: null,
         attack: null,
         death: null,
         celebrate: null,
-        jump: null
+        jump: null,
+        roar: null
     };
     private currentAnimation: AnimationGroup | null = null;
     private currentAnimationName: EnemyAnimationName | null = null;
@@ -84,6 +88,13 @@ export class Enemy {
     private target: TransformNode | null = null;
     private lastAttackTime: number = 0;
     private isAttacking: boolean = false;
+
+    // Enraged state (triggered when hit)
+    private isEnraged: boolean = false;
+    private enragedEndTime: number = 0;
+    private isRoaring: boolean = false;
+    private readonly enragedDuration: number = 10000; // 10 seconds
+    private readonly enragedSpeedMultiplier: number = 1.8; // Run faster when enraged
 
     private onDeathCallback: (() => void) | null = null;
     private onPlayerHitCallback: ((damage: number) => void) | null = null;
@@ -169,10 +180,12 @@ export class Enemy {
         // Load animations
         await this.loadAnimation(basePath, 'mutant idle.glb', 'idle');
         await this.loadAnimation(basePath, 'mutant walking.glb', 'walk');
+        await this.loadAnimation(basePath, 'mutant run.glb', 'run');
         await this.loadAnimation(basePath, 'mutant swiping.glb', 'attack');
         await this.loadAnimation(basePath, 'mutant dying.glb', 'death');
         await this.loadAnimation(basePath, 'mutant jumping.glb', 'celebrate');
         await this.loadAnimation(basePath, 'mutant jumping.glb', 'jump');
+        await this.loadAnimation(basePath, 'mutant roaring.glb', 'roar');
 
         // Start with idle
         this.playAnimation('idle', true);
@@ -331,6 +344,9 @@ export class Enemy {
         // Don't update if game is paused
         if (this.scene.metadata?.isPaused) return;
 
+        // Don't do anything while roaring
+        if (this.isRoaring) return;
+
         // Handle jumping physics
         if (this.isJumping) {
             this.updateJump();
@@ -344,6 +360,26 @@ export class Enemy {
 
         const distanceToTarget = Vector3.Distance(this.rootNode.position, this.target.position);
 
+        // Check if enraged mode has expired
+        if (this.isEnraged && Date.now() >= this.enragedEndTime) {
+            this.isEnraged = false;
+            console.log(`[Enemy] ${this.typeConfig.name} calmed down`);
+
+            // Check if player is still in normal detection range
+            const playerCrouching = this.scene.metadata?.playerCrouching === true;
+            const effectiveDetectionRange = playerCrouching
+                ? this.config.detectionRange * 0.5
+                : this.config.detectionRange;
+
+            if (distanceToTarget > effectiveDetectionRange) {
+                // Player is too far, go back to idle
+                this.state = 'idle';
+                this.playAnimation('idle', true);
+                return;
+            }
+            // Otherwise continue normal behavior below
+        }
+
         // Reduce detection range when player is crouching (stealth mechanic)
         const playerCrouching = this.scene.metadata?.playerCrouching === true;
         const effectiveDetectionRange = playerCrouching
@@ -356,8 +392,8 @@ export class Enemy {
             this.state = 'attacking';
             this.faceTarget();
             this.tryAttack();
-        } else if (distanceToTarget <= effectiveDetectionRange) {
-            // Chase the player
+        } else if (this.isEnraged || distanceToTarget <= effectiveDetectionRange) {
+            // Chase the player (enraged = always chase, regardless of distance)
             this.state = 'chasing';
             this.chaseTarget();
         } else {
@@ -391,8 +427,13 @@ export class Enemy {
         direction.y = 0;
         direction.normalize();
 
+        // Use faster speed when enraged
+        const currentSpeed = this.isEnraged
+            ? this.config.moveSpeed * this.enragedSpeedMultiplier
+            : this.config.moveSpeed;
+
         // Use moveWithCollisions for collision detection
-        const velocity = direction.scale(this.config.moveSpeed);
+        const velocity = direction.scale(currentSpeed);
         this.colliderMesh.moveWithCollisions(velocity);
 
         // Sync rootNode with collider
@@ -401,7 +442,7 @@ export class Enemy {
 
         // Check if stuck (position barely changed but we're trying to move)
         const movedDistance = Vector3.Distance(posBeforeMove, this.colliderMesh.position);
-        const expectedDistance = this.config.moveSpeed * 0.8; // 80% of expected movement
+        const expectedDistance = currentSpeed * 0.8; // 80% of expected movement
 
         if (movedDistance < expectedDistance * 0.1) {
             // Barely moved - might be stuck
@@ -415,7 +456,8 @@ export class Enemy {
         }
 
         if (!this.isJumping) {
-            this.playAnimation('walk', true);
+            // Use run animation when enraged, walk otherwise
+            this.playAnimation(this.isEnraged ? 'run' : 'walk', true);
         }
     }
 
@@ -572,6 +614,50 @@ export class Enemy {
 
         if (this.health <= 0) {
             this.die();
+            return;
+        }
+
+        // Trigger roar and enraged state if player is within 2x detection range
+        // Don't roar again if already enraged - just extend the timer
+        if (this.target && this.rootNode && !this.isRoaring) {
+            const distanceToPlayer = Vector3.Distance(this.rootNode.position, this.target.position);
+            const enrageRange = this.config.detectionRange * 2;
+
+            if (distanceToPlayer <= enrageRange) {
+                if (this.isEnraged) {
+                    // Already enraged - just extend the timer
+                    this.enragedEndTime = Date.now() + this.enragedDuration;
+                } else {
+                    // Not enraged yet - trigger full roar sequence
+                    this.triggerEnragedState();
+                }
+            }
+        }
+    }
+
+    private triggerEnragedState(): void {
+        if (this.isRoaring || this.state === 'dead') return;
+
+        console.log(`[Enemy] ${this.typeConfig.name} is enraged! Roaring...`);
+
+        // Play roar animation
+        this.isRoaring = true;
+        this.isAttacking = false; // Cancel any current attack
+        this.playAnimation('roar', false);
+
+        // When roar finishes, start the enraged chase
+        if (this.animations.roar) {
+            this.animations.roar.onAnimationEndObservable.addOnce(() => {
+                this.isRoaring = false;
+                this.isEnraged = true;
+                this.enragedEndTime = Date.now() + this.enragedDuration;
+                console.log(`[Enemy] ${this.typeConfig.name} starts enraged chase for ${this.enragedDuration / 1000}s`);
+            });
+        } else {
+            // No roar animation, just start enraged immediately
+            this.isRoaring = false;
+            this.isEnraged = true;
+            this.enragedEndTime = Date.now() + this.enragedDuration;
         }
     }
 

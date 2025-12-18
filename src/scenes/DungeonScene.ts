@@ -243,12 +243,31 @@ export class DungeonScene {
     }
 
     private handlePlayerAttack(position: Vector3, range: number): void {
-        for (const enemy of this.enemies) {
-            if (enemy.isDead) continue;
+        // For archer, use trajectory-based hit detection
+        if (this.characterClass === 'archer' && this.player) {
+            const archer = this.player as ArcherController;
+            for (const enemy of this.enemies) {
+                if (enemy.isDead) continue;
 
-            const distance = Vector3.Distance(position, enemy.position);
-            if (distance <= range) {
-                enemy.takeDamage(25);
+                // Check if enemy is on the arrow trajectory (with 1.2m tolerance for body width)
+                const enemyCenter = enemy.position.clone();
+                enemyCenter.y += 1.0; // Aim at chest height
+
+                if (archer.isPointOnArrowTrajectory(enemyCenter, 1.2)) {
+                    enemy.takeDamage(25);
+                    console.log(`[DungeonScene] Arrow hit ${enemy.typeName}!`);
+                    break; // Arrow only hits first enemy in path
+                }
+            }
+        } else {
+            // For knight, use distance-based hit detection
+            for (const enemy of this.enemies) {
+                if (enemy.isDead) continue;
+
+                const distance = Vector3.Distance(position, enemy.position);
+                if (distance <= range) {
+                    enemy.takeDamage(25);
+                }
             }
         }
     }
@@ -415,7 +434,7 @@ export class DungeonScene {
         // Add event listeners
         if (hasNextLevel) {
             document.getElementById('next-level-btn')?.addEventListener('click', () => {
-                window.location.href = `${window.location.pathname}?level=${nextLevelNumber}`;
+                window.location.href = `${window.location.pathname}?level=${nextLevelNumber}&class=${this.characterClass}`;
             });
         } else {
             document.getElementById('restart-btn')?.addEventListener('click', () => {
