@@ -1,23 +1,43 @@
 import { Game } from './core/Game';
 import { GameSettings, KeyBindings } from './core/GameSettings';
+import { CharacterClassName } from './core/CharacterClass';
+import { CharacterPreview, createCharacterPreviews } from './core/CharacterPreview';
+import { assetPreloader } from './core/AssetPreloader';
 
 const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
 
 // Initialize settings
 const settings = GameSettings.getInstance();
 
+// State variables (declared early to avoid temporal dead zone)
+let pendingLevel: number = 1;
+let characterPreviews: { knight: CharacterPreview; archer: CharacterPreview } | null = null;
+let previewsLoading = false;
+
 // Check if we should show menu or start game directly
 const urlParams = new URLSearchParams(window.location.search);
 const levelParam = urlParams.get('level');
+const classParam = urlParams.get('class') as CharacterClassName | null;
 
-if (levelParam) {
-    // Level specified - start game directly
+if (levelParam && classParam) {
+    // Level and class specified - start game directly
     hideMainMenu();
-    startGame();
+    const game = new Game(canvas, classParam);
+    game.init().then(() => {
+        game.run();
+    });
+} else if (levelParam) {
+    // Only level specified - show character select
+    hideMainMenu();
+    setupCharacterSelectListeners();
+    showCharacterSelect(parseInt(levelParam, 10));
 } else {
     // No level - show main menu
     showMainMenu();
     setupMenuListeners();
+
+    // Start preloading assets in background
+    assetPreloader.preloadCharacterAssets();
 }
 
 function hideMainMenu(): void {
@@ -38,23 +58,90 @@ function showMainMenu(): void {
     }
 }
 
-function startGame(level?: number): void {
-    if (level !== undefined) {
-        // Navigate to level URL
-        window.location.href = `${window.location.pathname}?level=${level}`;
-        return;
-    }
+async function loadCharacterPreviews(): Promise<void> {
+    if (characterPreviews || previewsLoading) return;
 
-    const game = new Game(canvas);
-    game.init().then(() => {
-        game.run();
+    previewsLoading = true;
+    try {
+        characterPreviews = await createCharacterPreviews();
+
+        // Mark containers as loaded
+        document.querySelectorAll('.character-preview-container').forEach(container => {
+            container.classList.add('loaded');
+        });
+    } catch (error) {
+        console.error('[Main] Failed to load character previews:', error);
+    }
+    previewsLoading = false;
+}
+
+function showCharacterSelect(level: number = 1): void {
+    pendingLevel = level;
+    const loading = document.getElementById('loading');
+    if (loading) {
+        loading.classList.add('hidden');
+    }
+    document.getElementById('character-select-panel')?.classList.add('visible');
+
+    // Load character previews
+    loadCharacterPreviews();
+}
+
+function setupCharacterSelectListeners(): void {
+    // Character cards - start game with selected class
+    document.querySelectorAll('.character-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const charClass = (card as HTMLElement).dataset.class as CharacterClassName;
+            if (charClass) {
+                window.location.href = `${window.location.pathname}?level=${pendingLevel}&class=${charClass}`;
+            }
+        });
+    });
+
+    // Character select back button
+    document.getElementById('character-back')?.addEventListener('click', () => {
+        closeCharacterSelect();
+    });
+
+    // Close on escape
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Escape') {
+            const charSelectPanel = document.getElementById('character-select-panel');
+            if (charSelectPanel?.classList.contains('visible')) {
+                closeCharacterSelect();
+            }
+        }
     });
 }
 
+function closeCharacterSelect(): void {
+    document.getElementById('character-select-panel')?.classList.remove('visible');
+
+    // Dispose character previews to free resources
+    if (characterPreviews) {
+        characterPreviews.knight.dispose();
+        characterPreviews.archer.dispose();
+        characterPreviews = null;
+    }
+
+    // If we came from URL with level param, go back to main page
+    // Otherwise just show the main menu
+    if (levelParam && !classParam) {
+        window.location.href = window.location.pathname;
+    } else {
+        showMainMenu();
+    }
+}
+
 function setupMenuListeners(): void {
-    // Play button - start level 1
+    // Setup character select listeners first
+    setupCharacterSelectListeners();
+
+    // Play button - show character select for level 1
     document.getElementById('btn-play')?.addEventListener('click', () => {
-        startGame(1);
+        hideMainMenu();
+        pendingLevel = 1;
+        showCharacterSelect(1);
     });
 
     // Level select button
@@ -73,12 +160,14 @@ function setupMenuListeners(): void {
         document.getElementById('settings-panel')?.classList.add('visible');
     });
 
-    // Level cards
+    // Level cards - show character select for selected level
     document.querySelectorAll('.level-card').forEach(card => {
         card.addEventListener('click', () => {
             const level = (card as HTMLElement).dataset.level;
             if (level) {
-                startGame(parseInt(level, 10));
+                document.getElementById('level-select-panel')?.classList.remove('visible');
+                hideMainMenu();
+                showCharacterSelect(parseInt(level, 10));
             }
         });
     });
@@ -160,7 +249,7 @@ function setupMenuListeners(): void {
     // Setup key binding listeners
     setupKeyBindingListeners();
 
-    // Close panels on escape
+    // Close panels on escape (character select handled by setupCharacterSelectListeners)
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Escape') {
             document.getElementById('settings-panel')?.classList.remove('visible');

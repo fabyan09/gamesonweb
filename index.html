@@ -863,10 +863,235 @@
             font-size: 0.95rem;
             background: linear-gradient(180deg, rgba(50, 40, 30, 0.9) 0%, rgba(30, 25, 20, 0.95) 100%);
         }
+
+        /* ========== CHARACTER SELECT ========== */
+        #character-select-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 600;
+            font-family: 'Montaga', 'Georgia', serif;
+        }
+
+        #character-select-panel.visible {
+            display: flex;
+        }
+
+        .character-select-container {
+            max-width: 700px;
+        }
+
+        .character-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .character-card {
+            background: linear-gradient(180deg, rgba(40, 30, 20, 0.8) 0%, rgba(20, 15, 10, 0.9) 100%);
+            border: 2px solid #3a2a1a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .character-card:hover {
+            border-color: #ffd700;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+        }
+
+        .character-card.selected {
+            border-color: #ffd700;
+            background: linear-gradient(180deg, rgba(60, 50, 30, 0.9) 0%, rgba(40, 30, 20, 0.95) 100%);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .character-preview-container {
+            width: 100%;
+            height: 200px;
+            position: relative;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, rgba(30, 25, 20, 0.8) 0%, rgba(10, 8, 5, 0.95) 100%);
+        }
+
+        .character-preview-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .character-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #706040;
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        .character-preview-container.loaded .character-loading {
+            display: none;
+        }
+
+        .character-name {
+            font-size: 1.5rem;
+            color: #ffd700;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .character-desc {
+            color: #8b7355;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+            min-height: 50px;
+        }
+
+        .character-stats {
+            margin-top: 1rem;
+        }
+
+        .character-stats .stat {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .character-stats .stat-label {
+            color: #b8a070;
+            font-size: 0.75rem;
+            width: 60px;
+            text-align: left;
+        }
+
+        .character-stats .stat-bar {
+            flex: 1;
+            height: 6px;
+            background: #1a1510;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .character-stats .stat-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b6914, #ffd700);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* ========== CROSSHAIR ========== */
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        #crosshair.visible {
+            opacity: 1;
+        }
+
+        #crosshair .crosshair-dot {
+            width: 4px;
+            height: 4px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+        }
+
+        #crosshair .crosshair-ring {
+            width: 24px;
+            height: 24px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+        }
+
+        #crosshair.aiming .crosshair-ring {
+            width: 16px;
+            height: 16px;
+            border-color: #ffd700;
+            transition: all 0.2s ease;
+        }
+
+        #crosshair .crosshair-line {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+        }
+
+        #crosshair .crosshair-line.top {
+            width: 2px;
+            height: 8px;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #crosshair .crosshair-line.bottom {
+            width: 2px;
+            height: 8px;
+            bottom: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #crosshair .crosshair-line.left {
+            width: 8px;
+            height: 2px;
+            left: -16px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        #crosshair .crosshair-line.right {
+            width: 8px;
+            height: 2px;
+            right: -16px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
     </style>
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
+
+    <!-- Crosshair for Archer -->
+    <div id="crosshair">
+        <div class="crosshair-dot"></div>
+        <div class="crosshair-ring"></div>
+        <div class="crosshair-line top"></div>
+        <div class="crosshair-line bottom"></div>
+        <div class="crosshair-line left"></div>
+        <div class="crosshair-line right"></div>
+    </div>
 
     <!-- FPS Counter -->
     <div id="fps-counter">FPS: <span class="fps-value">60</span></div>
@@ -1090,6 +1315,47 @@
 
             <div class="panel-buttons">
                 <button class="panel-btn" id="levels-back">Retour</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Character Select Panel -->
+    <div id="character-select-panel">
+        <div class="panel-container character-select-container">
+            <h2 class="panel-title">Choisissez votre Classe</h2>
+
+            <div class="character-grid">
+                <div class="character-card" data-class="knight">
+                    <div class="character-preview-container">
+                        <canvas id="knight-preview-canvas" class="character-preview-canvas"></canvas>
+                        <div class="character-loading">Chargement...</div>
+                    </div>
+                    <div class="character-name">Chevalier</div>
+                    <div class="character-desc">Guerrier robuste avec epee et bouclier. Excellent en defense et au corps a corps.</div>
+                    <div class="character-stats">
+                        <div class="stat"><span class="stat-label">Attaque</span><div class="stat-bar"><div class="stat-fill" style="width: 70%"></div></div></div>
+                        <div class="stat"><span class="stat-label">Defense</span><div class="stat-bar"><div class="stat-fill" style="width: 90%"></div></div></div>
+                        <div class="stat"><span class="stat-label">Portee</span><div class="stat-bar"><div class="stat-fill" style="width: 30%"></div></div></div>
+                    </div>
+                </div>
+
+                <div class="character-card" data-class="archer">
+                    <div class="character-preview-container">
+                        <canvas id="archer-preview-canvas" class="character-preview-canvas"></canvas>
+                        <div class="character-loading">Chargement...</div>
+                    </div>
+                    <div class="character-name">Archere</div>
+                    <div class="character-desc">Combattante agile equipee d'un arc. Precise et mortelle a distance.</div>
+                    <div class="character-stats">
+                        <div class="stat"><span class="stat-label">Attaque</span><div class="stat-bar"><div class="stat-fill" style="width: 85%"></div></div></div>
+                        <div class="stat"><span class="stat-label">Defense</span><div class="stat-bar"><div class="stat-fill" style="width: 40%"></div></div></div>
+                        <div class="stat"><span class="stat-label">Portee</span><div class="stat-bar"><div class="stat-fill" style="width: 95%"></div></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-buttons">
+                <button class="panel-btn" id="character-back">Retour</button>
             </div>
         </div>
     </div>

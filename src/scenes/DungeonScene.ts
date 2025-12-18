@@ -13,6 +13,8 @@ import '@babylonjs/core/Culling/ray';
 import { AssetLoader } from '../core/AssetLoader';
 import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 import { PlayerController } from '../core/PlayerController';
+import { ArcherController } from '../core/ArcherController';
+import { CharacterClassName, CharacterController } from '../core/CharacterClass';
 import { LevelLoader } from '../core/LevelLoader';
 import { LevelData } from '../core/LevelData';
 import { Enemy } from '../core/Enemy';
@@ -30,7 +32,7 @@ export class DungeonScene {
     private assetLoader: AssetLoader;
     private levelLoader: LevelLoader;
     private camera: ThirdPersonCamera | null = null;
-    private player: PlayerController | null = null;
+    private player: CharacterController | null = null;
     private currentLevel: LevelData | null = null;
     private currentLevelIndex: number = 0;
     private enemies: Enemy[] = [];
@@ -43,10 +45,12 @@ export class DungeonScene {
     private frameCount: number = 0;
     private engine: Engine;
     private pausedAnimations: Map<AnimationGroup, boolean> = new Map();
+    private characterClass: CharacterClassName;
 
-    constructor(engine: Engine, canvas: HTMLCanvasElement) {
+    constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
         this.engine = engine;
+        this.characterClass = characterClass;
         this.scene = new Scene(engine);
         this.assetLoader = new AssetLoader(this.scene);
         this.levelLoader = new LevelLoader(this.scene);
@@ -117,17 +121,31 @@ export class DungeonScene {
         // Get player spawn from level data
         const spawn = this.levelLoader.getPlayerSpawn(this.currentLevel);
 
-        // Load player
-        this.player = new PlayerController(this.scene, {
-            position: spawn.position,
-            scale: 1,
-            walkSpeed: 0.08,
-            runSpeed: 0.15,
-            meshYOffset: 0
-        });
+        // Load player based on selected class
+        if (this.characterClass === 'archer') {
+            this.player = new ArcherController(this.scene, {
+                position: spawn.position,
+                scale: 1,
+                walkSpeed: 0.06,
+                runSpeed: 0.12,
+                meshYOffset: 0
+            });
 
-        const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
-        await this.player.load(playerBasePath);
+            const playerBasePath = `${import.meta.env.BASE_URL}assets/Pro Longbow Pack/`;
+            await this.player.load(playerBasePath);
+        } else {
+            // Default: Knight
+            this.player = new PlayerController(this.scene, {
+                position: spawn.position,
+                scale: 1,
+                walkSpeed: 0.08,
+                runSpeed: 0.15,
+                meshYOffset: 0
+            });
+
+            const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
+            await this.player.load(playerBasePath);
+        }
 
         // Load enemies
         await this.loadEnemies();
