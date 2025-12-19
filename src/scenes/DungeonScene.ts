@@ -254,7 +254,9 @@ export class DungeonScene {
                 enemyCenter.y += 1.0; // Aim at chest height
 
                 if (archer.isPointOnArrowTrajectory(enemyCenter, 1.2)) {
-                    enemy.takeDamage(25);
+                    // isRanged = true for arrows - triggers enraged state
+                    enemy.takeDamage(25, true);
+                    archer.markProjectileHit(); // Stop the arrow projectile
                     console.log(`[DungeonScene] Arrow hit ${enemy.typeName}!`);
                     break; // Arrow only hits first enemy in path
                 }
@@ -266,7 +268,8 @@ export class DungeonScene {
 
                 const distance = Vector3.Distance(position, enemy.position);
                 if (distance <= range) {
-                    enemy.takeDamage(25);
+                    // isRanged = false for melee - no enraged state
+                    enemy.takeDamage(25, false);
                 }
             }
         }

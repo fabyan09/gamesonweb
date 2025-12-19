@@ -1,5 +1,6 @@
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
@@ -8,6 +9,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Ray } from '@babylonjs/core/Culling/ray';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import '@babylonjs/loaders/glTF';
 import { ThirdPersonCamera } from './ThirdPersonCamera';
 import { GameSettings } from './GameSettings';
@@ -46,6 +48,16 @@ type ArcherAnimationName = keyof ArcherAnimationSet;
 
 // Root nodes to exclude from animations (to prevent root motion)
 const ROOT_MOTION_NODES = ['Armature', 'Hips', 'mixamorig:Hips'];
+
+// Arrow projectile interface
+interface ArrowProjectile {
+    mesh: AbstractMesh;
+    direction: Vector3;
+    speed: number;
+    distanceTraveled: number;
+    maxDistance: number;
+    hasHit: boolean;
+}
 
 export class ArcherController implements CharacterController {
     private scene: Scene;
@@ -107,6 +119,11 @@ export class ArcherController implements CharacterController {
     // Crosshair element
     private crosshairElement: HTMLElement | null = null;
 
+    // Arrow mesh and projectile system
+    private arrowTemplateMesh: AbstractMesh | null = null; // Loaded from GLB for cloning
+    private activeProjectiles: ArrowProjectile[] = [];
+    private readonly projectileSpeed = 2.0; // Units per frame
+
     constructor(scene: Scene, config: ArcherConfig = {}) {
         this.scene = scene;
         this.settings = GameSettings.getInstance();
@@ -166,6 +183,9 @@ export class ArcherController implements CharacterController {
         });
 
         console.log(`[ArcherController] Loaded ${characterResult.meshes.length} meshes, scale: ${this.config.scale}`);
+
+        // Load arrow model for projectiles
+        await this.loadArrowModel(basePath);
 
         // Load animations
         await this.loadAnimation(basePath, 'standing idle 01.glb', 'idle', 'full');
@@ -377,6 +397,7 @@ export class ArcherController implements CharacterController {
 
         this.isDrawingArrow = true;
         this.showCrosshair(false);
+
         this.playAnimation('drawArrow', false);
 
         const drawAnim = this.animations.drawArrow;
@@ -453,7 +474,7 @@ export class ArcherController implements CharacterController {
     }
 
     private triggerArrowHit(): void {
-        if (!this.rootNode || !this.attackHitCallback || !this.camera) return;
+        if (!this.rootNode || !this.camera) return;
 
         // Get camera direction (where the crosshair is pointing)
         const cameraInstance = this.camera.instance;
@@ -487,23 +508,46 @@ export class ArcherController implements CharacterController {
         const distanceToTarget = arrowDirection.length();
         arrowDirection.normalize();
 
-        // Calculate the arrow end point (either the target or max range)
-        const arrowEndPoint = arrowOrigin.add(arrowDirection.scale(Math.min(distanceToTarget, this.attackRange)));
-
-        // Use the arrow trajectory for hit detection
-        // Pass the direction info via a special encoding: negative range means "use line check"
-        // We'll pass the midpoint of the trajectory with a large range to catch enemies along the path
-        const trajectoryMidpoint = arrowOrigin.add(arrowDirection.scale(Math.min(distanceToTarget, this.attackRange) / 2));
-
         // Store trajectory info for the hit callback to use
         this.lastArrowTrajectory = {
-            origin: arrowOrigin,
-            direction: arrowDirection,
+            origin: arrowOrigin.clone(),
+            direction: arrowDirection.clone(),
             maxDistance: Math.min(distanceToTarget, this.attackRange)
         };
 
-        // Use a generous hit radius along the trajectory
-        this.attackHitCallback(trajectoryMidpoint, Math.min(distanceToTarget, this.attackRange) / 2 + 1.5);
+        // Create arrow projectile (procedural arrow shape)
+        const projectileMesh = this.createArrowMesh('arrowProjectile_' + Date.now());
+        projectileMesh.position = arrowOrigin.clone();
+
+        // Orient arrow towards target
+        projectileMesh.lookAt(targetPoint);
+
+        // Add to active projectiles
+        this.activeProjectiles.push({
+            mesh: projectileMesh,
+            direction: arrowDirection.clone(),
+            speed: this.projectileSpeed,
+            distanceTraveled: 0,
+            maxDistance: Math.min(distanceToTarget, this.attackRange),
+            hasHit: false
+        });
+
+        console.log(`[ArcherController] Arrow projectile created, flying towards target at distance ${distanceToTarget.toFixed(1)}`);
+
+        // Delay hit detection to match arrow flight time
+        // Calculate flight time: frames = distance / speed, then convert to ms (assuming ~60fps = 16.67ms per frame)
+        const flightDistance = Math.min(distanceToTarget, this.attackRange);
+        const flightFrames = flightDistance / this.projectileSpeed;
+        const flightTimeMs = flightFrames * 16.67;
+
+        if (this.attackHitCallback) {
+            const callback = this.attackHitCallback;
+            const trajectoryMidpoint = arrowOrigin.add(arrowDirection.scale(flightDistance / 2));
+
+            setTimeout(() => {
+                callback(trajectoryMidpoint, flightDistance / 2 + 1.5);
+            }, flightTimeMs);
+        }
     }
 
     // Store arrow trajectory for accurate hit detection
@@ -536,6 +580,110 @@ export class ArcherController implements CharacterController {
         const perpendicularDistance = Vector3.Distance(point, closestPointOnLine);
 
         return perpendicularDistance <= tolerance;
+    }
+
+    /**
+     * Update all active arrow projectiles
+     */
+    private updateProjectiles(): void {
+        for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
+            const projectile = this.activeProjectiles[i];
+
+            // Move the projectile
+            const movement = projectile.direction.scale(projectile.speed);
+            projectile.mesh.position.addInPlace(movement);
+            projectile.distanceTraveled += projectile.speed;
+
+            // Check if reached max distance or has hit something
+            if (projectile.distanceTraveled >= projectile.maxDistance || projectile.hasHit) {
+                projectile.mesh.dispose();
+                this.activeProjectiles.splice(i, 1);
+            }
+        }
+    }
+
+    /**
+     * Mark the most recent projectile as having hit a target
+     * Called by external hit detection systems (DungeonScene)
+     */
+    markProjectileHit(): void {
+        // Mark the most recent projectile as hit (it will be removed on next update)
+        if (this.activeProjectiles.length > 0) {
+            this.activeProjectiles[this.activeProjectiles.length - 1].hasHit = true;
+        }
+    }
+
+    /**
+     * Load the arrow model from GLB for use as projectile template
+     */
+    private async loadArrowModel(basePath: string): Promise<void> {
+        try {
+            const arrowResult = await SceneLoader.ImportMeshAsync(
+                '',
+                basePath,
+                'cc0_-_wooden_arrow_1k.glb',
+                this.scene
+            );
+
+            if (arrowResult.meshes.length > 0) {
+                // Get the root mesh or first visible mesh
+                this.arrowTemplateMesh = arrowResult.meshes[0];
+
+                // Hide the template (we'll clone it for projectiles)
+                this.arrowTemplateMesh.setEnabled(false);
+                arrowResult.meshes.forEach(mesh => mesh.setEnabled(false));
+
+                console.log(`[ArcherController] Loaded arrow model with ${arrowResult.meshes.length} meshes`);
+            }
+        } catch (error) {
+            console.warn('[ArcherController] Failed to load arrow model, will use procedural arrow:', error);
+        }
+    }
+
+    /**
+     * Create an arrow mesh for projectiles (clone from loaded model or create procedural)
+     */
+    private createArrowMesh(name: string): Mesh {
+        // Try to clone from loaded arrow model
+        if (this.arrowTemplateMesh) {
+            const clone = this.arrowTemplateMesh.clone(name, null) as Mesh;
+            if (clone) {
+                clone.setEnabled(true);
+                // Make all child meshes visible too
+                clone.getChildMeshes().forEach(child => child.setEnabled(true));
+                // Scale the arrow appropriately
+                clone.scaling.setAll(0.5);
+                return clone;
+            }
+        }
+
+        // Fallback: create procedural arrow
+        const shaft = MeshBuilder.CreateCylinder(name + '_shaft', {
+            height: 0.8,
+            diameter: 0.03,
+            tessellation: 8
+        }, this.scene);
+
+        const head = MeshBuilder.CreateCylinder(name + '_head', {
+            height: 0.15,
+            diameterTop: 0,
+            diameterBottom: 0.08,
+            tessellation: 8
+        }, this.scene);
+        head.position.z = 0.475;
+        head.rotation.x = Math.PI / 2;
+
+        const arrow = Mesh.MergeMeshes([shaft, head], true, true, undefined, false, true);
+        if (!arrow) return shaft;
+
+        arrow.name = name;
+        arrow.rotation.x = Math.PI / 2;
+
+        const arrowMaterial = new StandardMaterial(name + '_mat', this.scene);
+        arrowMaterial.diffuseColor = new Color3(0.4, 0.25, 0.1);
+        arrow.material = arrowMaterial;
+
+        return arrow;
     }
 
     private triggerBlock(): void {
@@ -574,6 +722,9 @@ export class ArcherController implements CharacterController {
     }
 
     private update(): void {
+        // Always update projectiles (even when dead or paused for visual continuity)
+        this.updateProjectiles();
+
         if (!this.rootNode || !this.colliderMesh || this.isDead) return;
 
         // Don't update if game is paused
@@ -624,6 +775,17 @@ export class ArcherController implements CharacterController {
 
         // Keep collider synced with player position
         this.colliderMesh.position.copyFrom(this.rootNode.position);
+
+        // When aiming/drawing/shooting, rotate character to face camera direction
+        if ((this.isAiming || this.isDrawingArrow || this.isShooting) && this.camera) {
+            const targetRotation = cameraAngle + Math.PI;
+            // Smoothly interpolate rotation for fluid movement
+            const currentRotation = this.rootNode.rotation.y;
+            const rotationDiff = targetRotation - currentRotation;
+            // Normalize the difference to handle wrapping around PI
+            const normalizedDiff = Math.atan2(Math.sin(rotationDiff), Math.cos(rotationDiff));
+            this.rootNode.rotation.y += normalizedDiff * 0.15; // 0.15 = smoothing factor
+        }
 
         // Update animation based on state
         if (!this.isDrawingArrow && !this.isShooting && !this.isBlocking) {
@@ -702,6 +864,12 @@ export class ArcherController implements CharacterController {
     }
 
     dispose(): void {
+        // Dispose all active projectiles
+        for (const projectile of this.activeProjectiles) {
+            projectile.mesh.dispose();
+        }
+        this.activeProjectiles = [];
+
         Object.values(this.animations).forEach(anim => anim?.dispose());
         this.mesh?.dispose();
         this.colliderMesh?.dispose();

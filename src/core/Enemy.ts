@@ -603,11 +603,17 @@ export class Enemy {
         this.target = target;
     }
 
-    takeDamage(damage: number): void {
+    /**
+     * Apply damage to the enemy
+     * @param damage Amount of damage to apply
+     * @param isRanged Whether the damage comes from a ranged weapon (arrow, etc.)
+     *                 Only ranged attacks trigger the enraged state with roaring
+     */
+    takeDamage(damage: number, isRanged: boolean = false): void {
         if (this.state === 'dead') return;
 
         this.health -= damage;
-        console.log(`[Enemy] Took ${damage} damage, health: ${this.health}`);
+        console.log(`[Enemy] Took ${damage} damage (ranged: ${isRanged}), health: ${this.health}`);
 
         // Update health bar
         this.updateHealthBar();
@@ -617,9 +623,9 @@ export class Enemy {
             return;
         }
 
-        // Trigger roar and enraged state if player is within 2x detection range
-        // Don't roar again if already enraged - just extend the timer
-        if (this.target && this.rootNode && !this.isRoaring) {
+        // Only trigger enraged state for ranged attacks (arrows, etc.)
+        // Melee attacks (sword) don't cause the enemy to roar and become enraged
+        if (isRanged && this.target && this.rootNode && !this.isRoaring) {
             const distanceToPlayer = Vector3.Distance(this.rootNode.position, this.target.position);
             const enrageRange = this.config.detectionRange * 2;
 
