@@ -11,6 +11,7 @@ const settings = GameSettings.getInstance();
 
 // State variables (declared early to avoid temporal dead zone)
 let pendingLevel: number = 1;
+let isRandomLevel: boolean = false;
 let characterPreviews: { knight: CharacterPreview; archer: CharacterPreview } | null = null;
 let previewsLoading = false;
 
@@ -18,6 +19,7 @@ let previewsLoading = false;
 const urlParams = new URLSearchParams(window.location.search);
 const levelParam = urlParams.get('level');
 const classParam = urlParams.get('class') as CharacterClassName | null;
+const randomParam = urlParams.get('random');
 
 if (levelParam && classParam) {
     // Level and class specified - start game directly
@@ -26,6 +28,19 @@ if (levelParam && classParam) {
     game.init().then(() => {
         game.run();
     });
+} else if (randomParam && classParam) {
+    // Random level with class specified - start game directly
+    hideMainMenu();
+    const game = new Game(canvas, classParam, true); // true = random level
+    game.init().then(() => {
+        game.run();
+    });
+} else if (randomParam) {
+    // Random level requested - show character select
+    hideMainMenu();
+    isRandomLevel = true;
+    setupCharacterSelectListeners();
+    showCharacterSelect(0); // 0 indicates random
 } else if (levelParam) {
     // Only level specified - show character select
     hideMainMenu();
@@ -93,7 +108,11 @@ function setupCharacterSelectListeners(): void {
         card.addEventListener('click', () => {
             const charClass = (card as HTMLElement).dataset.class as CharacterClassName;
             if (charClass) {
-                window.location.href = `${window.location.pathname}?level=${pendingLevel}&class=${charClass}`;
+                if (isRandomLevel) {
+                    window.location.href = `${window.location.pathname}?random=true&class=${charClass}`;
+                } else {
+                    window.location.href = `${window.location.pathname}?level=${pendingLevel}&class=${charClass}`;
+                }
             }
         });
     });
@@ -124,9 +143,12 @@ function closeCharacterSelect(): void {
         characterPreviews = null;
     }
 
-    // If we came from URL with level param, go back to main page
+    // Reset random level state
+    isRandomLevel = false;
+
+    // If we came from URL with level param or random param, go back to main page
     // Otherwise just show the main menu
-    if (levelParam && !classParam) {
+    if ((levelParam || randomParam) && !classParam) {
         window.location.href = window.location.pathname;
     } else {
         showMainMenu();
@@ -147,6 +169,13 @@ function setupMenuListeners(): void {
     // Level select button
     document.getElementById('btn-levels')?.addEventListener('click', () => {
         document.getElementById('level-select-panel')?.classList.add('visible');
+    });
+
+    // Random level button
+    document.getElementById('btn-random')?.addEventListener('click', () => {
+        hideMainMenu();
+        isRandomLevel = true;
+        showCharacterSelect(0);
     });
 
     // Rules button

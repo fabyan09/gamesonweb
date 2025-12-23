@@ -131,6 +131,52 @@ export class LevelLoader {
         console.log(`[LevelLoader] Level built successfully`);
     }
 
+    /**
+     * Build level with instancing optimization for procedural levels
+     */
+    buildLevelOptimized(levelData: LevelData, assets: LoadedAssets): void {
+        this.placer = new MeshPlacer(assets);
+
+        console.log(`[LevelLoader] Building optimized level: ${levelData.name}`);
+
+        // Build floors (using regular method - they use grids which are already efficient)
+        for (const floor of levelData.floors) {
+            this.buildFloor(floor);
+        }
+
+        // Build walls (using regular method for outer walls)
+        for (const wall of levelData.walls) {
+            this.buildWalls(wall);
+        }
+
+        // Place props with instancing enabled
+        for (const prop of levelData.props) {
+            this.placeProp(prop, true); // Enable instancing
+        }
+
+        // Store light definitions
+        this.storeLightDefinitions(levelData.lights);
+
+        // Decide if we need culling based on light count vs GPU capability
+        const totalLights = this.lightDefinitions.length;
+        this.useCulling = totalLights > this.maxActiveLights;
+
+        if (this.useCulling) {
+            console.log(`[LevelLoader] Using dynamic culling: ${totalLights} lights, max ${this.maxActiveLights} active`);
+            this.setupLightCulling();
+        } else {
+            console.log(`[LevelLoader] GPU can handle all ${totalLights} lights - no culling needed!`);
+            this.createAllLightsStatic();
+        }
+
+        // Apply scene settings
+        if (levelData.scene) {
+            this.applySceneSettings(levelData.scene);
+        }
+
+        console.log(`[LevelLoader] Optimized level built successfully`);
+    }
+
     private buildFloor(floor: GridPlacement): void {
         if (!this.placer) return;
 
@@ -260,19 +306,29 @@ export class LevelLoader {
         console.log('[LevelLoader] Created wall colliders');
     }
 
-    private placeProp(prop: PropPlacement): void {
+    private placeProp(prop: PropPlacement, useInstancing: boolean = false): void {
         if (!this.placer) return;
 
-        // Place visual mesh (no collision on visual meshes)
-        const placedMesh = this.placer.place(prop.mesh, {
-            position: prop.position,
-            rotation: prop.rotation ? (prop.rotation * Math.PI / 180) : undefined,
-            scale: prop.scale
-        });
+        // Meshes that benefit from instancing (repeated many times, no collision needed)
+        const instanceableMeshes = ['floor_A', 'floor_B', 'wall_A', 'wall_B', 'upper_wall'];
+        const shouldInstance = useInstancing && !prop.collision && instanceableMeshes.includes(prop.mesh);
+
+        // Place visual mesh
+        const placedMesh = shouldInstance
+            ? this.placer.placeInstance(prop.mesh, {
+                position: prop.position,
+                rotation: prop.rotation ? (prop.rotation * Math.PI / 180) : undefined,
+                scale: prop.scale
+            })
+            : this.placer.place(prop.mesh, {
+                position: prop.position,
+                rotation: prop.rotation ? (prop.rotation * Math.PI / 180) : undefined,
+                scale: prop.scale
+            });
 
         // Create invisible collision box based on mesh bounding box if collision is enabled
         if (prop.collision && placedMesh) {
-            this.createColliderFromMesh(placedMesh, prop);
+            this.createColliderFromMesh(placedMesh as AbstractMesh, prop);
         }
     }
 

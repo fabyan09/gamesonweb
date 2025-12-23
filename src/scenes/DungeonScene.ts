@@ -19,6 +19,7 @@ import { LevelLoader } from '../core/LevelLoader';
 import { LevelData } from '../core/LevelData';
 import { Enemy } from '../core/Enemy';
 import { GameSettings, KeyBindings } from '../core/GameSettings';
+import { BSPDungeonGenerator } from '../core/BSPDungeonGenerator';
 
 // List of available levels
 const LEVELS = [
@@ -40,6 +41,7 @@ export class DungeonScene {
     private isLevelComplete: boolean = false;
     private isPlayerDead: boolean = false;
     private isPaused: boolean = false;
+    private isRandomLevel: boolean = false;
     private settings: GameSettings;
     private lastFpsUpdate: number = 0;
     private frameCount: number = 0;
@@ -117,6 +119,112 @@ export class DungeonScene {
         // Load and build level
         this.currentLevel = await this.levelLoader.loadFromUrl(levelPath);
         this.levelLoader.buildLevel(this.currentLevel, assets);
+
+        // Get player spawn from level data
+        const spawn = this.levelLoader.getPlayerSpawn(this.currentLevel);
+
+        // Load player based on selected class
+        if (this.characterClass === 'archer') {
+            this.player = new ArcherController(this.scene, {
+                position: spawn.position,
+                scale: 1,
+                walkSpeed: 0.06,
+                runSpeed: 0.12,
+                meshYOffset: 0
+            });
+
+            const playerBasePath = `${import.meta.env.BASE_URL}assets/Pro Longbow Pack/`;
+            await this.player.load(playerBasePath);
+        } else {
+            // Default: Knight
+            this.player = new PlayerController(this.scene, {
+                position: spawn.position,
+                scale: 1,
+                walkSpeed: 0.08,
+                runSpeed: 0.15,
+                meshYOffset: 0
+            });
+
+            const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
+            await this.player.load(playerBasePath);
+        }
+
+        // Load enemies
+        await this.loadEnemies();
+
+        // Setup camera to follow player with bounds from level data
+        this.camera = new ThirdPersonCamera(this.scene, this.canvas, {
+            distance: 5,
+            heightOffset: 1.5,
+            bounds: this.currentLevel.cameraBounds
+        });
+
+        if (this.player.rootMesh) {
+            this.camera.setTarget(this.player.rootMesh);
+            // Setup dynamic light culling based on player position
+            this.levelLoader.setPlayerTarget(this.player.rootMesh);
+        }
+        this.player.setCamera(this.camera);
+
+        // Setup player attack callback
+        this.player.onAttackHit((position, range) => {
+            this.handlePlayerAttack(position, range);
+        });
+
+        // Setup mouse events for attack/block
+        this.setupMouseEvents();
+
+        // Update camera in render loop (only when not paused)
+        this.scene.onBeforeRenderObservable.add(() => {
+            if (!this.scene.metadata?.isPaused) {
+                this.camera?.update();
+            }
+        });
+
+        // Show health bar
+        this.updateHealthUI();
+
+        // Update controls display with current keybindings
+        this.updateControlsDisplay();
+
+        // Hide loading
+        document.getElementById('loading')?.classList.add('hidden');
+    }
+
+    /**
+     * Initialize a randomly generated level using BSP algorithm
+     */
+    async initRandomLevel(): Promise<void> {
+        // Lighting
+        this.setupLighting();
+
+        // Load dungeon assets
+        const assets = await this.assetLoader.loadGLB(
+            'dungeon',
+            `${import.meta.env.BASE_URL}assets/Dungeon_set/`,
+            'Dungeon_set.glb'
+        );
+
+        console.log('[DungeonScene] Generating random level...');
+        this.isRandomLevel = true;
+
+        // Generate random level using BSP (smaller for better performance)
+        const generator = new BSPDungeonGenerator({
+            width: 20 + Math.floor(Math.random() * 10), // 20-30 tiles (reduced)
+            height: 20 + Math.floor(Math.random() * 10),
+            minRoomSize: 4,
+            maxRoomSize: 8,
+            tileSpacing: 2,
+            enemyCount: 3 + Math.floor(Math.random() * 3), // 3-5 enemies
+            enemyTypes: ['vampire', 'parasite']
+        });
+
+        this.currentLevel = generator.generate();
+        console.log(`[DungeonScene] Generated: ${this.currentLevel.name}`);
+        console.log(`[DungeonScene] Rooms: ${generator.getRooms().length}, Enemies: ${this.currentLevel.enemies?.length}`);
+
+        // Build level from generated data with instancing optimization
+        this.levelLoader.buildLevelOptimized(this.currentLevel, assets);
 
         // Get player spawn from level data
         const spawn = this.levelLoader.getPlayerSpawn(this.currentLevel);
@@ -293,6 +401,24 @@ export class DungeonScene {
         // Convert to 1-indexed for user-friendly URLs
         const nextLevelNumber = this.currentLevelIndex + 2;
 
+        // Determine buttons based on level type
+        let buttonsHtml: string;
+        if (this.isRandomLevel) {
+            buttonsHtml = `
+                <button id="new-random-btn">Nouveau Niveau Aléatoire</button>
+                <button id="menu-btn" class="secondary">Menu Principal</button>
+            `;
+        } else if (hasNextLevel) {
+            buttonsHtml = `
+                <button id="next-level-btn">Niveau Suivant</button>
+            `;
+        } else {
+            buttonsHtml = `
+                <p class="complete">Félicitations ! Vous avez terminé le jeu !</p>
+                <button id="restart-btn">Rejouer</button>
+            `;
+        }
+
         const overlay = document.createElement('div');
         overlay.id = 'victory-overlay';
         overlay.innerHTML = `
@@ -302,12 +428,7 @@ export class DungeonScene {
                 <div class="victory-divider"></div>
                 <p class="level-name">${this.currentLevel?.name || 'Unknown'}</p>
                 <p class="sub">Tous les ennemis ont été vaincus</p>
-                ${hasNextLevel ? `
-                    <button id="next-level-btn">Niveau Suivant</button>
-                ` : `
-                    <p class="complete">Félicitations ! Vous avez terminé le jeu !</p>
-                    <button id="restart-btn">Rejouer</button>
-                `}
+                ${buttonsHtml}
             </div>
         `;
 
@@ -429,13 +550,32 @@ export class DungeonScene {
                 box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
                 background: linear-gradient(180deg, #ffe44d 0%, #ddaa00 50%, #bb8800 100%);
             }
+            .victory-content button.secondary {
+                background: linear-gradient(180deg, rgba(40, 30, 20, 0.9) 0%, rgba(20, 15, 10, 0.95) 100%);
+                color: #d4c4a0;
+                border: 2px solid #4a3a25;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 200, 100, 0.1);
+                margin-left: 1rem;
+            }
+            .victory-content button.secondary:hover {
+                border-color: #ffd700;
+                color: #ffd700;
+                background: linear-gradient(180deg, rgba(60, 45, 30, 0.9) 0%, rgba(30, 22, 15, 0.95) 100%);
+            }
         `;
 
         document.head.appendChild(style);
         document.body.appendChild(overlay);
 
         // Add event listeners
-        if (hasNextLevel) {
+        if (this.isRandomLevel) {
+            document.getElementById('new-random-btn')?.addEventListener('click', () => {
+                window.location.href = `${window.location.pathname}?random=true&class=${this.characterClass}`;
+            });
+            document.getElementById('menu-btn')?.addEventListener('click', () => {
+                window.location.href = window.location.pathname;
+            });
+        } else if (hasNextLevel) {
             document.getElementById('next-level-btn')?.addEventListener('click', () => {
                 window.location.href = `${window.location.pathname}?level=${nextLevelNumber}&class=${this.characterClass}`;
             });

@@ -1,7 +1,9 @@
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh';
 import { LoadedAssets } from '../core/AssetLoader';
 
 export interface PlacementOptions {
@@ -13,13 +15,72 @@ export interface PlacementOptions {
 export class MeshPlacer {
     private assets: LoadedAssets;
     private cloneCounter: number = 0;
+    private instanceCounter: number = 0;
     private scene: any;
+    // Cache for instanced meshes - maps mesh name to the source mesh for instancing
+    private instanceSources: Map<string, Mesh> = new Map();
 
     constructor(assets: LoadedAssets) {
         this.assets = assets;
         // Get scene from first mesh
         const firstMesh = assets.meshes.values().next().value;
         this.scene = firstMesh?.getScene();
+    }
+
+    /**
+     * Place a mesh using instancing (much better performance for repeated meshes)
+     */
+    placeInstance(meshName: string, options: PlacementOptions): InstancedMesh | null {
+        // Get or create the source mesh for instancing
+        let sourceMesh = this.instanceSources.get(meshName);
+
+        if (!sourceMesh) {
+            const original = this.assets.meshes.get(meshName);
+            if (!original || !(original instanceof Mesh)) {
+                // Fallback to regular clone for non-Mesh or primitives
+                return this.place(meshName, options) as any;
+            }
+
+            // Clone once as the source for all instances
+            sourceMesh = original.clone(`${meshName}_instanceSource`, null) as Mesh;
+            if (!sourceMesh) return null;
+
+            sourceMesh.isVisible = true;
+            sourceMesh.position = new Vector3(options.position.x, options.position.y, options.position.z);
+            if (options.rotation !== undefined) {
+                sourceMesh.rotation.y = options.rotation;
+            }
+            if (options.scale !== undefined) {
+                sourceMesh.scaling = new Vector3(options.scale, options.scale, options.scale);
+            }
+
+            // Make it a proper source for instancing
+            sourceMesh.makeGeometryUnique();
+
+            this.instanceSources.set(meshName, sourceMesh);
+            return sourceMesh as any; // First one is the source itself
+        }
+
+        // Create instance from source
+        const instance = sourceMesh.createInstance(`${meshName}_inst_${this.instanceCounter++}`);
+        instance.position = new Vector3(options.position.x, options.position.y, options.position.z);
+
+        if (options.rotation !== undefined) {
+            instance.rotation.y = options.rotation;
+        }
+
+        if (options.scale !== undefined) {
+            instance.scaling = new Vector3(options.scale, options.scale, options.scale);
+        }
+
+        return instance;
+    }
+
+    /**
+     * Place multiple instances efficiently
+     */
+    placeInstances(meshName: string, positions: PlacementOptions[]): (InstancedMesh | Mesh | null)[] {
+        return positions.map(opts => this.placeInstance(meshName, opts));
     }
 
     place(meshName: string, options: PlacementOptions): AbstractMesh | null {
@@ -150,5 +211,43 @@ export class MeshPlacer {
         }
 
         return meshes;
+    }
+
+    /**
+     * Place a grid using instancing (much better for procedural levels)
+     */
+    placeGridInstanced(meshName: string, config: {
+        startX: number;
+        startZ: number;
+        countX: number;
+        countZ: number;
+        spacingX: number;
+        spacingZ: number;
+        y?: number;
+    }): (InstancedMesh | Mesh | null)[] {
+        const meshes: (InstancedMesh | Mesh | null)[] = [];
+        const y = config.y ?? 0;
+
+        for (let ix = 0; ix < config.countX; ix++) {
+            for (let iz = 0; iz < config.countZ; iz++) {
+                const mesh = this.placeInstance(meshName, {
+                    position: {
+                        x: config.startX + ix * config.spacingX,
+                        y,
+                        z: config.startZ + iz * config.spacingZ
+                    }
+                });
+                if (mesh) meshes.push(mesh);
+            }
+        }
+
+        return meshes;
+    }
+
+    /**
+     * Get instance sources for cleanup
+     */
+    getInstanceSources(): Map<string, Mesh> {
+        return this.instanceSources;
     }
 }
