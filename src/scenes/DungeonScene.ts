@@ -5,6 +5,9 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 
 // Side-effect imports for collisions
 import '@babylonjs/core/Collisions/collisionCoordinator';
@@ -15,7 +18,7 @@ import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 import { PlayerController } from '../core/PlayerController';
 import { ArcherController } from '../core/ArcherController';
 import { CharacterClassName, CharacterController } from '../core/CharacterClass';
-import { LevelLoader } from '../core/LevelLoader';
+import { LevelLoader, TrapData } from '../core/LevelLoader';
 import { LevelData } from '../core/LevelData';
 import { Enemy } from '../core/Enemy';
 import { GameSettings, KeyBindings } from '../core/GameSettings';
@@ -47,6 +50,9 @@ export class DungeonScene {
     private frameCount: number = 0;
     private engine: Engine;
     private pausedAnimations: Map<AnimationGroup, boolean> = new Map();
+    private spikeTraps: TrapData[] = [];
+    private lastTrapDamageTime: number = 0;
+    private trapDamageCooldown: number = 1000; // 1 second between trap damage ticks
     private characterClass: CharacterClassName;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
@@ -63,13 +69,16 @@ export class DungeonScene {
     }
 
     private setupScene(): void {
-        this.scene.clearColor = new Color4(0.05, 0.05, 0.08, 1);
+        this.scene.clearColor = new Color4(0.02, 0.02, 0.04, 1);
         this.scene.ambientColor = new Color3(0.1, 0.1, 0.15);
 
         // Fog
         this.scene.fogMode = Scene.FOGMODE_EXP2;
         this.scene.fogDensity = 0.015;
-        this.scene.fogColor = new Color3(0.05, 0.05, 0.08);
+        this.scene.fogColor = new Color3(0.02, 0.02, 0.04);
+
+        // Create atmospheric skybox
+        this.createSkybox();
 
         // Enable collisions on the scene
         this.scene.collisionsEnabled = true;
@@ -81,6 +90,42 @@ export class DungeonScene {
                 (mesh.material as any).maxSimultaneousLights = 16;
             }
         });
+    }
+
+    private createSkybox(): void {
+        // Create a large box as skybox (6 faces)
+        const skybox = MeshBuilder.CreateBox('skybox', {
+            size: 1000,
+            sideOrientation: 1 // Inside facing
+        }, this.scene);
+
+        const skyMaterial = new StandardMaterial('skyMaterial', this.scene);
+        skyMaterial.backFaceCulling = false;
+        skyMaterial.disableLighting = true;
+        skyMaterial.fogEnabled = false;
+        skyMaterial.specularColor = new Color3(0, 0, 0); // No specular
+
+        // Load skybox texture image
+        const texturePath = `${import.meta.env.BASE_URL}assets/fond.jpg`;
+        console.log('[DungeonScene] Loading skybox texture from:', texturePath);
+
+        const skyTexture = new Texture(texturePath, this.scene, false, false);
+
+        skyTexture.onLoadObservable.add(() => {
+            console.log('[DungeonScene] Skybox texture loaded successfully');
+        });
+
+        // Use both diffuse and emissive for visibility
+        skyMaterial.diffuseTexture = skyTexture;
+        skyMaterial.emissiveTexture = skyTexture;
+        skyMaterial.emissiveColor = new Color3(0.5, 0.5, 0.5);
+
+        skybox.material = skyMaterial;
+        skybox.infiniteDistance = true;
+        skybox.renderingGroupId = 0;
+        skybox.isPickable = false;
+
+        console.log('[DungeonScene] Skybox created');
     }
 
     private setupLighting(): void {
@@ -226,6 +271,10 @@ export class DungeonScene {
         // Build level from generated data with instancing optimization
         this.levelLoader.buildLevelOptimized(this.currentLevel, assets);
 
+        // Get spike traps for damage detection
+        this.spikeTraps = this.levelLoader.getSpikeTraps();
+        console.log(`[DungeonScene] Loaded ${this.spikeTraps.length} spike traps`);
+
         // Get player spawn from level data
         const spawn = this.levelLoader.getPlayerSpawn(this.currentLevel);
 
@@ -284,6 +333,7 @@ export class DungeonScene {
         this.scene.onBeforeRenderObservable.add(() => {
             if (!this.scene.metadata?.isPaused) {
                 this.camera?.update();
+                this.checkTrapDamage();
             }
         });
 
@@ -295,6 +345,34 @@ export class DungeonScene {
 
         // Hide loading
         document.getElementById('loading')?.classList.add('hidden');
+    }
+
+    private checkTrapDamage(): void {
+        if (!this.player?.rootMesh || this.isPlayerDead || this.isLevelComplete || this.spikeTraps.length === 0) return;
+
+        const now = performance.now();
+        if (now - this.lastTrapDamageTime < this.trapDamageCooldown) return;
+
+        const playerPos = this.player.rootMesh.position;
+
+        for (const trap of this.spikeTraps) {
+            const dx = playerPos.x - trap.position.x;
+            const dz = playerPos.z - trap.position.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+
+            if (distance < trap.radius) {
+                // Player is on a spike trap!
+                this.lastTrapDamageTime = now;
+                this.playerHealth -= trap.damage;
+                console.log(`[DungeonScene] Player stepped on spike trap! -${trap.damage} HP (${this.playerHealth} remaining)`);
+                this.updateHealthUI();
+
+                if (this.playerHealth <= 0) {
+                    this.handlePlayerDeath();
+                }
+                break; // Only take damage from one trap at a time
+            }
+        }
     }
 
     private async loadEnemies(): Promise<void> {

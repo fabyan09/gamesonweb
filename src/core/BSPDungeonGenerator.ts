@@ -301,11 +301,13 @@ export class BSPDungeonGenerator {
         const bounds = this.calculateBounds(halfWidth, halfHeight);
 
         // Place floor tiles covering the entire area with alternating floor_A/floor_B
-        const floorPadding = tileSpacing * 2;
+        const floorPadding = tileSpacing * 3; // Extra padding to ensure full coverage
         const startX = bounds.minX - floorPadding;
         const startZ = bounds.minZ - floorPadding;
         const endX = bounds.maxX + floorPadding;
         const endZ = bounds.maxZ + floorPadding;
+
+        const ceilingHeight = 3.3; // Height of the ceiling
 
         for (let z = startZ; z <= endZ; z += tileSpacing) {
             for (let x = startX; x <= endX; x += tileSpacing) {
@@ -314,9 +316,18 @@ export class BSPDungeonGenerator {
                 const tileZ = Math.floor((z - startZ) / tileSpacing);
                 const floorMesh = (tileX + tileZ) % 2 === 0 ? 'floor_A' : 'floor_B';
 
+                // Floor tiles
                 props.push({
                     mesh: floorMesh,
                     position: { x, y: -1, z }
+                });
+
+                // Ceiling tiles (same pattern, flipped upside down)
+                props.push({
+                    mesh: floorMesh,
+                    position: { x, y: ceilingHeight, z },
+                    rotation: 180, // Flip to face downward
+                    scale: 1
                 });
             }
         }
@@ -378,13 +389,29 @@ export class BSPDungeonGenerator {
                 maxX: bounds.maxX + 2,
                 minZ: bounds.minZ - 2,
                 maxZ: bounds.maxZ + 2,
-                maxY: 8
+                maxY: 3.0 // Just below ceiling height (3.3)
             }
         };
     }
 
     private generateWalls(halfWidth: number, halfHeight: number, spacing: number): PropPlacement[] {
         const walls: PropPlacement[] = [];
+
+        // Wall variants for variety
+        // Bottom walls (y=0): 60% wall_A, 40% variants
+        const bottomWallVariants = ['wall_with_decor_A', 'wall_with_decor_B', 'wall_ruin_A', 'wall_ruined_B', 'wall_ruined_C', 'wall_ruined_D', 'sewer_wall_A', 'sewer_wall_B', 'sewer_wall_C'];
+        // Top walls (y=2): 60% wall_B, 40% variants
+        const topWallVariants = ['upper_wall', 'upper_wall_ruined_A', 'upper_wall_ruined_B', 'upper_wall_ruined_C', 'upper_wall_ruined_D'];
+
+        const getBottomWallMesh = (): string => {
+            if (this.random() < 0.85) return 'wall_A';
+            return bottomWallVariants[Math.floor(this.random() * bottomWallVariants.length)];
+        };
+
+        const getTopWallMesh = (): string => {
+            if (this.random() < 0.85) return 'wall_B';
+            return topWallVariants[Math.floor(this.random() * topWallVariants.length)];
+        };
 
         // For each floor tile, check if it needs walls on any side
         for (let z = 0; z < this.config.height; z++) {
@@ -398,13 +425,13 @@ export class BSPDungeonGenerator {
                 // North (z-1)
                 if (z === 0 || !this.grid[z - 1][x]) {
                     walls.push({
-                        mesh: 'wall_A',
+                        mesh: getBottomWallMesh(),
                         position: { x: worldX, y: 0, z: worldZ - spacing / 2 },
                         rotation: 0,
                         collision: true
                     });
                     walls.push({
-                        mesh: 'wall_B',
+                        mesh: getTopWallMesh(),
                         position: { x: worldX, y: 2, z: worldZ - spacing / 2 },
                         rotation: 0
                     });
@@ -413,13 +440,13 @@ export class BSPDungeonGenerator {
                 // South (z+1)
                 if (z === this.config.height - 1 || !this.grid[z + 1][x]) {
                     walls.push({
-                        mesh: 'wall_A',
+                        mesh: getBottomWallMesh(),
                         position: { x: worldX, y: 0, z: worldZ + spacing / 2 },
                         rotation: 180,
                         collision: true
                     });
                     walls.push({
-                        mesh: 'wall_B',
+                        mesh: getTopWallMesh(),
                         position: { x: worldX, y: 2, z: worldZ + spacing / 2 },
                         rotation: 180
                     });
@@ -428,13 +455,13 @@ export class BSPDungeonGenerator {
                 // West (x-1)
                 if (x === 0 || !this.grid[z][x - 1]) {
                     walls.push({
-                        mesh: 'wall_A',
+                        mesh: getBottomWallMesh(),
                         position: { x: worldX - spacing / 2, y: 0, z: worldZ },
                         rotation: 90,
                         collision: true
                     });
                     walls.push({
-                        mesh: 'wall_B',
+                        mesh: getTopWallMesh(),
                         position: { x: worldX - spacing / 2, y: 2, z: worldZ },
                         rotation: 90
                     });
@@ -443,13 +470,13 @@ export class BSPDungeonGenerator {
                 // East (x+1)
                 if (x === this.config.width - 1 || !this.grid[z][x + 1]) {
                     walls.push({
-                        mesh: 'wall_A',
+                        mesh: getBottomWallMesh(),
                         position: { x: worldX + spacing / 2, y: 0, z: worldZ },
                         rotation: -90,
                         collision: true
                     });
                     walls.push({
-                        mesh: 'wall_B',
+                        mesh: getTopWallMesh(),
                         position: { x: worldX + spacing / 2, y: 2, z: worldZ },
                         rotation: -90
                     });
@@ -502,63 +529,89 @@ export class BSPDungeonGenerator {
         const torchProps: PropPlacement[] = [];
         const lightData: LightData[] = [];
 
+        const torchHeight = 1.8; // Height on wall for torches
+        const lightHeight = 2.2; // Slightly above torch
+
         for (const room of this.rooms) {
             const centerX = (room.x + room.width / 2) * spacing - halfWidth;
             const centerZ = (room.z + room.height / 2) * spacing - halfHeight;
+            const centerGridX = Math.floor(room.x + room.width / 2);
+            const centerGridZ = Math.floor(room.z + room.height / 2);
 
             // Place a light at room center
             lightData.push({
-                position: { x: centerX, y: 3, z: centerZ },
+                position: { x: centerX, y: 2.5, z: centerZ },
                 color: { x: 1, y: 0.6, z: 0.2 },
                 intensity: 1.2,
                 range: 12
             });
 
-            // Place torches on walls (2 per room on opposite walls)
+            // Place torches on walls - only where there's actually a wall
             if (room.width >= 4) {
-                // North wall torches
-                torchProps.push({
-                    mesh: 'torch',
-                    position: {
-                        x: centerX,
-                        y: 3.5,
-                        z: (room.z + 0.3) * spacing - halfHeight
-                    },
-                    rotation: 0
-                });
+                // Check if there's a wall on the north side (z = room.z, check z-1)
+                const northZ = room.z;
+                const hasNorthWall = northZ === 0 || !this.grid[northZ - 1]?.[centerGridX];
 
-                lightData.push({
-                    position: {
-                        x: centerX,
-                        y: 4,
-                        z: (room.z + 0.5) * spacing - halfHeight
-                    },
-                    color: { x: 1, y: 0.5, z: 0.1 },
-                    intensity: 1,
-                    range: 10
-                });
+                if (hasNorthWall) {
+                    // Wall is at northZ * spacing - halfHeight - spacing/2
+                    // Torch needs to be right against the wall (inside the room)
+                    const wallZ = northZ * spacing - halfHeight - spacing / 2;
+                    const torchZ = wallZ + 0.05; // Very close to wall
+                    const lightZ = wallZ + 0.5; // Light slightly in front
 
-                // South wall torches
-                torchProps.push({
-                    mesh: 'torch',
-                    position: {
-                        x: centerX,
-                        y: 3.5,
-                        z: (room.z + room.height - 0.3) * spacing - halfHeight
-                    },
-                    rotation: 180
-                });
+                    torchProps.push({
+                        mesh: 'torch',
+                        position: {
+                            x: centerX,
+                            y: torchHeight,
+                            z: torchZ
+                        },
+                        rotation: 0
+                    });
 
-                lightData.push({
-                    position: {
-                        x: centerX,
-                        y: 4,
-                        z: (room.z + room.height - 0.5) * spacing - halfHeight
-                    },
-                    color: { x: 1, y: 0.5, z: 0.1 },
-                    intensity: 1,
-                    range: 10
-                });
+                    lightData.push({
+                        position: {
+                            x: centerX,
+                            y: lightHeight,
+                            z: lightZ
+                        },
+                        color: { x: 1, y: 0.5, z: 0.1 },
+                        intensity: 1,
+                        range: 10
+                    });
+                }
+
+                // Check if there's a wall on the south side
+                const southZ = room.z + room.height - 1;
+                const hasSouthWall = southZ >= this.config.height - 1 || !this.grid[southZ + 1]?.[centerGridX];
+
+                if (hasSouthWall) {
+                    // Wall is at southZ * spacing - halfHeight + spacing/2
+                    const wallZ = southZ * spacing - halfHeight + spacing / 2;
+                    const torchZ = wallZ - 0.05; // Very close to wall
+                    const lightZ = wallZ - 0.5; // Light slightly in front
+
+                    torchProps.push({
+                        mesh: 'torch',
+                        position: {
+                            x: centerX,
+                            y: torchHeight,
+                            z: torchZ
+                        },
+                        rotation: 180
+                    });
+
+                    lightData.push({
+                        position: {
+                            x: centerX,
+                            y: lightHeight,
+                            z: lightZ
+                        },
+                        color: { x: 1, y: 0.5, z: 0.1 },
+                        intensity: 1,
+                        range: 10
+                    });
+                }
             }
         }
 
@@ -567,31 +620,103 @@ export class BSPDungeonGenerator {
 
     private generateDecorations(halfWidth: number, halfHeight: number, spacing: number): PropPlacement[] {
         const decorations: PropPlacement[] = [];
-        const decorMeshes = ['brazier_A', 'brazier_B', 'tomb_A', 'tomb_B', 'statue_A'];
 
-        for (let i = 1; i < this.rooms.length; i++) { // Skip spawn room
+        // Large decorations (with collision) - placed at room centers
+        const largeDecorMeshes = ['brazier_A', 'brazier_B', 'tomb_A', 'tomb_B', 'tomb_C', 'statue_A', 'statue_B', 'statue_C', 'fountain'];
+
+        // Track how many rubble and spiketraps we've placed (max 3-4 each, spread across rooms)
+        const maxRubble = 3 + Math.floor(this.random() * 2); // 3-4
+        const maxSpiketraps = 3 + Math.floor(this.random() * 2); // 3-4
+        let rubbleCount = 0;
+        let spiketrapCount = 0;
+
+        // Shuffle rooms to distribute decorations randomly (skip spawn room)
+        const eligibleRooms = this.rooms.slice(1);
+        const shuffledRooms = [...eligibleRooms].sort(() => this.random() - 0.5);
+
+        for (let i = 0; i < this.rooms.length; i++) {
             const room = this.rooms[i];
+            const isSpawnRoom = i === 0;
+            const centerX = (room.x + room.width / 2) * spacing - halfWidth;
+            const centerZ = (room.z + room.height / 2) * spacing - halfHeight;
 
-            // 50% chance for a decoration in each room
-            if (this.random() > 0.5) {
-                const mesh = decorMeshes[Math.floor(this.random() * decorMeshes.length)];
-                const centerX = (room.x + room.width / 2) * spacing - halfWidth;
-                const centerZ = (room.z + room.height / 2) * spacing - halfHeight;
-
-                // Offset slightly from center
-                const offsetX = (this.random() - 0.5) * spacing * 2;
-                const offsetZ = (this.random() - 0.5) * spacing * 2;
+            // Large decoration in center (70% chance, not in spawn room)
+            if (!isSpawnRoom && this.random() < 0.7) {
+                const mesh = largeDecorMeshes[Math.floor(this.random() * largeDecorMeshes.length)];
+                const offsetX = (this.random() - 0.5) * spacing;
+                const offsetZ = (this.random() - 0.5) * spacing;
 
                 decorations.push({
                     mesh,
-                    position: {
-                        x: centerX + offsetX,
-                        y: 0,
-                        z: centerZ + offsetZ
-                    },
+                    position: { x: centerX + offsetX, y: 0, z: centerZ + offsetZ },
                     rotation: Math.floor(this.random() * 4) * 90,
                     collision: true
                 });
+            }
+
+            // Gargoyles in corners of larger rooms (40% chance per corner)
+            // No collision - they're decorative and cause issues with player/enemy movement
+            if (room.width >= 5 && room.height >= 5) {
+                const corners = [
+                    { x: room.x + 0.5, z: room.z + 0.5, rot: 45 },
+                    { x: room.x + room.width - 0.5, z: room.z + 0.5, rot: 135 },
+                    { x: room.x + 0.5, z: room.z + room.height - 0.5, rot: -45 },
+                    { x: room.x + room.width - 0.5, z: room.z + room.height - 0.5, rot: -135 }
+                ];
+                for (const corner of corners) {
+                    if (this.random() < 0.4) {
+                        const gargMeshes = ['gargolyle_A', 'gargolyle_B', 'gargolyle_C', 'gargolyle_D'];
+                        const gargMesh = gargMeshes[Math.floor(this.random() * gargMeshes.length)];
+                        decorations.push({
+                            mesh: gargMesh,
+                            position: {
+                                x: corner.x * spacing - halfWidth,
+                                y: 0,
+                                z: corner.z * spacing - halfHeight
+                            },
+                            rotation: corner.rot
+                        });
+                    }
+                }
+            }
+        }
+
+        // Place rubble in random rooms (max 3-4 total, spread across different rooms)
+        for (const room of shuffledRooms) {
+            if (rubbleCount >= maxRubble) break;
+            if (this.random() < 0.5) { // 50% chance per eligible room
+                const rx = room.x + 1 + this.random() * (room.width - 2);
+                const rz = room.z + 1 + this.random() * (room.height - 2);
+                decorations.push({
+                    mesh: 'rubble',
+                    position: {
+                        x: rx * spacing - halfWidth,
+                        y: 0,
+                        z: rz * spacing - halfHeight
+                    },
+                    rotation: Math.floor(this.random() * 360)
+                });
+                rubbleCount++;
+            }
+        }
+
+        // Place spike traps in random rooms (max 3-4 total, spread across different rooms)
+        const shuffledRoomsForTraps = [...eligibleRooms].sort(() => this.random() - 0.5);
+        for (const room of shuffledRoomsForTraps) {
+            if (spiketrapCount >= maxSpiketraps) break;
+            if (this.random() < 0.4) { // 40% chance per eligible room
+                const tx = room.x + 1 + this.random() * (room.width - 2);
+                const tz = room.z + 1 + this.random() * (room.height - 2);
+                decorations.push({
+                    mesh: 'spiketrap',
+                    position: {
+                        x: tx * spacing - halfWidth,
+                        y: 0,
+                        z: tz * spacing - halfHeight
+                    },
+                    rotation: 0
+                });
+                spiketrapCount++;
             }
         }
 

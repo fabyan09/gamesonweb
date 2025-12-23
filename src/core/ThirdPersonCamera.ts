@@ -56,7 +56,7 @@ export class ThirdPersonCamera {
         // Camera settings - Style Over The Shoulder
         this.camera.lowerRadiusLimit = config.lowerRadiusLimit ?? 2.5;
         this.camera.upperRadiusLimit = config.upperRadiusLimit ?? 5;
-        this.camera.lowerBetaLimit = Math.PI / 6;     // Limite angle vers le haut (30°) - permet de regarder plus vers le bas
+        this.camera.lowerBetaLimit = Math.PI / 3;     // Limite angle vers le haut (30°) - permet de regarder plus vers le bas
         this.camera.upperBetaLimit = Math.PI * 0.60;  // Limite angle vers le bas (~117°) - permet de viser vers le haut
         this.camera.angularSensibilityX = sensitivity;
         this.camera.angularSensibilityY = sensitivity * 1.5;  // Moins sensible verticalement

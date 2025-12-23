@@ -26,6 +26,12 @@ interface LightDefinition {
     range: number;
 }
 
+export interface TrapData {
+    position: Vector3;
+    radius: number;
+    damage: number;
+}
+
 export class LevelLoader {
     private scene: Scene;
     private placer: MeshPlacer | null = null;
@@ -36,6 +42,7 @@ export class LevelLoader {
     private frameCounter = 0;
     private maxActiveLights: number = 8;
     private useCulling: boolean = true;
+    private spikeTraps: TrapData[] = [];
 
     constructor(scene: Scene) {
         this.scene = scene;
@@ -330,6 +337,47 @@ export class LevelLoader {
         if (prop.collision && placedMesh) {
             this.createColliderFromMesh(placedMesh as AbstractMesh, prop);
         }
+
+        // Track spike traps for damage detection - use actual mesh center
+        if (prop.mesh === 'spiketrap' && placedMesh) {
+            // Calculate the actual center of the mesh from its bounding box
+            placedMesh.computeWorldMatrix(true);
+            let centerX = prop.position.x;
+            let centerZ = prop.position.z;
+
+            // Try to get bounding box center
+            const children = placedMesh.getChildMeshes(false);
+            if (children.length > 0 || placedMesh.getTotalVertices() > 0) {
+                let minX = Infinity, maxX = -Infinity;
+                let minZ = Infinity, maxZ = -Infinity;
+
+                const processMesh = (m: AbstractMesh) => {
+                    if (m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const bb = m.getBoundingInfo().boundingBox;
+                        minX = Math.min(minX, bb.minimumWorld.x);
+                        maxX = Math.max(maxX, bb.maximumWorld.x);
+                        minZ = Math.min(minZ, bb.minimumWorld.z);
+                        maxZ = Math.max(maxZ, bb.maximumWorld.z);
+                    }
+                };
+
+                processMesh(placedMesh as AbstractMesh);
+                children.forEach(child => processMesh(child));
+
+                if (minX !== Infinity) {
+                    centerX = (minX + maxX) / 2;
+                    centerZ = (minZ + maxZ) / 2;
+                }
+            }
+
+            this.spikeTraps.push({
+                position: new Vector3(centerX, prop.position.y, centerZ),
+                radius: 1, // Trap activation radius
+                damage: 10   // Damage per second
+            });
+            console.log(`[LevelLoader] Spike trap at (${centerX.toFixed(1)}, ${centerZ.toFixed(1)})`);
+        }
     }
 
     private createColliderFromMesh(mesh: AbstractMesh, prop: PropPlacement): void {
@@ -616,6 +664,10 @@ export class LevelLoader {
             ),
             rotation: levelData.playerSpawn.rotation ?? 0
         };
+    }
+
+    getSpikeTraps(): TrapData[] {
+        return this.spikeTraps;
     }
 
     dispose(): void {
