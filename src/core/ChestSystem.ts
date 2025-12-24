@@ -6,9 +6,12 @@
 
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
-import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Animation } from '@babylonjs/core/Animations/animation';
 import { PlayerInventory, PotionType } from './PlayerInventory';
 import { AudioManager } from './AudioManager';
@@ -49,8 +52,8 @@ export class ChestSystem {
     private potionTemplates: Map<PotionType, TransformNode> = new Map();
     private arrowTemplate: TransformNode | null = null;
 
-    // Template for open tomb
-    private tombBTemplate: TransformNode | null = null;
+    // Template for open tomb (stored as AbstractMesh for cloning)
+    private tombBTemplate: AbstractMesh | null = null;
 
     // Dropped items on the ground
     private droppedItems: DroppedItem[] = [];
@@ -69,131 +72,123 @@ export class ChestSystem {
     }
 
     /**
-     * Load required assets for the chest system (preloading)
+     * Load required assets for the chest system (using simple lightweight meshes)
      */
-    async loadAssets(basePath: string): Promise<void> {
-        console.log('[ChestSystem] Preloading assets...');
+    async loadAssets(_basePath: string): Promise<void> {
+        console.log('[ChestSystem] Creating lightweight item templates...');
 
-        // Load all potions from realistic_potions.glb
-        // The names are TransformNodes (Object3D), we need to find them and get their child meshes
-        const potionObjectMapping: Record<PotionType, string> = {
-            'p1': 'Orange_small_14',
-            'p2': 'Small_blue_9',
-            'p3': 'Poison_tall_16',
-            'p4': 'Health_p_tall_4'
+        // Create simple potion templates using primitives (much faster than GLB)
+        // Colors for each potion type
+        const potionColors: Record<PotionType, Color3> = {
+            'p1': new Color3(1, 0.5, 0),    // Orange - small heal
+            'p2': new Color3(0, 0.5, 1),    // Blue - medium heal
+            'p3': new Color3(0, 1, 0),      // Green - large heal
+            'p4': new Color3(1, 0, 0.3)     // Red/Pink - full heal
         };
 
-        try {
-            const result = await SceneLoader.ImportMeshAsync(
-                '',
-                `${basePath}Potions/`,
-                'realistic_potions.glb',
-                this.scene
-            );
+        for (const [type, color] of Object.entries(potionColors) as [PotionType, Color3][]) {
+            // Create a simple potion bottle shape (cylinder + sphere top)
+            const container = new TransformNode(`potion_template_${type}`, this.scene);
 
-            console.log(`[ChestSystem] Loaded realistic_potions.glb with ${result.meshes.length} meshes, ${result.transformNodes.length} transform nodes`);
+            // Bottle body (cylinder)
+            const bottle = MeshBuilder.CreateCylinder(`potion_${type}_bottle`, {
+                height: 0.3,
+                diameterTop: 0.1,
+                diameterBottom: 0.15,
+                tessellation: 8
+            }, this.scene);
+            bottle.parent = container;
 
-            // Log all transform nodes for debugging
-            result.transformNodes.forEach(node => {
-                console.log(`[ChestSystem]   TransformNode: ${node.name}`);
-            });
+            // Bottle cork (small cylinder on top)
+            const cork = MeshBuilder.CreateCylinder(`potion_${type}_cork`, {
+                height: 0.08,
+                diameter: 0.08,
+                tessellation: 6
+            }, this.scene);
+            cork.position.y = 0.19;
+            cork.parent = container;
 
-            // Hide all meshes and transform nodes first
-            result.meshes.forEach(mesh => mesh.setEnabled(false));
-            result.transformNodes.forEach(node => node.setEnabled(false));
+            // Create materials
+            const bottleMat = new StandardMaterial(`potion_${type}_mat`, this.scene);
+            bottleMat.diffuseColor = color;
+            bottleMat.emissiveColor = color.scale(0.3); // Slight glow
+            bottleMat.alpha = 0.8;
+            bottle.material = bottleMat;
 
-            // Extract specific objects for each potion type
-            for (const [type, objectName] of Object.entries(potionObjectMapping) as [PotionType, string][]) {
-                // Look for the TransformNode (Object3D) by name
-                const potionNode = result.transformNodes.find(n => n.name === objectName);
+            const corkMat = new StandardMaterial(`potion_${type}_cork_mat`, this.scene);
+            corkMat.diffuseColor = new Color3(0.4, 0.25, 0.1); // Brown cork
+            cork.material = corkMat;
 
-                if (potionNode) {
-                    // Create a container for cloning
-                    const container = new TransformNode(`potion_template_${type}`, this.scene);
-                    container.setEnabled(false);
-
-                    // Clone the entire node hierarchy
-                    const clonedNode = potionNode.clone(`potion_${type}_node`, container);
-                    if (clonedNode) {
-                        clonedNode.setEnabled(false);
-                        // Also clone child meshes
-                        potionNode.getChildMeshes().forEach((mesh, idx) => {
-                            const clonedMesh = mesh.clone(`potion_${type}_mesh_${idx}`, clonedNode);
-                            if (clonedMesh) {
-                                clonedMesh.setEnabled(false);
-                            }
-                        });
-                    }
-
-                    this.potionTemplates.set(type, container);
-                    console.log(`[ChestSystem] Loaded potion ${type} from TransformNode ${objectName}`);
-                } else {
-                    // Fallback: try to find as mesh
-                    const potionMesh = result.meshes.find(m => m.name === objectName);
-                    if (potionMesh) {
-                        const container = new TransformNode(`potion_template_${type}`, this.scene);
-                        container.setEnabled(false);
-
-                        const clonedMesh = potionMesh.clone(`potion_${type}_mesh`, container);
-                        if (clonedMesh) {
-                            clonedMesh.setEnabled(false);
-                        }
-
-                        this.potionTemplates.set(type, container);
-                        console.log(`[ChestSystem] Loaded potion ${type} from mesh ${objectName}`);
-                    } else {
-                        console.warn(`[ChestSystem] Could not find ${objectName} for potion ${type} (checked both TransformNodes and meshes)`);
-                    }
-                }
-            }
-
-            // Keep original assets hidden but don't dispose - they're already loaded
-            // This prevents the freeze on first chest open
-
-        } catch (e) {
-            console.warn('[ChestSystem] Failed to load potions from realistic_potions.glb:', e);
+            container.setEnabled(false);
+            this.potionTemplates.set(type, container);
         }
 
-        // Load arrow mesh for archer (using wooden arrow model)
+        // Create simple arrow template for archer
         if (this.isArcherMode) {
-            try {
-                const result = await SceneLoader.ImportMeshAsync(
-                    '',
-                    `${basePath}Pro Longbow Pack/`,
-                    'cc0_-_wooden_arrow_1k.glb',
-                    this.scene
-                );
-                if (result.meshes[0]) {
-                    const container = new TransformNode('arrow_template', this.scene);
-                    result.meshes.forEach(mesh => {
-                        mesh.setEnabled(false);
-                        mesh.parent = container;
-                    });
-                    container.setEnabled(false);
-                    this.arrowTemplate = container;
-                    console.log('[ChestSystem] Loaded arrow template');
-                }
-            } catch (e) {
-                console.warn('[ChestSystem] Failed to load arrow mesh:', e);
-            }
+            const container = new TransformNode('arrow_template', this.scene);
+
+            // Arrow shaft
+            const shaft = MeshBuilder.CreateCylinder('arrow_shaft', {
+                height: 0.6,
+                diameter: 0.03,
+                tessellation: 6
+            }, this.scene);
+            shaft.rotation.x = Math.PI / 2;
+            shaft.parent = container;
+
+            // Arrow head
+            const head = MeshBuilder.CreateCylinder('arrow_head', {
+                height: 0.12,
+                diameterTop: 0,
+                diameterBottom: 0.06,
+                tessellation: 4
+            }, this.scene);
+            head.rotation.x = Math.PI / 2;
+            head.position.z = 0.36;
+            head.parent = container;
+
+            // Fletching (feathers)
+            const fletch = MeshBuilder.CreateBox('arrow_fletch', {
+                width: 0.1,
+                height: 0.08,
+                depth: 0.01
+            }, this.scene);
+            fletch.position.z = -0.25;
+            fletch.parent = container;
+
+            // Materials
+            const shaftMat = new StandardMaterial('arrow_shaft_mat', this.scene);
+            shaftMat.diffuseColor = new Color3(0.5, 0.35, 0.2); // Wood color
+            shaft.material = shaftMat;
+
+            const headMat = new StandardMaterial('arrow_head_mat', this.scene);
+            headMat.diffuseColor = new Color3(0.3, 0.3, 0.35); // Metal color
+            head.material = headMat;
+
+            const fletchMat = new StandardMaterial('arrow_fletch_mat', this.scene);
+            fletchMat.diffuseColor = new Color3(1, 1, 1); // White feathers
+            fletch.material = fletchMat;
+
+            container.setEnabled(false);
+            this.arrowTemplate = container;
         }
 
-        console.log(`[ChestSystem] Preloading complete: ${this.potionTemplates.size} potion types, arrow: ${!!this.arrowTemplate}`);
+        console.log(`[ChestSystem] Templates created: ${this.potionTemplates.size} potion types, arrow: ${!!this.arrowTemplate}`);
     }
 
     /**
      * Find and store the tomb_B template for later cloning
      */
     private findTombBTemplate(): void {
-        // Find a tomb_B mesh to use as template
+        // Find a tomb_B mesh to use as template (store the mesh directly, not parent)
         const tombB = this.scene.meshes.find(m => {
             const name = m.name.toLowerCase();
             return name.includes('tomb_b') && !name.includes('collider');
         });
 
         if (tombB) {
-            this.tombBTemplate = tombB.parent as TransformNode || tombB as unknown as TransformNode;
-            console.log(`[ChestSystem] Found tomb_B template: ${tombB.name}`);
+            this.tombBTemplate = tombB;
+            console.log(`[ChestSystem] Found tomb_B template: ${tombB.name}, enabled=${tombB.isEnabled()}, visible=${tombB.isVisible}`);
         } else {
             console.warn('[ChestSystem] No tomb_B template found in scene');
         }
@@ -622,26 +617,15 @@ export class ChestSystem {
         // Using isVisible = false keeps collisions but hides the visual
         chest.mesh.isVisible = false;
 
-        // Find the original tomb_B template (not a clone we made)
-        // Look for a tomb_B that is visible and enabled
-        const tombBMesh = this.scene.meshes.find(m => {
-            const name = m.name.toLowerCase();
-            // Must contain tomb_b, not be a collider, not be one of our clones
-            return name.includes('tomb_b') &&
-                   !name.includes('collider') &&
-                   !name.startsWith('opened_tomb_') &&
-                   m.isEnabled() &&
-                   m.isVisible;
-        });
-
-        if (tombBMesh) {
-            console.log(`[ChestSystem] Found tomb_B template: ${tombBMesh.name}`);
-            console.log(`[ChestSystem] Template position: ${tombBMesh.position}, rotation: ${tombBMesh.rotation}`);
+        // Use the stored tomb_B template (found during registerChests)
+        if (this.tombBTemplate) {
+            console.log(`[ChestSystem] Using tomb_B template: ${this.tombBTemplate.name}`);
+            console.log(`[ChestSystem] Template position: ${this.tombBTemplate.position}, rotation: ${this.tombBTemplate.rotation}`);
             console.log(`[ChestSystem] Chest mesh position: ${chest.mesh.position}, rotation: ${chest.mesh.rotation}`);
 
             // Clone just this single mesh
             const cloneName = `opened_tomb_${Date.now()}`;
-            const cloned = tombBMesh.clone(cloneName, null);
+            const cloned = this.tombBTemplate.clone(cloneName, null);
             if (cloned) {
                 // IMPORTANT: Reset the clone's transform first (clone inherits template's transform)
                 cloned.position.set(0, 0, 0);
@@ -655,11 +639,14 @@ export class ChestSystem {
                 cloned.scaling = chest.mesh.scaling.clone();
 
                 // Copy rotation and compensate for tomb_B's 90° offset vs tomb_A/C
+                // Always use euler angles to avoid Quaternion import issues
+                cloned.rotationQuaternion = null; // Force euler angles mode
                 if (chest.mesh.rotationQuaternion) {
-                    cloned.rotationQuaternion = chest.mesh.rotationQuaternion.clone();
-                    // Rotate 90° (PI/2) on Y axis to compensate
-                    const compensation = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), Math.PI / 2);
-                    cloned.rotationQuaternion = cloned.rotationQuaternion.multiply(compensation);
+                    // Convert quaternion to euler angles
+                    const euler = chest.mesh.rotationQuaternion.toEulerAngles();
+                    cloned.rotation.x = euler.x;
+                    cloned.rotation.y = euler.y + Math.PI / 2; // Add 90° compensation
+                    cloned.rotation.z = euler.z;
                 } else {
                     cloned.rotation = chest.mesh.rotation.clone();
                     // Add 90° (PI/2) to Y rotation to compensate
