@@ -10,6 +10,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/loaders/glTF';
 import { ThirdPersonCamera } from './ThirdPersonCamera';
 import { GameSettings } from './GameSettings';
+import { AudioManager } from './AudioManager';
 
 export interface PlayerConfig {
     position?: Vector3;
@@ -106,6 +107,7 @@ export class PlayerController {
     private skeleton: Skeleton | null = null;
     private transformNodes: Map<string, TransformNode> = new Map();
     private settings: GameSettings;
+    private audioManager: AudioManager;
 
     // Physics
     private verticalVelocity = 0;
@@ -128,6 +130,7 @@ export class PlayerController {
     constructor(scene: Scene, config: PlayerConfig = {}) {
         this.scene = scene;
         this.settings = GameSettings.getInstance();
+        this.audioManager = AudioManager.getInstance();
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -426,6 +429,9 @@ export class PlayerController {
 
         this.isAttacking = true;
 
+        // Play sword swing sound
+        this.audioManager.playSwordSheathSound();
+
         // Choose attack animation based on state and randomness
         let attackAnim: AnimationName;
         if (this.isCrouching) {
@@ -488,6 +494,9 @@ export class PlayerController {
 
     private triggerAttackHit(): void {
         if (!this.rootNode || !this.attackHitCallback) return;
+
+        // Play hit sound
+        this.audioManager.playHitSound();
 
         // Calculate attack position (in front of player)
         const forward = new Vector3(
@@ -733,6 +742,8 @@ export class PlayerController {
                 this.verticalVelocity = 0;
                 this.isJumping = false;
                 this.keys.jump = false;
+                // Play landing sound
+                this.audioManager.playFallSound();
             }
         }
 

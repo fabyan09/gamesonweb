@@ -23,6 +23,7 @@ import { LevelData } from '../core/LevelData';
 import { Enemy } from '../core/Enemy';
 import { GameSettings, KeyBindings } from '../core/GameSettings';
 import { BSPDungeonGenerator } from '../core/BSPDungeonGenerator';
+import { AudioManager } from '../core/AudioManager';
 
 // List of available levels
 const LEVELS = [
@@ -54,6 +55,7 @@ export class DungeonScene {
     private lastTrapDamageTime: number = 0;
     private trapDamageCooldown: number = 1000; // 1 second between trap damage ticks
     private characterClass: CharacterClassName;
+    private audioManager: AudioManager;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
@@ -63,6 +65,7 @@ export class DungeonScene {
         this.assetLoader = new AssetLoader(this.scene);
         this.levelLoader = new LevelLoader(this.scene);
         this.settings = GameSettings.getInstance();
+        this.audioManager = AudioManager.getInstance();
 
         this.setupScene();
         this.setupPauseMenu();
@@ -232,6 +235,13 @@ export class DungeonScene {
         // Update controls display with current keybindings
         this.updateControlsDisplay();
 
+        // Initialize audio and start ambient music
+        await this.audioManager.init(this.scene);
+        this.audioManager.playAmbientMusic();
+
+        // Setup brazier sounds
+        this.setupBrazierSounds();
+
         // Hide loading
         document.getElementById('loading')?.classList.add('hidden');
     }
@@ -343,6 +353,13 @@ export class DungeonScene {
         // Update controls display with current keybindings
         this.updateControlsDisplay();
 
+        // Initialize audio and start ambient music
+        await this.audioManager.init(this.scene);
+        this.audioManager.playAmbientMusic();
+
+        // Setup brazier sounds
+        this.setupBrazierSounds();
+
         // Hide loading
         document.getElementById('loading')?.classList.add('hidden');
     }
@@ -367,11 +384,31 @@ export class DungeonScene {
                 console.log(`[DungeonScene] Player stepped on spike trap! -${trap.damage} HP (${this.playerHealth} remaining)`);
                 this.updateHealthUI();
 
+                // Play pain sound
+                this.audioManager.playPainSound();
+
                 if (this.playerHealth <= 0) {
                     this.handlePlayerDeath();
                 }
                 break; // Only take damage from one trap at a time
             }
+        }
+    }
+
+    /**
+     * Find all braziers in the scene and attach spatial campfire sounds
+     */
+    private setupBrazierSounds(): void {
+        // Find all meshes that are braziers (brazier_A or brazier_B)
+        const brazierMeshes = this.scene.meshes.filter(mesh =>
+            mesh.name.toLowerCase().includes('brazier')
+        );
+
+        console.log(`[DungeonScene] Found ${brazierMeshes.length} braziers for audio`);
+
+        for (const mesh of brazierMeshes) {
+            // Create spatial sound for each brazier
+            this.audioManager.createBrazierSound(mesh);
         }
     }
 
@@ -410,12 +447,17 @@ export class DungeonScene {
                 // Check if player is blocking
                 if (this.player?.isCurrentlyBlocking) {
                     console.log(`[DungeonScene] Player blocked ${damage} damage!`);
+                    // Play shield block sound
+                    this.audioManager.playShieldBlockSound();
                     return;
                 }
 
                 this.playerHealth -= damage;
                 console.log(`[DungeonScene] Player took ${damage} damage, health: ${this.playerHealth}`);
                 this.updateHealthUI();
+
+                // Play pain sound
+                this.audioManager.playPainSound();
 
                 if (this.playerHealth <= 0) {
                     this.handlePlayerDeath();
@@ -736,6 +778,9 @@ export class DungeonScene {
         this.isPlayerDead = true;
 
         console.log('[DungeonScene] Player died!');
+
+        // Play death sound
+        this.audioManager.playDeathSound();
 
         // Make all living enemies celebrate
         for (const enemy of this.enemies) {
@@ -1130,6 +1175,9 @@ export class DungeonScene {
             }
         }
 
+        // Pause audio
+        this.audioManager.pauseAll();
+
         document.getElementById('pause-menu')?.classList.add('visible');
         document.exitPointerLock();
     }
@@ -1145,6 +1193,9 @@ export class DungeonScene {
             animGroup.play(wasLooping);
         }
         this.pausedAnimations.clear();
+
+        // Resume audio
+        this.audioManager.resumeAll();
 
         document.getElementById('pause-menu')?.classList.remove('visible');
         document.getElementById('settings-panel')?.classList.remove('visible');
@@ -1228,6 +1279,9 @@ export class DungeonScene {
 
         // Apply sensitivity immediately
         this.camera?.updateSensitivity();
+
+        // Apply audio volumes immediately
+        this.audioManager.applyVolumes();
 
         // Update controls display
         this.updateControlsDisplay();

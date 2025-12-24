@@ -11,6 +11,7 @@ import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture
 import { Rectangle } from '@babylonjs/gui/2D/controls/rectangle';
 import '@babylonjs/loaders/glTF';
 import { EnemyTypeName, EnemyTypeConfig, getEnemyTypeConfig } from './EnemyTypes';
+import { AudioManager } from './AudioManager';
 
 export interface EnemyConfig {
     position: Vector3;
@@ -106,6 +107,11 @@ export class Enemy {
     private healthBarBackground: Rectangle | null = null;
     private healthBarGlow: Rectangle | null = null;
 
+    // Audio
+    private audioManager: AudioManager;
+    private lastGrowlTime: number = 0;
+    private readonly growlInterval: number = 5000; // 5 seconds between growls
+
     constructor(scene: Scene, config: EnemyConfig) {
         this.scene = scene;
 
@@ -127,6 +133,7 @@ export class Enemy {
 
         this.health = this.config.health;
         this.maxHealth = this.config.health;
+        this.audioManager = AudioManager.getInstance();
     }
 
     async load(basePath: string): Promise<void> {
@@ -343,6 +350,17 @@ export class Enemy {
 
         // Don't update if game is paused
         if (this.scene.metadata?.isPaused) return;
+
+        // Play growl sound every 5 seconds - only if player is nearby
+        const now = Date.now();
+        if (now - this.lastGrowlTime >= this.growlInterval && this.target) {
+            const distToPlayer = Vector3.Distance(this.rootNode.position, this.target.position);
+            const growlRange = 15; // Only audible within 15 units
+            if (distToPlayer <= growlRange) {
+                this.lastGrowlTime = now;
+                this.audioManager.playBeastGrowlSound();
+            }
+        }
 
         // Don't do anything while roaring
         if (this.isRoaring) return;

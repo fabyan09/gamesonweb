@@ -322,13 +322,7 @@ export class BSPDungeonGenerator {
                     position: { x, y: -1, z }
                 });
 
-                // Ceiling tiles (same pattern, flipped upside down)
-                props.push({
-                    mesh: floorMesh,
-                    position: { x, y: ceilingHeight, z },
-                    rotation: 180, // Flip to face downward
-                    scale: 1
-                });
+                // No ceiling in random levels - open sky
             }
         }
 
