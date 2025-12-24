@@ -24,6 +24,10 @@ export class AudioManager {
     private painSounds: HTMLAudioElement[] = [];
     private deathSounds: HTMLAudioElement[] = [];
     private shieldBlockSounds: HTMLAudioElement[] = [];
+    private chestOpenSound: HTMLAudioElement | null = null;
+    private potionDrinkSound: HTMLAudioElement | null = null;
+    private arrowShootSound: HTMLAudioElement | null = null;
+    private noArrowSound: HTMLAudioElement | null = null;
 
     // Base path for assets
     private basePath: string = '';
@@ -185,6 +189,42 @@ export class AudioManager {
             }
         }
         console.log(`[AudioManager] Loaded ${this.shieldBlockSounds.length} shield block sounds`);
+
+        // Load chest open sound (reusing a suitable sound)
+        this.chestOpenSound = this.createAudio(`${this.basePath}RPG%20sounds/chest_open.wav`, false);
+        if (!this.chestOpenSound) {
+            // Fallback to sword sheath sound if chest_open.wav doesn't exist
+            this.chestOpenSound = this.createAudio(`${this.basePath}RPG%20sounds/sword_sheath_1.wav`, false);
+        }
+        if (this.chestOpenSound) {
+            console.log('[AudioManager] Chest open sound loaded');
+        }
+
+        // Load potion drink sound
+        this.potionDrinkSound = this.createAudio(`${this.basePath}RPG%20sounds/potion_drink.wav`, false);
+        if (!this.potionDrinkSound) {
+            // Fallback
+            this.potionDrinkSound = this.createAudio(`${this.basePath}RPG%20sounds/fall.wav`, false);
+        }
+        if (this.potionDrinkSound) {
+            console.log('[AudioManager] Potion drink sound loaded');
+        }
+
+        // Load arrow shoot sound
+        this.arrowShootSound = this.createAudio(`${this.basePath}RPG%20sounds/arrow_shoot.wav`, false);
+        if (!this.arrowShootSound) {
+            // Fallback to sword sheath sound
+            this.arrowShootSound = this.createAudio(`${this.basePath}RPG%20sounds/sword_sheath_2.wav`, false);
+        }
+        if (this.arrowShootSound) {
+            console.log('[AudioManager] Arrow shoot sound loaded');
+        }
+
+        // Load no arrow sound (click/empty)
+        this.noArrowSound = this.createAudio(`${this.basePath}RPG%20sounds/no_arrow.wav`, false);
+        if (this.noArrowSound) {
+            console.log('[AudioManager] No arrow sound loaded');
+        }
     }
 
     /**
@@ -360,6 +400,46 @@ export class AudioManager {
         if (sound) {
             sound.volume = this.getSfxVolume();
             this.playSound(sound);
+        }
+    }
+
+    /**
+     * Play chest open sound
+     */
+    playChestOpenSound(): void {
+        if (this.chestOpenSound) {
+            this.chestOpenSound.volume = this.getSfxVolume();
+            this.playSound(this.chestOpenSound);
+        }
+    }
+
+    /**
+     * Play potion drink sound
+     */
+    playPotionDrinkSound(): void {
+        if (this.potionDrinkSound) {
+            this.potionDrinkSound.volume = this.getSfxVolume();
+            this.playSound(this.potionDrinkSound);
+        }
+    }
+
+    /**
+     * Play arrow shoot sound
+     */
+    playArrowShootSound(): void {
+        if (this.arrowShootSound) {
+            this.arrowShootSound.volume = this.getSfxVolume();
+            this.playSound(this.arrowShootSound);
+        }
+    }
+
+    /**
+     * Play no arrow sound (when trying to shoot with no arrows)
+     */
+    playNoArrowSound(): void {
+        if (this.noArrowSound) {
+            this.noArrowSound.volume = this.getSfxVolume() * 0.5;
+            this.playSound(this.noArrowSound);
         }
     }
 

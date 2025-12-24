@@ -14,6 +14,8 @@ import '@babylonjs/loaders/glTF';
 import { ThirdPersonCamera } from './ThirdPersonCamera';
 import { GameSettings } from './GameSettings';
 import { CharacterController } from './CharacterClass';
+import { PlayerInventory } from './PlayerInventory';
+import { AudioManager } from './AudioManager';
 
 export interface ArcherConfig {
     position?: Vector3;
@@ -29,6 +31,7 @@ interface ArcherAnimationSet {
     idle2: AnimationGroup | null;
     walk: AnimationGroup | null;
     run: AnimationGroup | null;
+    jump: AnimationGroup | null;
     // Bow animations
     drawArrow: AnimationGroup | null;
     aimOverdraw: AnimationGroup | null;
@@ -69,6 +72,7 @@ export class ArcherController implements CharacterController {
         idle2: null,
         walk: null,
         run: null,
+        jump: null,
         drawArrow: null,
         aimOverdraw: null,
         aimRecoil: null,
@@ -103,6 +107,10 @@ export class ArcherController implements CharacterController {
     private isBlocking = false;
     private isDead = false;
     private isCrouching = false;
+    private isJumping = false;
+    private verticalVelocity = 0;
+    private readonly jumpForce = 0.15;
+    private readonly gravity = 0.008;
     private camera: ThirdPersonCamera | null = null;
     private skeleton: Skeleton | null = null;
     private transformNodes: Map<string, TransformNode> = new Map();
@@ -124,9 +132,14 @@ export class ArcherController implements CharacterController {
     private activeProjectiles: ArrowProjectile[] = [];
     private readonly projectileSpeed = 2.0; // Units per frame
 
+    // Inventory system for arrows
+    private inventory: PlayerInventory | null = null;
+    private audioManager: AudioManager;
+
     constructor(scene: Scene, config: ArcherConfig = {}) {
         this.scene = scene;
         this.settings = GameSettings.getInstance();
+        this.audioManager = AudioManager.getInstance();
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -135,6 +148,13 @@ export class ArcherController implements CharacterController {
             runSpeed: config.runSpeed ?? 0.1,
             meshYOffset: config.meshYOffset ?? 0
         };
+    }
+
+    /**
+     * Set the inventory for arrow management
+     */
+    setInventory(inventory: PlayerInventory): void {
+        this.inventory = inventory;
     }
 
     async load(basePath: string): Promise<void> {
@@ -192,6 +212,7 @@ export class ArcherController implements CharacterController {
         await this.loadAnimation(basePath, 'standing idle 02 looking.glb', 'idle2', 'full');
         await this.loadAnimation(basePath, 'standing walk forward.glb', 'walk', 'full');
         await this.loadAnimation(basePath, 'standing run forward.glb', 'run', 'full');
+        await this.loadAnimation(basePath, 'Standing Jump.glb', 'jump', 'none');
         await this.loadAnimation(basePath, 'standing draw arrow.glb', 'drawArrow', 'full');
         await this.loadAnimation(basePath, 'standing aim overdraw.glb', 'aimOverdraw', 'full');
         await this.loadAnimation(basePath, 'standing aim recoil.glb', 'aimRecoil', 'full');
@@ -336,6 +357,10 @@ export class ArcherController implements CharacterController {
         if (this.settings.isKeyBound('run', e.code)) {
             this.keys.run = true;
         }
+        if (this.settings.isKeyBound('jump', e.code)) {
+            this.keys.jump = true;
+            this.tryJump();
+        }
     }
 
     private onKeyUp(e: KeyboardEvent): void {
@@ -353,6 +378,28 @@ export class ArcherController implements CharacterController {
         }
         if (this.settings.isKeyBound('run', e.code)) {
             this.keys.run = false;
+        }
+        if (this.settings.isKeyBound('jump', e.code)) {
+            this.keys.jump = false;
+        }
+    }
+
+    private tryJump(): void {
+        // Can't jump while aiming, shooting, blocking, or already jumping
+        if (this.isJumping || this.isAiming || this.isShooting || this.isBlocking || this.isDrawingArrow) {
+            return;
+        }
+
+        this.isJumping = true;
+        this.verticalVelocity = this.jumpForce;
+        this.playAnimation('jump', false);
+
+        // Play jump animation and let it finish
+        const jumpAnim = this.animations.jump;
+        if (jumpAnim) {
+            jumpAnim.onAnimationEndObservable.addOnce(() => {
+                // Animation ended but might still be in air - handled by update()
+            });
         }
     }
 
@@ -395,6 +442,13 @@ export class ArcherController implements CharacterController {
     private startAiming(): void {
         if (this.isAiming || this.isDrawingArrow || this.isShooting || this.isBlocking) return;
 
+        // Check if we have arrows
+        if (this.inventory && !this.inventory.hasArrows()) {
+            console.log('[ArcherController] No arrows left!');
+            this.audioManager.playNoArrowSound();
+            return;
+        }
+
         this.isDrawingArrow = true;
         this.showCrosshair(false);
 
@@ -431,10 +485,23 @@ export class ArcherController implements CharacterController {
     private shootArrow(): void {
         if (!this.isAiming || this.isShooting) return;
 
+        // Consume an arrow from inventory
+        if (this.inventory) {
+            if (!this.inventory.useArrow()) {
+                console.log('[ArcherController] Failed to use arrow!');
+                this.isAiming = false;
+                this.hideCrosshair();
+                return;
+            }
+        }
+
         this.isAiming = false;
         this.isShooting = true;
         this.hideCrosshair();
         this.playAnimation('aimRecoil', false);
+
+        // Play arrow shoot sound
+        this.audioManager.playArrowShootSound();
 
         // Trigger hit detection at animation midpoint
         const recoilAnim = this.animations.aimRecoil;
@@ -773,6 +840,20 @@ export class ArcherController implements CharacterController {
             this.rootNode.position.z = this.colliderMesh.position.z;
         }
 
+        // Handle jumping and gravity
+        if (this.isJumping || this.verticalVelocity !== 0) {
+            // Apply vertical velocity
+            this.verticalVelocity -= this.gravity;
+            this.rootNode.position.y += this.verticalVelocity;
+
+            // Check if landed
+            if (this.rootNode.position.y <= 0) {
+                this.rootNode.position.y = 0;
+                this.verticalVelocity = 0;
+                this.isJumping = false;
+            }
+        }
+
         // Keep collider synced with player position
         this.colliderMesh.position.copyFrom(this.rootNode.position);
 
@@ -788,7 +869,7 @@ export class ArcherController implements CharacterController {
         }
 
         // Update animation based on state
-        if (!this.isDrawingArrow && !this.isShooting && !this.isBlocking) {
+        if (!this.isDrawingArrow && !this.isShooting && !this.isBlocking && !this.isJumping) {
             if (this.isAiming) {
                 // Aiming animations based on movement
                 if (isMoving) {

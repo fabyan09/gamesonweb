@@ -24,6 +24,8 @@ import { Enemy } from '../core/Enemy';
 import { GameSettings, KeyBindings } from '../core/GameSettings';
 import { BSPDungeonGenerator } from '../core/BSPDungeonGenerator';
 import { AudioManager } from '../core/AudioManager';
+import { PlayerInventory, PotionType } from '../core/PlayerInventory';
+import { ChestSystem } from '../core/ChestSystem';
 
 // List of available levels
 const LEVELS = [
@@ -56,6 +58,9 @@ export class DungeonScene {
     private trapDamageCooldown: number = 1000; // 1 second between trap damage ticks
     private characterClass: CharacterClassName;
     private audioManager: AudioManager;
+    private playerInventory: PlayerInventory | null = null;
+    private chestSystem: ChestSystem | null = null;
+    private nearbyChest: boolean = false;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
@@ -171,6 +176,36 @@ export class DungeonScene {
         // Get player spawn from level data
         const spawn = this.levelLoader.getPlayerSpawn(this.currentLevel);
 
+        // Initialize player inventory
+        this.playerInventory = new PlayerInventory(this.characterClass === 'archer');
+        this.playerInventory.onUpdate((state) => {
+            this.updateInventoryUI(state);
+        });
+
+        // Restore saved state if available (for level transitions)
+        // Always restore if we have a saved state with matching class - the save is only created when transitioning
+        const savedState = PlayerInventory.loadGameState();
+        console.log(`[DungeonScene] Checking saved state: exists=${!!savedState}, currentClass="${this.characterClass}"`);
+        if (savedState) {
+            console.log(`[DungeonScene] Saved state details: class="${savedState.characterClass}", health=${savedState.health}, potions=${savedState.potions.length}, arrows=${savedState.arrows}`);
+            console.log(`[DungeonScene] Class match: "${savedState.characterClass}" === "${this.characterClass}" = ${savedState.characterClass === this.characterClass}`);
+        }
+        if (savedState && savedState.characterClass === this.characterClass) {
+            // Restore health FIRST before any UI updates
+            this.playerHealth = savedState.health;
+            console.log(`[DungeonScene] Set playerHealth to ${this.playerHealth}`);
+
+            // Then restore inventory
+            this.playerInventory.restoreFromSave(savedState);
+            console.log(`[DungeonScene] Restored inventory: potions=${this.playerInventory.getPotionCount()}, arrows=${this.playerInventory.getArrowCount()}`);
+
+            // Clear the saved state after restoring to avoid restoring again on manual reload
+            PlayerInventory.clearGameState();
+            console.log(`[DungeonScene] Cleared saved state after restoration`);
+        } else if (savedState) {
+            console.log(`[DungeonScene] Saved state exists but class mismatch or null - not restoring`);
+        }
+
         // Load player based on selected class
         if (this.characterClass === 'archer') {
             this.player = new ArcherController(this.scene, {
@@ -183,6 +218,9 @@ export class DungeonScene {
 
             const playerBasePath = `${import.meta.env.BASE_URL}assets/Pro Longbow Pack/`;
             await this.player.load(playerBasePath);
+
+            // Connect inventory to archer for arrow management
+            (this.player as ArcherController).setInventory(this.playerInventory);
         } else {
             // Default: Knight
             this.player = new PlayerController(this.scene, {
@@ -196,6 +234,11 @@ export class DungeonScene {
             const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
             await this.player.load(playerBasePath);
         }
+
+        // Initialize chest system
+        this.chestSystem = new ChestSystem(this.scene, this.playerInventory, this.characterClass === 'archer');
+        await this.chestSystem.loadAssets(`${import.meta.env.BASE_URL}assets/`);
+        this.chestSystem.registerChests();
 
         // Load enemies
         await this.loadEnemies();
@@ -211,6 +254,8 @@ export class DungeonScene {
             this.camera.setTarget(this.player.rootMesh);
             // Setup dynamic light culling based on player position
             this.levelLoader.setPlayerTarget(this.player.rootMesh);
+            // Setup chest system player target
+            this.chestSystem.setPlayerTarget(this.player.rootMesh);
         }
         this.player.setCamera(this.camera);
 
@@ -222,10 +267,25 @@ export class DungeonScene {
         // Setup mouse events for attack/block
         this.setupMouseEvents();
 
+        // Setup chest and item nearby callbacks
+        this.chestSystem.onChestNearby((nearby) => {
+            this.nearbyChest = nearby;
+            this.updateInteractPrompt(nearby, false);
+        });
+
+        this.chestSystem.onItemNearby((nearby) => {
+            if (nearby) {
+                this.updateInteractPrompt(false, true);
+            } else if (!this.nearbyChest) {
+                this.updateInteractPrompt(false, false);
+            }
+        });
+
         // Update camera in render loop (only when not paused)
         this.scene.onBeforeRenderObservable.add(() => {
             if (!this.scene.metadata?.isPaused) {
                 this.camera?.update();
+                this.chestSystem?.update();
             }
         });
 
@@ -241,6 +301,9 @@ export class DungeonScene {
 
         // Setup brazier sounds
         this.setupBrazierSounds();
+
+        // Setup interaction keyboard listener
+        this.setupInteractionListener();
 
         // Hide loading
         document.getElementById('loading')?.classList.add('hidden');
@@ -288,6 +351,35 @@ export class DungeonScene {
         // Get player spawn from level data
         const spawn = this.levelLoader.getPlayerSpawn(this.currentLevel);
 
+        // Initialize player inventory
+        this.playerInventory = new PlayerInventory(this.characterClass === 'archer');
+        this.playerInventory.onUpdate((state) => {
+            this.updateInventoryUI(state);
+        });
+
+        // Restore saved state if available (for level transitions in random mode)
+        const savedState = PlayerInventory.loadGameState();
+        console.log(`[DungeonScene Random] Checking saved state: exists=${!!savedState}, currentClass="${this.characterClass}"`);
+        if (savedState) {
+            console.log(`[DungeonScene Random] Saved state details: class="${savedState.characterClass}", health=${savedState.health}, potions=${savedState.potions.length}, arrows=${savedState.arrows}`);
+            console.log(`[DungeonScene Random] Class match: "${savedState.characterClass}" === "${this.characterClass}" = ${savedState.characterClass === this.characterClass}`);
+        }
+        if (savedState && savedState.characterClass === this.characterClass) {
+            // Restore health FIRST before any UI updates
+            this.playerHealth = savedState.health;
+            console.log(`[DungeonScene Random] Set playerHealth to ${this.playerHealth}`);
+
+            // Then restore inventory
+            this.playerInventory.restoreFromSave(savedState);
+            console.log(`[DungeonScene Random] Restored inventory: potions=${this.playerInventory.getPotionCount()}, arrows=${this.playerInventory.getArrowCount()}`);
+
+            // Clear the saved state after restoring
+            PlayerInventory.clearGameState();
+            console.log(`[DungeonScene Random] Cleared saved state after restoration`);
+        } else if (savedState) {
+            console.log(`[DungeonScene Random] Saved state exists but class mismatch - not restoring`);
+        }
+
         // Load player based on selected class
         if (this.characterClass === 'archer') {
             this.player = new ArcherController(this.scene, {
@@ -300,6 +392,9 @@ export class DungeonScene {
 
             const playerBasePath = `${import.meta.env.BASE_URL}assets/Pro Longbow Pack/`;
             await this.player.load(playerBasePath);
+
+            // Connect inventory to archer for arrow management
+            (this.player as ArcherController).setInventory(this.playerInventory);
         } else {
             // Default: Knight
             this.player = new PlayerController(this.scene, {
@@ -313,6 +408,11 @@ export class DungeonScene {
             const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
             await this.player.load(playerBasePath);
         }
+
+        // Initialize chest system
+        this.chestSystem = new ChestSystem(this.scene, this.playerInventory, this.characterClass === 'archer');
+        await this.chestSystem.loadAssets(`${import.meta.env.BASE_URL}assets/`);
+        this.chestSystem.registerChests();
 
         // Load enemies
         await this.loadEnemies();
@@ -328,6 +428,8 @@ export class DungeonScene {
             this.camera.setTarget(this.player.rootMesh);
             // Setup dynamic light culling based on player position
             this.levelLoader.setPlayerTarget(this.player.rootMesh);
+            // Setup chest system player target
+            this.chestSystem.setPlayerTarget(this.player.rootMesh);
         }
         this.player.setCamera(this.camera);
 
@@ -339,11 +441,26 @@ export class DungeonScene {
         // Setup mouse events for attack/block
         this.setupMouseEvents();
 
+        // Setup chest and item nearby callbacks
+        this.chestSystem.onChestNearby((nearby) => {
+            this.nearbyChest = nearby;
+            this.updateInteractPrompt(nearby, false);
+        });
+
+        this.chestSystem.onItemNearby((nearby) => {
+            if (nearby) {
+                this.updateInteractPrompt(false, true);
+            } else if (!this.nearbyChest) {
+                this.updateInteractPrompt(false, false);
+            }
+        });
+
         // Update camera in render loop (only when not paused)
         this.scene.onBeforeRenderObservable.add(() => {
             if (!this.scene.metadata?.isPaused) {
                 this.camera?.update();
                 this.checkTrapDamage();
+                this.chestSystem?.update();
             }
         });
 
@@ -359,6 +476,9 @@ export class DungeonScene {
 
         // Setup brazier sounds
         this.setupBrazierSounds();
+
+        // Setup interaction keyboard listener
+        this.setupInteractionListener();
 
         // Hide loading
         document.getElementById('loading')?.classList.add('hidden');
@@ -444,11 +564,23 @@ export class DungeonScene {
                 // Don't process damage if player is already dead
                 if (this.isPlayerDead) return;
 
-                // Check if player is blocking
+                // Check if player is blocking - reduce damage based on class
                 if (this.player?.isCurrentlyBlocking) {
-                    console.log(`[DungeonScene] Player blocked ${damage} damage!`);
+                    // Archer blocks 50% damage, Knight blocks 70% damage
+                    const blockReduction = this.characterClass === 'archer' ? 0.5 : 0.7;
+                    const reducedDamage = Math.ceil(damage * (1 - blockReduction));
+                    console.log(`[DungeonScene] Player blocked! Reduced ${damage} to ${reducedDamage} damage (${blockReduction * 100}% reduction)`);
                     // Play shield block sound
                     this.audioManager.playShieldBlockSound();
+
+                    if (reducedDamage > 0) {
+                        this.playerHealth -= reducedDamage;
+                        this.updateHealthUI();
+
+                        if (this.playerHealth <= 0) {
+                            this.handlePlayerDeath();
+                        }
+                    }
                     return;
                 }
 
@@ -690,17 +822,29 @@ export class DungeonScene {
         // Add event listeners
         if (this.isRandomLevel) {
             document.getElementById('new-random-btn')?.addEventListener('click', () => {
+                // Save game state before transitioning to next random level
+                if (this.playerInventory) {
+                    PlayerInventory.saveGameState(this.playerInventory, this.playerHealth, this.characterClass);
+                    console.log(`[DungeonScene] Saved state before random level: health=${this.playerHealth}, potions=${this.playerInventory.getPotionCount()}`);
+                }
                 window.location.href = `${window.location.pathname}?random=true&class=${this.characterClass}`;
             });
             document.getElementById('menu-btn')?.addEventListener('click', () => {
+                PlayerInventory.clearGameState();
                 window.location.href = window.location.pathname;
             });
         } else if (hasNextLevel) {
             document.getElementById('next-level-btn')?.addEventListener('click', () => {
+                // Save game state before transitioning to next level
+                if (this.playerInventory) {
+                    PlayerInventory.saveGameState(this.playerInventory, this.playerHealth, this.characterClass);
+                    console.log(`[DungeonScene] Saved state before level ${nextLevelNumber}: health=${this.playerHealth}, potions=${this.playerInventory.getPotionCount()}`);
+                }
                 window.location.href = `${window.location.pathname}?level=${nextLevelNumber}&class=${this.characterClass}`;
             });
         } else {
             document.getElementById('restart-btn')?.addEventListener('click', () => {
+                PlayerInventory.clearGameState();
                 window.location.href = window.location.pathname;
             });
         }
@@ -1038,6 +1182,7 @@ export class DungeonScene {
 
         // Quit to main menu
         document.getElementById('pause-quit')?.addEventListener('click', () => {
+            PlayerInventory.clearGameState();
             window.location.href = window.location.pathname;
         });
 
@@ -1151,6 +1296,7 @@ export class DungeonScene {
         updateButton('jump');
         updateButton('crouch');
         updateButton('pause');
+        updateButton('interact');
     }
 
     private togglePause(): void {
@@ -1320,6 +1466,11 @@ export class DungeonScene {
         document.querySelectorAll('[data-control="pause"]').forEach(el => {
             el.textContent = pauseKey;
         });
+
+        const interactKey = this.settings.getBindingDisplay('interact');
+        document.querySelectorAll('[data-control="interact"]').forEach(el => {
+            el.textContent = interactKey;
+        });
     }
 
     private updateFpsCounter(): void {
@@ -1368,5 +1519,186 @@ export class DungeonScene {
             // Still render but without animation updates
             this.scene.render();
         }
+    }
+
+    /**
+     * Update the inventory UI (potions and arrows)
+     */
+    private updateInventoryUI(state: { potions: PotionType[]; arrows: number; maxArrows: number }): void {
+        let inventoryUI = document.getElementById('inventory-ui');
+        if (!inventoryUI) {
+            inventoryUI = document.createElement('div');
+            inventoryUI.id = 'inventory-ui';
+            inventoryUI.style.cssText = `
+                position: fixed;
+                bottom: 60px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                gap: 20px;
+                font-family: 'Montaga', 'Georgia', serif;
+                z-index: 100;
+            `;
+
+            const style = document.createElement('style');
+            style.textContent = `
+                #inventory-ui .inv-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 16px;
+                    background: linear-gradient(180deg, rgba(20, 15, 10, 0.9) 0%, rgba(10, 8, 5, 0.95) 100%);
+                    border: 1px solid #3d2f1f;
+                    border-radius: 4px;
+                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+                }
+                #inventory-ui .inv-icon {
+                    font-size: 20px;
+                }
+                #inventory-ui .inv-count {
+                    color: #ffd700;
+                    font-size: 18px;
+                    font-weight: bold;
+                    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+                }
+                #inventory-ui .inv-label {
+                    color: #b8a070;
+                    font-size: 12px;
+                }
+                #inventory-ui .arrows .inv-count.empty {
+                    color: #ff4444;
+                }
+            `;
+            document.head.appendChild(style);
+            document.body.appendChild(inventoryUI);
+        }
+
+        // Build UI content based on class
+        let html = '';
+
+        // Potions (show for both classes)
+        html += `
+            <div class="inv-item potions">
+                <span class="inv-icon">🧪</span>
+                <div>
+                    <span class="inv-count">${state.potions.length}</span>
+                    <span class="inv-label">/4</span>
+                </div>
+            </div>
+        `;
+
+        // Arrows (only for archer)
+        if (this.characterClass === 'archer') {
+            const isEmpty = state.arrows === 0;
+            html += `
+                <div class="inv-item arrows">
+                    <span class="inv-icon">🏹</span>
+                    <div>
+                        <span class="inv-count ${isEmpty ? 'empty' : ''}">${state.arrows}</span>
+                        <span class="inv-label">/${state.maxArrows}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        inventoryUI.innerHTML = html;
+    }
+
+    /**
+     * Update the interaction prompt (press F to open chest)
+     */
+    private updateInteractPrompt(nearChest: boolean, nearItem: boolean = false): void {
+        let prompt = document.getElementById('interact-prompt');
+        const show = nearChest || nearItem;
+
+        if (show) {
+            if (!prompt) {
+                prompt = document.createElement('div');
+                prompt.id = 'interact-prompt';
+                prompt.style.cssText = `
+                    position: fixed;
+                    bottom: 120px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    padding: 12px 24px;
+                    background: linear-gradient(180deg, rgba(20, 15, 10, 0.95) 0%, rgba(10, 8, 5, 0.98) 100%);
+                    border: 2px solid #ffd700;
+                    border-radius: 4px;
+                    font-family: 'Montaga', 'Georgia', serif;
+                    color: #ffd700;
+                    font-size: 14px;
+                    z-index: 100;
+                    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+                    animation: promptPulse 1.5s ease-in-out infinite;
+                `;
+
+                const style = document.createElement('style');
+                style.id = 'interact-prompt-style';
+                style.textContent = `
+                    @keyframes promptPulse {
+                        0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); }
+                        50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+                    }
+                `;
+                if (!document.getElementById('interact-prompt-style')) {
+                    document.head.appendChild(style);
+                }
+
+                document.body.appendChild(prompt);
+            }
+
+            const interactKey = this.settings.getBindingDisplay('interact');
+            if (nearChest) {
+                prompt.innerHTML = `<span style="background: #2a2015; padding: 2px 8px; border-radius: 3px; margin-right: 8px;">${interactKey}</span> Ouvrir le coffre`;
+            } else if (nearItem) {
+                prompt.innerHTML = `<span style="background: #2a2015; padding: 2px 8px; border-radius: 3px; margin-right: 8px;">${interactKey}</span> Ramasser`;
+            }
+            prompt.style.display = 'block';
+        } else if (prompt) {
+            prompt.style.display = 'none';
+        }
+    }
+
+    /**
+     * Handle the use potion action
+     */
+    private usePotion(): void {
+        if (!this.playerInventory || this.isPlayerDead) return;
+
+        const potion = this.playerInventory.usePotion();
+        if (potion) {
+            const healAmount = PlayerInventory.getPotionHealAmount(potion);
+            this.playerHealth = Math.min(100, this.playerHealth + healAmount);
+            this.updateHealthUI();
+            this.audioManager.playPotionDrinkSound();
+            console.log(`[DungeonScene] Used ${potion} potion, healed ${healAmount}, health: ${this.playerHealth}`);
+        }
+    }
+
+    /**
+     * Setup interaction keyboard listener
+     */
+    private setupInteractionListener(): void {
+        window.addEventListener('keydown', (e) => {
+            // Check if interact key is pressed
+            if (this.settings.isKeyBound('interact', e.code)) {
+                // Don't interact if game is paused or player is dead
+                if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
+
+                // Try to open chest if nearby (priority over pickup)
+                if (this.nearbyChest && this.chestSystem) {
+                    this.chestSystem.tryOpenChest();
+                } else if (this.chestSystem?.hasNearbyItem()) {
+                    // Try to pick up item
+                    this.chestSystem.tryPickupItem();
+                }
+            }
+
+            // Number keys 1-4 to use potions
+            if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4') {
+                if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
+                this.usePotion();
+            }
+        });
     }
 }

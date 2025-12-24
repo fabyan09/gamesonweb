@@ -1203,6 +1203,11 @@
                 <span class="control-label">S'accroupir</span>
                 <button class="key-bind-btn" data-action="crouch">Ctrl</button>
 
+                <div class="controls-section-title">Actions</div>
+
+                <span class="control-label">Interagir</span>
+                <button class="key-bind-btn" data-action="interact">F</button>
+
                 <div class="controls-section-title">Système</div>
 
                 <span class="control-label">Pause</span>
@@ -1242,14 +1247,17 @@
                     <li><strong>Clic Droit</strong> — Lever le bouclier (bloque les attaques)</li>
                     <li><strong data-control="jump">Espace</strong> — Sauter</li>
                     <li><strong data-control="crouch">Ctrl</strong> — S'accroupir (réduit la détection ennemie)</li>
+                    <li><strong data-control="interact">F</strong> — Interagir (ouvrir les coffres)</li>
+                    <li><strong>1-4</strong> — Utiliser une potion</li>
                     <li><strong data-control="pause">P</strong> — Mettre le jeu en pause</li>
                 </ul>
 
                 <h3>Objectif</h3>
                 <ul>
                     <li>Éliminez toutes les créatures de chaque niveau pour progresser</li>
-                    <li>Gérez votre santé — il n'y a pas de potions de soin</li>
-                    <li>Utilisez votre bouclier pour bloquer les attaques ennemies</li>
+                    <li>Ouvrez les coffres (tombes) pour trouver des potions de soin</li>
+                    <li>Utilisez votre bouclier pour réduire les dégâts (70% chevalier, 50% archer)</li>
+                    <li><strong>Archer:</strong> 5 flèches max — trouvez-en dans les coffres !</li>
                 </ul>
 
                 <h3>Créatures des Ténèbres</h3>
@@ -1387,6 +1395,14 @@
             <div class="row">
                 <span class="key" data-control="crouch">Ctrl</span>
                 <span class="action">S'accroupir</span>
+            </div>
+            <div class="row">
+                <span class="key" data-control="interact">F</span>
+                <span class="action">Interagir</span>
+            </div>
+            <div class="row">
+                <span class="key">1-4</span>
+                <span class="action">Potion</span>
             </div>
             <div class="row">
                 <span class="key" data-control="pause">P</span>

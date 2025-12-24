@@ -14,6 +14,7 @@ export interface KeyBindings {
     jump: string[];
     crouch: string[];
     pause: string[];
+    interact: string[];
 }
 
 export type CrouchMode = 'toggle' | 'hold';
@@ -36,7 +37,8 @@ export const DEFAULT_KEYBINDINGS: KeyBindings = {
     run: ['ShiftLeft', 'ShiftRight'],
     jump: ['Space'],
     crouch: ['ControlLeft', 'ControlRight'],
-    pause: ['KeyP']
+    pause: ['KeyP'],
+    interact: ['KeyF', 'KeyE']
 };
 
 const DEFAULT_SETTINGS: SettingsData = {
