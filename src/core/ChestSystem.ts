@@ -383,14 +383,14 @@ export class ChestSystem {
         if (nearestItem.type === 'potion' && nearestItem.potionType) {
             if (this.playerInventory.addPotion(nearestItem.potionType)) {
                 this.removeItem(nearestIndex);
-                this.audioManager.playPotionDrinkSound(); // Use as pickup sound
+                this.audioManager.playPotionPickupSound(); // bottle.wav
                 return true;
             }
         } else if (nearestItem.type === 'arrows' && nearestItem.arrowCount) {
             const added = this.playerInventory.addArrows(nearestItem.arrowCount);
             if (added > 0) {
                 this.removeItem(nearestIndex);
-                this.audioManager.playArrowShootSound(); // Use as pickup sound
+                this.audioManager.playArrowPickupSound(); // wood.wav
                 return true;
             }
         }
@@ -530,7 +530,7 @@ export class ChestSystem {
 
         // Scale based on item type - arrows are much larger in the GLB so scale them down
         if (type === 'arrows') {
-            clone.scaling = new Vector3(0.04, 0.04, 0.04); // Arrow is huge, scale way down
+            clone.scaling = new Vector3(0.8, 0.8, 0.8); // Arrow is huge, scale way down
         } else {
             clone.scaling = new Vector3(1, 1, 1); // Potions at normal scale
         }

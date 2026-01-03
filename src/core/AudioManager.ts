@@ -25,9 +25,14 @@ export class AudioManager {
     private deathSounds: HTMLAudioElement[] = [];
     private shieldBlockSounds: HTMLAudioElement[] = [];
     private chestOpenSound: HTMLAudioElement | null = null;
-    private potionDrinkSound: HTMLAudioElement | null = null;
+    private potionPickupSound: HTMLAudioElement | null = null;
+    private arrowPickupSound: HTMLAudioElement | null = null;
+    private potionDrinkSounds: HTMLAudioElement[] = [];
     private arrowShootSound: HTMLAudioElement | null = null;
     private noArrowSound: HTMLAudioElement | null = null;
+
+    // Monster hurt sounds by type
+    private monsterHurtSounds: Map<string, HTMLAudioElement[]> = new Map();
 
     // Base path for assets
     private basePath: string = '';
@@ -190,34 +195,38 @@ export class AudioManager {
         }
         console.log(`[AudioManager] Loaded ${this.shieldBlockSounds.length} shield block sounds`);
 
-        // Load chest open sound (reusing a suitable sound)
-        this.chestOpenSound = this.createAudio(`${this.basePath}RPG%20sounds/chest_open.wav`, false);
-        if (!this.chestOpenSound) {
-            // Fallback to sword sheath sound if chest_open.wav doesn't exist
-            this.chestOpenSound = this.createAudio(`${this.basePath}RPG%20sounds/sword_sheath_1.wav`, false);
-        }
+        // Load chest open sound (cloth.wav)
+        this.chestOpenSound = this.createAudio(`${this.basePath}RPG%20Sound%20Pack/inventory/cloth.wav`, false);
         if (this.chestOpenSound) {
-            console.log('[AudioManager] Chest open sound loaded');
+            console.log('[AudioManager] Chest open sound loaded (cloth.wav)');
         }
 
-        // Load potion drink sound
-        this.potionDrinkSound = this.createAudio(`${this.basePath}RPG%20sounds/potion_drink.wav`, false);
-        if (!this.potionDrinkSound) {
-            // Fallback
-            this.potionDrinkSound = this.createAudio(`${this.basePath}RPG%20sounds/fall.wav`, false);
-        }
-        if (this.potionDrinkSound) {
-            console.log('[AudioManager] Potion drink sound loaded');
+        // Load potion pickup sound (bottle.wav)
+        this.potionPickupSound = this.createAudio(`${this.basePath}RPG%20Sound%20Pack/inventory/bottle.wav`, false);
+        if (this.potionPickupSound) {
+            console.log('[AudioManager] Potion pickup sound loaded (bottle.wav)');
         }
 
-        // Load arrow shoot sound
-        this.arrowShootSound = this.createAudio(`${this.basePath}RPG%20sounds/arrow_shoot.wav`, false);
-        if (!this.arrowShootSound) {
-            // Fallback to sword sheath sound
-            this.arrowShootSound = this.createAudio(`${this.basePath}RPG%20sounds/sword_sheath_2.wav`, false);
+        // Load arrow pickup sound (wood-small.wav)
+        this.arrowPickupSound = this.createAudio(`${this.basePath}RPG%20Sound%20Pack/inventory/wood-small.wav`, false);
+        if (this.arrowPickupSound) {
+            console.log('[AudioManager] Arrow pickup sound loaded (wood-small.wav)');
         }
+
+        // Load potion drink sounds (bubble, bubble2, bubble3)
+        const bubbleFiles = ['bubble.wav', 'bubble2.wav', 'bubble3.wav'];
+        for (const file of bubbleFiles) {
+            const audio = this.createAudio(`${this.basePath}RPG%20Sound%20Pack/inventory/${file}`, false);
+            if (audio) {
+                this.potionDrinkSounds.push(audio);
+            }
+        }
+        console.log(`[AudioManager] Loaded ${this.potionDrinkSounds.length} potion drink sounds`);
+
+        // Load arrow shoot sound (chainmail1.wav)
+        this.arrowShootSound = this.createAudio(`${this.basePath}RPG%20Sound%20Pack/inventory/chainmail1.wav`, false);
         if (this.arrowShootSound) {
-            console.log('[AudioManager] Arrow shoot sound loaded');
+            console.log('[AudioManager] Arrow shoot sound loaded (chainmail1.wav)');
         }
 
         // Load no arrow sound (click/empty)
@@ -225,6 +234,61 @@ export class AudioManager {
         if (this.noArrowSound) {
             console.log('[AudioManager] No arrow sound loaded');
         }
+
+        // Load monster hurt sounds
+        await this.loadMonsterHurtSounds();
+    }
+
+    /**
+     * Load all monster hurt sounds by type
+     */
+    private async loadMonsterHurtSounds(): Promise<void> {
+        const npcBasePath = `${this.basePath}RPG%20Sound%20Pack/NPC`;
+
+        // Vampire and SkeletonZombie share the same sounds (mnstr1-15)
+        const vampireSounds: HTMLAudioElement[] = [];
+        for (let i = 1; i <= 15; i++) {
+            const audio = this.createAudio(`${npcBasePath}/Vampire%20-%20Skeleton%20Zombie/mnstr${i}.wav`, false);
+            if (audio) {
+                vampireSounds.push(audio);
+            }
+        }
+        this.monsterHurtSounds.set('vampire', vampireSounds);
+        this.monsterHurtSounds.set('skeletonzombie', vampireSounds); // Share same sounds
+        console.log(`[AudioManager] Loaded ${vampireSounds.length} vampire/skeleton hurt sounds`);
+
+        // Parasite sounds (shade1-15)
+        const parasiteSounds: HTMLAudioElement[] = [];
+        for (let i = 1; i <= 15; i++) {
+            const audio = this.createAudio(`${npcBasePath}/Parasite/shade${i}.wav`, false);
+            if (audio) {
+                parasiteSounds.push(audio);
+            }
+        }
+        this.monsterHurtSounds.set('parasite', parasiteSounds);
+        console.log(`[AudioManager] Loaded ${parasiteSounds.length} parasite hurt sounds`);
+
+        // Mutant sounds (ogre1-5)
+        const mutantSounds: HTMLAudioElement[] = [];
+        for (let i = 1; i <= 5; i++) {
+            const audio = this.createAudio(`${npcBasePath}/Mutant/ogre${i}.wav`, false);
+            if (audio) {
+                mutantSounds.push(audio);
+            }
+        }
+        this.monsterHurtSounds.set('mutant', mutantSounds);
+        console.log(`[AudioManager] Loaded ${mutantSounds.length} mutant hurt sounds`);
+
+        // Warrok sounds (giant1-5)
+        const warrokSounds: HTMLAudioElement[] = [];
+        for (let i = 1; i <= 5; i++) {
+            const audio = this.createAudio(`${npcBasePath}/Warrok/giant${i}.wav`, false);
+            if (audio) {
+                warrokSounds.push(audio);
+            }
+        }
+        this.monsterHurtSounds.set('warrok', warrokSounds);
+        console.log(`[AudioManager] Loaded ${warrokSounds.length} warrok hurt sounds`);
     }
 
     /**
@@ -414,17 +478,41 @@ export class AudioManager {
     }
 
     /**
-     * Play potion drink sound
+     * Play potion pickup sound (bottle.wav)
      */
-    playPotionDrinkSound(): void {
-        if (this.potionDrinkSound) {
-            this.potionDrinkSound.volume = this.getSfxVolume();
-            this.playSound(this.potionDrinkSound);
+    playPotionPickupSound(): void {
+        if (this.potionPickupSound) {
+            this.potionPickupSound.volume = this.getSfxVolume();
+            this.playSound(this.potionPickupSound);
         }
     }
 
     /**
-     * Play arrow shoot sound
+     * Play arrow pickup sound (wood.wav)
+     */
+    playArrowPickupSound(): void {
+        if (this.arrowPickupSound) {
+            this.arrowPickupSound.volume = this.getSfxVolume();
+            this.playSound(this.arrowPickupSound);
+        }
+    }
+
+    /**
+     * Play random potion drink sound (bubble sounds)
+     */
+    playPotionDrinkSound(): void {
+        if (this.potionDrinkSounds.length === 0) return;
+
+        const randomIndex = Math.floor(Math.random() * this.potionDrinkSounds.length);
+        const sound = this.potionDrinkSounds[randomIndex];
+        if (sound) {
+            sound.volume = this.getSfxVolume();
+            this.playSound(sound);
+        }
+    }
+
+    /**
+     * Play arrow shoot sound (chainmail1.wav)
      */
     playArrowShootSound(): void {
         if (this.arrowShootSound) {
@@ -440,6 +528,25 @@ export class AudioManager {
         if (this.noArrowSound) {
             this.noArrowSound.volume = this.getSfxVolume() * 0.5;
             this.playSound(this.noArrowSound);
+        }
+    }
+
+    /**
+     * Play a random hurt sound for a specific monster type
+     * @param monsterType The type of monster (vampire, parasite, mutant, skeletonzombie, warrok)
+     */
+    playMonsterHurtSound(monsterType: string): void {
+        const sounds = this.monsterHurtSounds.get(monsterType.toLowerCase());
+        if (!sounds || sounds.length === 0) {
+            console.warn(`[AudioManager] No hurt sounds for monster type: ${monsterType}`);
+            return;
+        }
+
+        const randomIndex = Math.floor(Math.random() * sounds.length);
+        const sound = sounds[randomIndex];
+        if (sound) {
+            sound.volume = this.getSfxVolume() * 0.7;
+            this.playSound(sound);
         }
     }
 

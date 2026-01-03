@@ -22,8 +22,8 @@ const SAVE_KEY = 'dungeon_game_state';
 
 export class PlayerInventory {
     private potions: PotionType[] = [];
-    private arrows: number = 5;
-    private readonly maxArrows: number = 5;
+    private arrows: number = 10;
+    private readonly maxArrows: number = 10;
     private readonly maxPotions: number = 4;
     private isArcherMode: boolean = false;
 
@@ -32,8 +32,8 @@ export class PlayerInventory {
 
     constructor(isArcher: boolean = false) {
         this.isArcherMode = isArcher;
-        // Archer starts with 5 arrows
-        this.arrows = isArcher ? 5 : 0;
+        // Archer starts with 10 arrows
+        this.arrows = isArcher ? 10 : 0;
     }
 
     /**
@@ -106,21 +106,21 @@ export class PlayerInventory {
     }
 
     /**
-     * Add arrows to inventory
-     * @param count Number of arrows to add
-     * @returns number of arrows actually added
+     * Add arrows to inventory - always refills to max
+     * @param _count Ignored - arrows always refill to max
+     * @returns number of arrows added (difference from previous count)
      */
-    addArrows(count: number): number {
+    addArrows(_count: number): number {
         if (!this.isArcherMode) {
             console.log('[PlayerInventory] Cannot add arrows - not in archer mode');
             return 0;
         }
-        const spaceAvailable = this.maxArrows - this.arrows;
-        const toAdd = Math.min(count, spaceAvailable);
-        this.arrows += toAdd;
-        console.log(`[PlayerInventory] Added ${toAdd} arrows, total: ${this.arrows}/${this.maxArrows}`);
+        const previousArrows = this.arrows;
+        this.arrows = this.maxArrows; // Always refill to 5
+        const added = this.arrows - previousArrows;
+        console.log(`[PlayerInventory] Refilled arrows to ${this.arrows}/${this.maxArrows} (was ${previousArrows})`);
         this.notifyUpdate();
-        return toAdd;
+        return added;
     }
 
     /**

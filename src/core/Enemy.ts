@@ -633,6 +633,9 @@ export class Enemy {
         this.health -= damage;
         console.log(`[Enemy] Took ${damage} damage (ranged: ${isRanged}), health: ${this.health}`);
 
+        // Play monster hurt sound
+        this.audioManager.playMonsterHurtSound(this.config.type);
+
         // Update health bar
         this.updateHealthBar();
 
