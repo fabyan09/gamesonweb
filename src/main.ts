@@ -3,8 +3,13 @@ import { GameSettings, KeyBindings } from './core/GameSettings';
 import { CharacterClassName } from './core/CharacterClass';
 import { CharacterPreview, createCharacterPreviews } from './core/CharacterPreview';
 import { assetPreloader } from './core/AssetPreloader';
+import { AudioManager } from './core/AudioManager';
 
 const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
+
+// Initialize audio manager for menu sounds
+const audioManager = AudioManager.getInstance();
+audioManager.loadMenuSounds();
 
 // Initialize settings
 const settings = GameSettings.getInstance();
@@ -22,34 +27,46 @@ const classParam = urlParams.get('class') as CharacterClassName | null;
 const randomParam = urlParams.get('random');
 
 if (levelParam && classParam) {
-    // Level and class specified - start game directly
+    // Level and class specified - start game directly (show loading screen)
+    hideWelcomeScreen();
     hideMainMenu();
+    audioManager.playLoadingSound();
     const game = new Game(canvas, classParam);
     game.init().then(() => {
+        audioManager.stopLoadingSound();
         game.run();
     });
 } else if (randomParam && classParam) {
-    // Random level with class specified - start game directly
+    // Random level with class specified - start game directly (show loading screen)
+    hideWelcomeScreen();
     hideMainMenu();
+    audioManager.playLoadingSound();
     const game = new Game(canvas, classParam, true); // true = random level
     game.init().then(() => {
+        audioManager.stopLoadingSound();
         game.run();
     });
 } else if (randomParam) {
-    // Random level requested - show character select
+    // Random level requested - show character select (play menu music)
+    hideWelcomeScreen();
     hideMainMenu();
     isRandomLevel = true;
     setupCharacterSelectListeners();
     showCharacterSelect(0); // 0 indicates random
+    audioManager.playMenuMusic();
 } else if (levelParam) {
-    // Only level specified - show character select
+    // Only level specified - show character select (play menu music)
+    hideWelcomeScreen();
     hideMainMenu();
     setupCharacterSelectListeners();
     showCharacterSelect(parseInt(levelParam, 10));
+    audioManager.playMenuMusic();
 } else {
-    // No level - show main menu
-    showMainMenu();
+    // No level - show welcome screen first (play menu music)
+    showWelcomeScreen();
+    setupWelcomeScreenListener();
     setupMenuListeners();
+    audioManager.playMenuMusic();
 
     // Start preloading assets in background
     assetPreloader.preloadCharacterAssets();
@@ -70,6 +87,30 @@ function showMainMenu(): void {
     }
     if (loading) {
         loading.classList.add('hidden');
+    }
+}
+
+function hideWelcomeScreen(): void {
+    const welcomeScreen = document.getElementById('welcome-screen');
+    if (welcomeScreen) {
+        welcomeScreen.classList.add('hidden');
+    }
+}
+
+function showWelcomeScreen(): void {
+    const welcomeScreen = document.getElementById('welcome-screen');
+    if (welcomeScreen) {
+        welcomeScreen.classList.remove('hidden');
+    }
+}
+
+function setupWelcomeScreenListener(): void {
+    const enterBtn = document.getElementById('btn-enter');
+    if (enterBtn) {
+        enterBtn.addEventListener('click', () => {
+            hideWelcomeScreen();
+            showMainMenu();
+        });
     }
 }
 
@@ -419,6 +460,9 @@ function saveSettingsFromUI(): void {
 
     settings.save();
     updateControlsDisplay();
+
+    // Apply volume changes immediately to menu music
+    audioManager.applyVolumes();
 }
 
 function updateControlsDisplay(): void {

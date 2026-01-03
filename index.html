@@ -217,6 +217,164 @@
             color: #ffd700;
         }
 
+        /* ========== WELCOME SCREEN ========== */
+        #welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, #1a1510 0%, #0a0805 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 350;
+            font-family: 'Montaga', 'Georgia', serif;
+        }
+
+        #welcome-screen.hidden {
+            display: none;
+        }
+
+        .welcome-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(ellipse at 30% 70%, rgba(255, 100, 0, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 30%, rgba(255, 200, 0, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(139, 105, 20, 0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .welcome-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(2px 2px at 15% 25%, rgba(255, 215, 0, 0.4), transparent),
+                radial-gradient(2px 2px at 35% 65%, rgba(255, 180, 0, 0.25), transparent),
+                radial-gradient(2px 2px at 55% 35%, rgba(255, 215, 0, 0.35), transparent),
+                radial-gradient(2px 2px at 75% 75%, rgba(255, 180, 0, 0.25), transparent),
+                radial-gradient(2px 2px at 85% 25%, rgba(255, 215, 0, 0.3), transparent),
+                radial-gradient(3px 3px at 25% 85%, rgba(255, 140, 0, 0.2), transparent),
+                radial-gradient(3px 3px at 65% 15%, rgba(255, 140, 0, 0.2), transparent);
+            animation: welcomeParticles 25s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes welcomeParticles {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; }
+            50% { transform: translateY(-30px) scale(1.1); opacity: 1; }
+        }
+
+        .welcome-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 800px;
+            padding: 2rem;
+        }
+
+        .welcome-title {
+            font-size: 4.5rem;
+            color: #ffd700;
+            letter-spacing: 0.5em;
+            text-shadow:
+                0 0 50px rgba(255, 215, 0, 0.7),
+                0 0 100px rgba(255, 140, 0, 0.5),
+                0 0 150px rgba(255, 100, 0, 0.3),
+                0 6px 0 #8b6914;
+            margin-bottom: 0.5rem;
+            animation: welcomeTitleGlow 4s ease-in-out infinite;
+        }
+
+        .welcome-subtitle {
+            font-size: 1.4rem;
+            color: #8b7355;
+            letter-spacing: 0.4em;
+            margin-bottom: 3rem;
+            font-style: italic;
+        }
+
+        @keyframes welcomeTitleGlow {
+            0%, 100% {
+                text-shadow: 0 0 50px rgba(255, 215, 0, 0.7), 0 0 100px rgba(255, 140, 0, 0.5), 0 0 150px rgba(255, 100, 0, 0.3), 0 6px 0 #8b6914;
+            }
+            50% {
+                text-shadow: 0 0 70px rgba(255, 215, 0, 0.9), 0 0 120px rgba(255, 140, 0, 0.7), 0 0 180px rgba(255, 100, 0, 0.5), 0 6px 0 #8b6914;
+            }
+        }
+
+        .welcome-lore {
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 4px solid #8b6914;
+            border-right: 4px solid #8b6914;
+            padding: 2rem 2.5rem;
+            margin: 0 auto 3rem;
+            max-width: 650px;
+            border-radius: 4px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(139, 105, 20, 0.1);
+        }
+
+        .welcome-lore p {
+            color: #b8a070;
+            font-size: 1.1rem;
+            line-height: 1.9;
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+
+        .welcome-lore p:last-child {
+            margin-bottom: 0;
+            color: #d4c4a0;
+        }
+
+        .welcome-lore .lore-highlight {
+            color: #ffd700;
+            font-style: normal;
+        }
+
+        .welcome-btn {
+            padding: 1.2rem 3.5rem;
+            font-size: 1.4rem;
+            font-family: 'Montaga', 'Georgia', serif;
+            background: linear-gradient(180deg, #ffd700 0%, #cc9900 50%, #aa7700 100%);
+            color: #1a1000;
+            border: 3px solid #ffd700;
+            border-radius: 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            transition: all 0.4s ease;
+            box-shadow: 0 6px 30px rgba(255, 215, 0, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3);
+            animation: welcomeBtnPulse 2s ease-in-out infinite;
+        }
+
+        .welcome-btn:hover {
+            background: linear-gradient(180deg, #ffe44d 0%, #ddaa00 50%, #bb8800 100%);
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 40px rgba(255, 215, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes welcomeBtnPulse {
+            0%, 100% { box-shadow: 0 6px 30px rgba(255, 215, 0, 0.4), inset 0 2px 0 rgba(255, 255, 255, 0.3); }
+            50% { box-shadow: 0 6px 40px rgba(255, 215, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.3); }
+        }
+
+        .welcome-footer {
+            position: absolute;
+            bottom: 2rem;
+            color: #4a3a25;
+            font-size: 0.85rem;
+            letter-spacing: 0.15em;
+        }
+
         /* ========== MAIN MENU ========== */
         #main-menu {
             position: fixed;
@@ -1109,8 +1267,25 @@
         </div>
     </div>
 
+    <!-- Welcome Screen -->
+    <div id="welcome-screen">
+        <div class="welcome-background"></div>
+        <div class="welcome-particles"></div>
+        <div class="welcome-content">
+            <h1 class="welcome-title">DUNGEON</h1>
+            <p class="welcome-subtitle">Les Cryptes de l'Oubli</p>
+            <div class="welcome-lore">
+                <p>Dans les profondeurs oubliées du royaume, les <span class="lore-highlight">Cryptes de l'Oubli</span> attendent depuis des siècles leur prochain visiteur. Des murmures anciens racontent que nul n'en est jamais revenu...</p>
+                <p>Pourtant, les ténèbres qui s'y terrent menacent désormais de s'étendre au monde des vivants. <span class="lore-highlight">Un héros doit descendre</span> dans l'abîme pour affronter les horreurs qui y demeurent.</p>
+                <p>Serez-vous celui qui brisera la malédiction ?</p>
+            </div>
+            <button class="welcome-btn" id="btn-enter">Entrer dans le Donjon</button>
+        </div>
+        <div class="welcome-footer">Games On Web 2026</div>
+    </div>
+
     <!-- Main Menu -->
-    <div id="main-menu">
+    <div id="main-menu" class="hidden">
         <div class="menu-background"></div>
         <div class="menu-particles"></div>
         <div class="menu-content">

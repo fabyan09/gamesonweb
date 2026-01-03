@@ -150,6 +150,9 @@ export class DungeonScene {
     }
 
     async init(levelIndex: number = 0): Promise<void> {
+        // Reset audio state for new level (fixes sounds not playing after level transitions)
+        this.audioManager.resetForNewLevel();
+
         // Set current level index (clamped to valid range)
         this.currentLevelIndex = Math.max(0, Math.min(levelIndex, LEVELS.length - 1));
 
@@ -313,6 +316,9 @@ export class DungeonScene {
      * Initialize a randomly generated level using BSP algorithm
      */
     async initRandomLevel(): Promise<void> {
+        // Reset audio state for new level (fixes sounds not playing after level transitions)
+        this.audioManager.resetForNewLevel();
+
         // Lighting
         this.setupLighting();
 
@@ -646,6 +652,9 @@ export class DungeonScene {
     private showVictoryMessage(): void {
         console.log('[DungeonScene] Level Complete!');
 
+        // Play win sound
+        this.audioManager.playWinSound();
+
         // Release pointer lock so user can click buttons
         document.exitPointerLock();
 
@@ -925,6 +934,10 @@ export class DungeonScene {
 
         // Play death sound
         this.audioManager.playDeathSound();
+
+        // Play UX lose and evil laugh sounds
+        this.audioManager.playLoseSound();
+        this.audioManager.playEvilLaughSound();
 
         // Make all living enemies celebrate
         for (const enemy of this.enemies) {
@@ -1324,6 +1337,9 @@ export class DungeonScene {
         // Pause audio
         this.audioManager.pauseAll();
 
+        // Play loading sound (looping) during pause
+        this.audioManager.playLoadingSound();
+
         document.getElementById('pause-menu')?.classList.add('visible');
         document.exitPointerLock();
     }
@@ -1340,7 +1356,8 @@ export class DungeonScene {
         }
         this.pausedAnimations.clear();
 
-        // Resume audio
+        // Stop loading sound and resume game audio
+        this.audioManager.stopLoadingSound();
         this.audioManager.resumeAll();
 
         document.getElementById('pause-menu')?.classList.remove('visible');

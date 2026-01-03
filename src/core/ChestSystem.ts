@@ -530,7 +530,7 @@ export class ChestSystem {
 
         // Scale based on item type - arrows are much larger in the GLB so scale them down
         if (type === 'arrows') {
-            clone.scaling = new Vector3(0.8, 0.8, 0.8); // Arrow is huge, scale way down
+            clone.scaling = new Vector3(0.8, 0.8, 0.8); // Arrow is huge, scale a bit down
         } else {
             clone.scaling = new Vector3(1, 1, 1); // Potions at normal scale
         }

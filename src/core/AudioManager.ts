@@ -31,6 +31,18 @@ export class AudioManager {
     private arrowShootSound: HTMLAudioElement | null = null;
     private noArrowSound: HTMLAudioElement | null = null;
 
+    // UX sounds
+    private winSound: HTMLAudioElement | null = null;
+    private loseSound: HTMLAudioElement | null = null;
+    private evilLaughSound: HTMLAudioElement | null = null;
+
+    // Menu/Loading sounds (loaded early, before game init)
+    private menuMusic: HTMLAudioElement | null = null;
+    private loadingSound: HTMLAudioElement | null = null;
+    private wantsMenuMusic: boolean = false;
+    private wantsLoadingSound: boolean = false;
+    private menuSoundsLoaded: boolean = false;
+
     // Monster hurt sounds by type
     private monsterHurtSounds: Map<string, HTMLAudioElement[]> = new Map();
 
@@ -47,6 +59,8 @@ export class AudioManager {
 
     private constructor() {
         this.settings = GameSettings.getInstance();
+        // Check if user already interacted in a previous page (stored in sessionStorage)
+        this.userInteracted = sessionStorage.getItem('audioInteracted') === 'true';
         this.setupUserInteractionListener();
     }
 
@@ -57,6 +71,8 @@ export class AudioManager {
         const onInteraction = () => {
             if (this.userInteracted) return;
             this.userInteracted = true;
+            // Store in sessionStorage so it persists across page navigations
+            sessionStorage.setItem('audioInteracted', 'true');
             console.log('[AudioManager] User interaction detected - starting looping sounds');
 
             // Start pending looping sounds
@@ -65,6 +81,12 @@ export class AudioManager {
             }
             if (this.wantsCampfire && this.campfireSound) {
                 this.campfireSound.play().catch(e => console.warn('[AudioManager] Campfire play error:', e));
+            }
+            if (this.wantsMenuMusic && this.menuMusic) {
+                this.menuMusic.play().catch(e => console.warn('[AudioManager] Menu music play error:', e));
+            }
+            if (this.wantsLoadingSound && this.loadingSound) {
+                this.loadingSound.play().catch(e => console.warn('[AudioManager] Loading sound play error:', e));
             }
 
             // Remove listeners
@@ -83,6 +105,33 @@ export class AudioManager {
             AudioManager.instance = new AudioManager();
         }
         return AudioManager.instance;
+    }
+
+    /**
+     * Load menu and loading sounds early (can be called without a scene)
+     * This should be called on app startup for menu music
+     */
+    loadMenuSounds(): void {
+        if (this.menuSoundsLoaded) return;
+
+        this.basePath = `${import.meta.env.BASE_URL}assets/SFX/`;
+        console.log('[AudioManager] Loading menu sounds...');
+
+        // Load menu music (looping)
+        this.menuMusic = this.createAudio(`${this.basePath}UX/Menu.mp3`, true);
+        if (this.menuMusic) {
+            this.menuMusic.volume = this.getMusicVolume();
+            console.log('[AudioManager] Menu music loaded');
+        }
+
+        // Load loading sound (looping so it plays during entire load)
+        this.loadingSound = this.createAudio(`${this.basePath}UX/Loading.wav`, true);
+        if (this.loadingSound) {
+            this.loadingSound.volume = this.getSfxVolume();
+            console.log('[AudioManager] Loading sound loaded');
+        }
+
+        this.menuSoundsLoaded = true;
     }
 
     /**
@@ -233,6 +282,22 @@ export class AudioManager {
         this.noArrowSound = this.createAudio(`${this.basePath}RPG%20sounds/no_arrow.wav`, false);
         if (this.noArrowSound) {
             console.log('[AudioManager] No arrow sound loaded');
+        }
+
+        // Load UX sounds
+        this.winSound = this.createAudio(`${this.basePath}UX/Win.wav`, false);
+        if (this.winSound) {
+            console.log('[AudioManager] Win sound loaded');
+        }
+
+        this.loseSound = this.createAudio(`${this.basePath}UX/Lose.wav`, false);
+        if (this.loseSound) {
+            console.log('[AudioManager] Lose sound loaded');
+        }
+
+        this.evilLaughSound = this.createAudio(`${this.basePath}UX/Evil%20Laugh.wav`, false);
+        if (this.evilLaughSound) {
+            console.log('[AudioManager] Evil laugh sound loaded');
         }
 
         // Load monster hurt sounds
@@ -532,6 +597,95 @@ export class AudioManager {
     }
 
     /**
+     * Play win sound (when player completes a level)
+     */
+    playWinSound(): void {
+        if (this.winSound) {
+            this.winSound.volume = this.getSfxVolume();
+            this.playSound(this.winSound);
+        }
+    }
+
+    /**
+     * Play lose sound (when player dies)
+     */
+    playLoseSound(): void {
+        if (this.loseSound) {
+            this.loseSound.volume = this.getSfxVolume();
+            this.playSound(this.loseSound);
+        }
+    }
+
+    /**
+     * Play evil laugh sound (when player dies, enemies celebrate)
+     */
+    playEvilLaughSound(): void {
+        if (this.evilLaughSound) {
+            this.evilLaughSound.volume = this.getSfxVolume();
+            this.playSound(this.evilLaughSound);
+        }
+    }
+
+    /**
+     * Start playing menu music (looping)
+     */
+    playMenuMusic(): void {
+        if (this.menuMusic) {
+            this.menuMusic.volume = this.getMusicVolume();
+            this.wantsMenuMusic = true;
+
+            // If user already interacted, play immediately
+            if (this.userInteracted) {
+                this.menuMusic.play().catch(() => {});
+                console.log('[AudioManager] Menu music started');
+            } else {
+                console.log('[AudioManager] Menu music will start after user interaction');
+            }
+        }
+    }
+
+    /**
+     * Stop menu music
+     */
+    stopMenuMusic(): void {
+        this.wantsMenuMusic = false;
+        if (this.menuMusic) {
+            this.menuMusic.pause();
+            this.menuMusic.currentTime = 0;
+            console.log('[AudioManager] Menu music stopped');
+        }
+    }
+
+    /**
+     * Play loading sound (looping)
+     */
+    playLoadingSound(): void {
+        if (this.loadingSound) {
+            this.loadingSound.volume = this.getSfxVolume();
+            this.wantsLoadingSound = true;
+
+            // If user already interacted, play immediately
+            if (this.userInteracted) {
+                this.loadingSound.play().catch(() => {});
+                console.log('[AudioManager] Loading sound started');
+            } else {
+                console.log('[AudioManager] Loading sound will start after user interaction');
+            }
+        }
+    }
+
+    /**
+     * Stop loading sound
+     */
+    stopLoadingSound(): void {
+        this.wantsLoadingSound = false;
+        if (this.loadingSound) {
+            this.loadingSound.pause();
+            this.loadingSound.currentTime = 0;
+        }
+    }
+
+    /**
      * Play a random hurt sound for a specific monster type
      * @param monsterType The type of monster (vampire, parasite, mutant, skeletonzombie, warrok)
      */
@@ -575,6 +729,12 @@ export class AudioManager {
         if (this.ambientMusic) {
             this.ambientMusic.volume = musicVol;
         }
+        if (this.menuMusic) {
+            this.menuMusic.volume = musicVol;
+        }
+        if (this.loadingSound) {
+            this.loadingSound.volume = sfxVol;
+        }
 
         // SFX
         this.hitSounds.forEach(s => s.volume = sfxVol);
@@ -612,6 +772,31 @@ export class AudioManager {
         if (this.campfireSound && this.brazierSoundsPlaying) {
             this.campfireSound.play().catch(() => {});
         }
+    }
+
+    /**
+     * Reset audio state for a new level
+     * This should be called before initializing a new level to ensure sounds work correctly
+     */
+    resetForNewLevel(): void {
+        console.log('[AudioManager] Resetting for new level...');
+
+        // Stop current sounds
+        if (this.ambientMusic) {
+            this.ambientMusic.pause();
+            this.ambientMusic.currentTime = 0;
+        }
+        if (this.campfireSound) {
+            this.campfireSound.pause();
+            this.campfireSound.currentTime = 0;
+        }
+
+        // Reset flags so sounds can be started again
+        this.wantsAmbientMusic = false;
+        this.wantsCampfire = false;
+        this.brazierSoundsPlaying = false;
+
+        console.log('[AudioManager] Reset complete - ready for new level');
     }
 
     /**
