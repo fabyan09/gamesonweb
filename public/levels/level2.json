@@ -3,8 +3,8 @@
     "version": "1.0",
 
     "playerSpawn": {
-        "position": { "x": 0, "y": 0, "z": -24 },
-        "rotation": 0
+        "position": { "x": 0, "y": 0, "z": -34 },
+        "rotation": 180
     },
 
     "scene": {
@@ -23,9 +23,9 @@
         },
         {
             "mesh": "floor_B",
-            "start": { "x": -30, "y": 3.5, "z": -30 },
-            "countX": 30,
-            "countZ": 30,
+            "start": { "x": -6, "y": -1, "z": -40 },
+            "countX": 7,
+            "countZ": 7,
             "spacing": 2
         }
     ],
@@ -36,19 +36,70 @@
             "cornerMesh": "wall_corner_A",
             "bounds": { "minX": -28, "maxX": 28, "minZ": -28, "maxZ": 28 },
             "y": 0,
-            "spacing": 2
+            "spacing": 2,
+            "gaps": [{ "wall": "south", "position": 0 }]
         },
         {
             "mesh": "wall_B",
             "cornerMesh": "wall_corner_A",
             "bounds": { "minX": -28, "maxX": 28, "minZ": -28, "maxZ": 28 },
             "y": 2,
-            "spacing": 2
+            "spacing": 2,
+            "gaps": [{ "wall": "south", "position": 0 }]
         }
     ],
 
     "props": [
-        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": -26 }, "collision": true },
+        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": -28 }, "rotation": 180, "collision": false },
+
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -28 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -30 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -32 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -34 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -36 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -38 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -40 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -42 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -28 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -30 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -32 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -34 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -36 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -38 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -40 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -42 }, "rotation": 90, "collision": true },
+
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -28 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -30 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -32 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -34 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -36 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -38 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -40 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -42 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -28 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -30 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -32 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -34 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -36 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -38 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -40 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -42 }, "rotation": 90, "collision": true },
+
+        { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -41 }, "collision": true },                                                                                                
+        { "mesh": "wall_A", "position": { "x": -4, "y": 0, "z": -41 }, "collision": true },                                                                                                
+        { "mesh": "wall_A", "position": { "x": -2, "y": 0, "z": -41 }, "collision": true },                                                                                                
+        { "mesh": "wall_A", "position": { "x": 0, "y": 0, "z": -41 }, "collision": true },                                                                                                 
+        { "mesh": "wall_A", "position": { "x": 2, "y": 0, "z": -41 }, "collision": true },  
+        { "mesh": "wall_A", "position": { "x": 4, "y": 0, "z": -41 }, "collision": true },  
+        { "mesh": "wall_A", "position": { "x": 6, "y": 0, "z": -41 }, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -6, "y": 2, "z": -41 }, "collision": true },                                                                                                
+        { "mesh": "wall_B", "position": { "x": -4, "y": 2, "z": -41 }, "collision": true },
+        { "mesh": "wall_B", "position": { "x": -2, "y": 2, "z": -41 }, "collision": true },                                                                                                
+        { "mesh": "wall_B", "position": { "x": 0, "y": 2, "z": -41 }, "collision": true },                                                                                                 
+        { "mesh": "wall_B", "position": { "x": 2, "y": 2, "z": -41 }, "collision": true },   
+        { "mesh": "wall_B", "position": { "x": 4, "y": 2, "z": -41 }, "collision": true },  
+        { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": -41 }, "collision": true },                                                                                              
 
         { "mesh": "wall_A", "position": { "x": -28, "y": 0, "z": -14 }, "collision": true },
         { "mesh": "wall_A", "position": { "x": -26, "y": 0, "z": -14 }, "collision": true },
@@ -95,6 +146,8 @@
         { "mesh": "door_framebig_A", "position": { "x": 16, "y": 0, "z": -14 }, "collision": true },
 
         { "mesh": "wall_A", "position": { "x": -6, "y": 0, "z": -14 }, "collision": true },
+        { "mesh": "wall_corner_A", "position": { "x": -6, "y": 0, "z": -14 }, "rotation": 90},
+        { "mesh": "wall_corner_A", "position": { "x": -6, "y": 2, "z": -14 }, "rotation": 90},
         { "mesh": "wall_A", "position": { "x": -4, "y": 0, "z": -14 }, "collision": true },
         { "mesh": "wall_A", "position": { "x": -2, "y": 0, "z": -14 }, "collision": true },
         { "mesh": "wall_A", "position": { "x": 2, "y": 0, "z": -14 }, "collision": true },
@@ -142,6 +195,10 @@
         { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": 0 }, "rotation": 90, "collision": true },
         { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": 2 }, "rotation": 90, "collision": true },
         { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": 4 }, "rotation": 90, "collision": true },
+        { "mesh": "wall_corner_A", "position": { "x": 6, "y": 0, "z": -14 }, "rotation": 90},
+        { "mesh": "wall_corner_A", "position": { "x": 6, "y": 2, "z": -14 }, "rotation": 90},
+        { "mesh": "wall_corner_A", "position": { "x": 6, "y": 0, "z": 6 }, "rotation": 180},
+        { "mesh": "wall_corner_A", "position": { "x": 6, "y": 2, "z": 6 }, "rotation": 180},
         { "mesh": "door_framebig_A", "position": { "x": 6, "y": 0, "z": -6 }, "rotation": 90, "collision": true },
 
         { "mesh": "wall_A", "position": { "x": -28, "y": 0, "z": 6 }, "collision": true },
@@ -166,6 +223,8 @@
         { "mesh": "wall_B", "position": { "x": -12, "y": 2, "z": 6 }, "collision": true },
         { "mesh": "wall_B", "position": { "x": -10, "y": 2, "z": 6 }, "collision": true },
         { "mesh": "wall_B", "position": { "x": -8, "y": 2, "z": 6 }, "collision": true },
+        { "mesh": "wall_corner_A", "position": { "x": -6, "y": 0, "z": 6 }, "rotation": 180},
+        { "mesh": "wall_corner_A", "position": { "x": -6, "y": 2, "z": 6 }, "rotation": 180},
 
         { "mesh": "wall_A", "position": { "x": 28, "y": 0, "z": 6 }, "collision": true },
         { "mesh": "wall_A", "position": { "x": 26, "y": 0, "z": 6 }, "collision": true },
@@ -325,10 +384,14 @@
         { "type": "warrok", "position": { "x": 0, "y": 0, "z": 20 } }
     ],
 
+    "interactiveDoors": [
+        { "position": { "x": 0, "y": 0, "z": -28 } }
+    ],
+
     "cameraBounds": {
         "minX": -27,
         "maxX": 27,
-        "minZ": -27,
+        "minZ": -40,
         "maxZ": 27,
         "maxY": 3
     }

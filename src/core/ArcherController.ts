@@ -45,6 +45,7 @@ interface ArcherAnimationSet {
     block: AnimationGroup | null;
     death: AnimationGroup | null;
     dodge: AnimationGroup | null;
+    kick: AnimationGroup | null;
 }
 
 type ArcherAnimationName = keyof ArcherAnimationSet;
@@ -82,7 +83,8 @@ export class ArcherController implements CharacterController {
         aimWalkRight: null,
         block: null,
         death: null,
-        dodge: null
+        dodge: null,
+        kick: null
     };
     private currentAnimation: AnimationGroup | null = null;
     private currentAnimationName: ArcherAnimationName | null = null;
@@ -105,6 +107,7 @@ export class ArcherController implements CharacterController {
     private isDrawingArrow = false;
     private isShooting = false;
     private isBlocking = false;
+    private isDodging = false;
     private isDead = false;
     private isCrouching = false;
     private isJumping = false;
@@ -223,6 +226,7 @@ export class ArcherController implements CharacterController {
         await this.loadAnimation(basePath, 'standing block.glb', 'block', 'full');
         await this.loadAnimation(basePath, 'standing death backward 01.glb', 'death', 'none');
         await this.loadAnimation(basePath, 'standing dodge backward.glb', 'dodge', 'full');
+        await this.loadAnimation(basePath, 'standing melee kick.glb', 'kick', 'full');
 
         // Start with idle animation
         this.playAnimation('idle', true);
@@ -872,7 +876,7 @@ export class ArcherController implements CharacterController {
         }
 
         // Update animation based on state
-        if (!this.isDrawingArrow && !this.isShooting && !this.isBlocking && !this.isJumping) {
+        if (!this.isDrawingArrow && !this.isShooting && !this.isBlocking && !this.isJumping && !this.isDodging) {
             if (this.isAiming) {
                 // Aiming animations based on movement
                 if (isMoving) {
@@ -917,6 +921,25 @@ export class ArcherController implements CharacterController {
 
     setCamera(camera: ThirdPersonCamera): void {
         this.camera = camera;
+    }
+
+    /**
+     * Play kick animation (used for opening doors)
+     */
+    playKick(): void {
+        if (this.isDead || this.isShooting || this.isDodging) return;
+
+        this.isDodging = true;
+        this.playAnimation('kick', false);
+
+        if (this.animations.kick) {
+            this.animations.kick.onAnimationEndObservable.addOnce(() => {
+                this.isDodging = false;
+                this.playAnimation('idle', true);
+            });
+        } else {
+            this.isDodging = false;
+        }
     }
 
     playDeath(): Promise<void> {

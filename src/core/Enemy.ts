@@ -332,7 +332,7 @@ export class Enemy {
         }
     }
 
-    private playAnimation(name: EnemyAnimationName, loop: boolean = true): void {
+    private playAnimation(name: EnemyAnimationName, loop: boolean = true, speed: number = 1.0): void {
         const anim = this.animations[name];
         if (!anim || this.currentAnimationName === name) return;
 
@@ -340,7 +340,7 @@ export class Enemy {
             this.currentAnimation.stop();
         }
 
-        anim.start(loop, 1.0, anim.from, anim.to, false);
+        anim.start(loop, speed, anim.from, anim.to, false);
         this.currentAnimation = anim;
         this.currentAnimationName = name;
     }
@@ -667,10 +667,10 @@ export class Enemy {
 
         console.log(`[Enemy] ${this.typeConfig.name} is enraged! Roaring...`);
 
-        // Play roar animation
+        // Play roar animation at 2x speed
         this.isRoaring = true;
         this.isAttacking = false; // Cancel any current attack
-        this.playAnimation('roar', false);
+        this.playAnimation('roar', false, 2.0);
 
         // When roar finishes, start the enraged chase
         if (this.animations.roar) {

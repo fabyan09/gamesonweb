@@ -25,6 +25,7 @@ export class AudioManager {
     private deathSounds: HTMLAudioElement[] = [];
     private shieldBlockSounds: HTMLAudioElement[] = [];
     private chestOpenSound: HTMLAudioElement | null = null;
+    private doorOpenSound: HTMLAudioElement | null = null;
     private potionPickupSound: HTMLAudioElement | null = null;
     private arrowPickupSound: HTMLAudioElement | null = null;
     private potionDrinkSounds: HTMLAudioElement[] = [];
@@ -252,6 +253,12 @@ export class AudioManager {
         this.chestOpenSound = this.createAudio(`${this.basePath}RPG%20Sound%20Pack/inventory/cloth.wav`, false);
         if (this.chestOpenSound) {
             console.log('[AudioManager] Chest open sound loaded (cloth.wav)');
+        }
+
+        // Load door open sound (door_ripped_1.wav)
+        this.doorOpenSound = this.createAudio(`${this.basePath}RPG%20sounds/door_ripped_1.wav`, false);
+        if (this.doorOpenSound) {
+            console.log('[AudioManager] Door open sound loaded (door_ripped_1.wav)');
         }
 
         // Load potion pickup sound (bottle.wav)
@@ -590,6 +597,16 @@ export class AudioManager {
         if (this.chestOpenSound) {
             this.chestOpenSound.volume = this.getSfxVolume();
             this.playSound(this.chestOpenSound);
+        }
+    }
+
+    /**
+     * Play door open sound
+     */
+    playDoorOpenSound(): void {
+        if (this.doorOpenSound) {
+            this.doorOpenSound.volume = this.getSfxVolume();
+            this.playSound(this.doorOpenSound);
         }
     }
 

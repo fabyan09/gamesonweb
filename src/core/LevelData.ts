@@ -34,6 +34,13 @@ export interface GridPlacement {
     spacing: number;
 }
 
+export interface WallGap {
+    /** Which wall: 'north', 'south', 'east', 'west' */
+    wall: 'north' | 'south' | 'east' | 'west';
+    /** Position along the wall (x for north/south, z for east/west) */
+    position: number;
+}
+
 export interface WallSegment {
     /** Wall mesh name */
     mesh: string;
@@ -50,6 +57,8 @@ export interface WallSegment {
     y: number;
     /** Spacing between wall segments */
     spacing: number;
+    /** Gaps in the walls (positions where no wall should be placed) */
+    gaps?: WallGap[];
 }
 
 export interface LightData {
@@ -83,6 +92,13 @@ export interface PlayerSpawn {
     rotation?: number;
 }
 
+export interface InteractiveDoorData {
+    /** Position of the door */
+    position: Vec3;
+    /** Y-axis rotation in degrees */
+    rotation?: number;
+}
+
 export interface LevelData {
     /** Level metadata */
     name: string;
@@ -105,6 +121,9 @@ export interface LevelData {
 
     /** Enemy spawns */
     enemies?: EnemySpawn[];
+
+    /** Interactive doors that can be opened */
+    interactiveDoors?: InteractiveDoorData[];
 
     /** Scene settings */
     scene?: {

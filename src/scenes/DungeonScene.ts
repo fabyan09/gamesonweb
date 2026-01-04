@@ -26,6 +26,7 @@ import { BSPDungeonGenerator } from '../core/BSPDungeonGenerator';
 import { AudioManager } from '../core/AudioManager';
 import { PlayerInventory, PotionType } from '../core/PlayerInventory';
 import { ChestSystem } from '../core/ChestSystem';
+import { DoorSystem, InteractiveDoor } from '../core/DoorSystem';
 
 // List of available levels
 const LEVELS = [
@@ -61,6 +62,8 @@ export class DungeonScene {
     private playerInventory: PlayerInventory | null = null;
     private chestSystem: ChestSystem | null = null;
     private nearbyChest: boolean = false;
+    private doorSystem: DoorSystem | null = null;
+    private nearbyDoor: InteractiveDoor | null = null;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
@@ -238,19 +241,37 @@ export class DungeonScene {
             await this.player.load(playerBasePath);
         }
 
+        // Apply spawn rotation to player mesh
+        if (this.player.rootMesh) {
+            this.player.rootMesh.rotation.y = (spawn.rotation * Math.PI) / 180;
+        }
+
         // Initialize chest system
         this.chestSystem = new ChestSystem(this.scene, this.playerInventory, this.characterClass === 'archer');
         await this.chestSystem.loadAssets(`${import.meta.env.BASE_URL}assets/`);
         this.chestSystem.registerChests();
 
+        // Initialize door system
+        this.doorSystem = new DoorSystem(this.scene);
+        this.doorSystem.setAssets(assets);
+        if (this.currentLevel?.interactiveDoors) {
+            this.doorSystem.registerDoorsFromLevelData(this.currentLevel.interactiveDoors);
+        }
+
         // Load enemies
         await this.loadEnemies();
 
         // Setup camera to follow player with bounds from level data
+        // Convert spawn rotation (degrees) to camera alpha (radians)
+        // Camera should be behind the player, so we add PI to flip it
+        const spawnRotationRad = (spawn.rotation * Math.PI) / 180;
+        const cameraAlpha = -Math.PI / 2 + spawnRotationRad + Math.PI;
+
         this.camera = new ThirdPersonCamera(this.scene, this.canvas, {
             distance: 5,
             heightOffset: 1.5,
-            bounds: this.currentLevel.cameraBounds
+            bounds: this.currentLevel.cameraBounds,
+            initialAlpha: cameraAlpha
         });
 
         if (this.player.rootMesh) {
@@ -259,6 +280,10 @@ export class DungeonScene {
             this.levelLoader.setPlayerTarget(this.player.rootMesh);
             // Setup chest system player target
             this.chestSystem.setPlayerTarget(this.player.rootMesh);
+            // Setup door system player target
+            if (this.doorSystem) {
+                this.doorSystem.setPlayerTarget(this.player.rootMesh);
+            }
         }
         this.player.setCamera(this.camera);
 
@@ -279,16 +304,29 @@ export class DungeonScene {
         this.chestSystem.onItemNearby((nearby) => {
             if (nearby) {
                 this.updateInteractPrompt(false, true);
-            } else if (!this.nearbyChest) {
+            } else if (!this.nearbyChest && !this.nearbyDoor) {
                 this.updateInteractPrompt(false, false);
             }
         });
+
+        // Setup door nearby callback
+        if (this.doorSystem) {
+            this.doorSystem.onDoorNearby((nearby, door) => {
+                this.nearbyDoor = door;
+                if (nearby) {
+                    this.updateInteractPrompt(false, false, true);
+                } else if (!this.nearbyChest) {
+                    this.updateInteractPrompt(false, false, false);
+                }
+            });
+        }
 
         // Update camera in render loop (only when not paused)
         this.scene.onBeforeRenderObservable.add(() => {
             if (!this.scene.metadata?.isPaused) {
                 this.camera?.update();
                 this.chestSystem?.update();
+                this.doorSystem?.update();
             }
         });
 
@@ -415,19 +453,37 @@ export class DungeonScene {
             await this.player.load(playerBasePath);
         }
 
+        // Apply spawn rotation to player mesh
+        if (this.player.rootMesh) {
+            this.player.rootMesh.rotation.y = (spawn.rotation * Math.PI) / 180;
+        }
+
         // Initialize chest system
         this.chestSystem = new ChestSystem(this.scene, this.playerInventory, this.characterClass === 'archer');
         await this.chestSystem.loadAssets(`${import.meta.env.BASE_URL}assets/`);
         this.chestSystem.registerChests();
 
+        // Initialize door system
+        this.doorSystem = new DoorSystem(this.scene);
+        this.doorSystem.setAssets(assets);
+        if (this.currentLevel?.interactiveDoors) {
+            this.doorSystem.registerDoorsFromLevelData(this.currentLevel.interactiveDoors);
+        }
+
         // Load enemies
         await this.loadEnemies();
 
         // Setup camera to follow player with bounds from level data
+        // Convert spawn rotation (degrees) to camera alpha (radians)
+        // Camera should be behind the player, so we add PI to flip it
+        const spawnRotationRad = (spawn.rotation * Math.PI) / 180;
+        const cameraAlpha = -Math.PI / 2 + spawnRotationRad + Math.PI;
+
         this.camera = new ThirdPersonCamera(this.scene, this.canvas, {
             distance: 5,
             heightOffset: 1.5,
-            bounds: this.currentLevel.cameraBounds
+            bounds: this.currentLevel.cameraBounds,
+            initialAlpha: cameraAlpha
         });
 
         if (this.player.rootMesh) {
@@ -436,6 +492,10 @@ export class DungeonScene {
             this.levelLoader.setPlayerTarget(this.player.rootMesh);
             // Setup chest system player target
             this.chestSystem.setPlayerTarget(this.player.rootMesh);
+            // Setup door system player target
+            if (this.doorSystem) {
+                this.doorSystem.setPlayerTarget(this.player.rootMesh);
+            }
         }
         this.player.setCamera(this.camera);
 
@@ -456,10 +516,22 @@ export class DungeonScene {
         this.chestSystem.onItemNearby((nearby) => {
             if (nearby) {
                 this.updateInteractPrompt(false, true);
-            } else if (!this.nearbyChest) {
+            } else if (!this.nearbyChest && !this.nearbyDoor) {
                 this.updateInteractPrompt(false, false);
             }
         });
+
+        // Setup door nearby callback
+        if (this.doorSystem) {
+            this.doorSystem.onDoorNearby((nearby, door) => {
+                this.nearbyDoor = door;
+                if (nearby) {
+                    this.updateInteractPrompt(false, false, true);
+                } else if (!this.nearbyChest) {
+                    this.updateInteractPrompt(false, false, false);
+                }
+            });
+        }
 
         // Update camera in render loop (only when not paused)
         this.scene.onBeforeRenderObservable.add(() => {
@@ -467,6 +539,7 @@ export class DungeonScene {
                 this.camera?.update();
                 this.checkTrapDamage();
                 this.chestSystem?.update();
+                this.doorSystem?.update();
             }
         });
 
@@ -1533,9 +1606,31 @@ export class DungeonScene {
         }
     }
 
+    private updateDebugPosition(): void {
+        const debugPos = document.getElementById('debug-position');
+        if (!debugPos) return;
+
+        // Show debug position when FPS counter is visible (uses same setting)
+        if (this.settings.showFps && this.player) {
+            debugPos.classList.add('visible');
+            const pos = this.player.position;
+            const posX = debugPos.querySelector('.pos-x');
+            const posY = debugPos.querySelector('.pos-y');
+            const posZ = debugPos.querySelector('.pos-z');
+            if (posX) posX.textContent = pos.x.toFixed(1);
+            if (posY) posY.textContent = pos.y.toFixed(1);
+            if (posZ) posZ.textContent = pos.z.toFixed(1);
+        } else {
+            debugPos.classList.remove('visible');
+        }
+    }
+
     render(): void {
         // Update FPS counter
         this.updateFpsCounter();
+
+        // Update debug position
+        this.updateDebugPosition();
 
         // Don't update game logic if paused, but still render
         if (!this.isPaused) {
@@ -1630,11 +1725,11 @@ export class DungeonScene {
     }
 
     /**
-     * Update the interaction prompt (press F to open chest)
+     * Update the interaction prompt (press F to open chest/door)
      */
-    private updateInteractPrompt(nearChest: boolean, nearItem: boolean = false): void {
+    private updateInteractPrompt(nearChest: boolean, nearItem: boolean = false, nearDoor: boolean = false): void {
         let prompt = document.getElementById('interact-prompt');
-        const show = nearChest || nearItem;
+        const show = nearChest || nearItem || nearDoor;
 
         if (show) {
             if (!prompt) {
@@ -1673,7 +1768,9 @@ export class DungeonScene {
             }
 
             const interactKey = this.settings.getBindingDisplay('interact');
-            if (nearChest) {
+            if (nearDoor) {
+                prompt.innerHTML = `<span style="background: #2a2015; padding: 2px 8px; border-radius: 3px; margin-right: 8px;">${interactKey}</span> Ouvrir la porte`;
+            } else if (nearChest) {
                 prompt.innerHTML = `<span style="background: #2a2015; padding: 2px 8px; border-radius: 3px; margin-right: 8px;">${interactKey}</span> Ouvrir le coffre`;
             } else if (nearItem) {
                 prompt.innerHTML = `<span style="background: #2a2015; padding: 2px 8px; border-radius: 3px; margin-right: 8px;">${interactKey}</span> Ramasser`;
@@ -1710,8 +1807,19 @@ export class DungeonScene {
                 // Don't interact if game is paused or player is dead
                 if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
 
+                // Try to open door if nearby (highest priority)
+                if (this.nearbyDoor && this.doorSystem) {
+                    // Play kick animation then open door
+                    if (this.player) {
+                        this.player.playKick();
+                    }
+                    // Delay door opening slightly for animation sync
+                    setTimeout(() => {
+                        this.doorSystem?.tryOpenDoor();
+                    }, 200);
+                }
                 // Try to open chest if nearby (priority over pickup)
-                if (this.nearbyChest && this.chestSystem) {
+                else if (this.nearbyChest && this.chestSystem) {
                     this.chestSystem.tryOpenChest();
                 } else if (this.chestSystem?.hasNearbyItem()) {
                     // Try to pick up item

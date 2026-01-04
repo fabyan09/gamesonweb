@@ -198,6 +198,11 @@ export class LevelLoader {
         });
     }
 
+    private hasGap(wall: WallSegment, wallSide: 'north' | 'south' | 'east' | 'west', position: number): boolean {
+        if (!wall.gaps) return false;
+        return wall.gaps.some(gap => gap.wall === wallSide && gap.position === position);
+    }
+
     private buildWalls(wall: WallSegment): void {
         if (!this.placer) return;
 
@@ -206,6 +211,7 @@ export class LevelLoader {
 
         // North wall (z = maxZ) - visual only
         for (let x = minX; x <= maxX; x += spacing) {
+            if (this.hasGap(wall, 'north', x)) continue;
             this.placer.place(wall.mesh, {
                 position: { x, y: wall.y, z: maxZ }
             });
@@ -213,6 +219,7 @@ export class LevelLoader {
 
         // South wall (z = minZ) - visual only
         for (let x = minX; x <= maxX; x += spacing) {
+            if (this.hasGap(wall, 'south', x)) continue;
             this.placer.place(wall.mesh, {
                 position: { x, y: wall.y, z: minZ },
                 rotation: Math.PI
@@ -221,6 +228,7 @@ export class LevelLoader {
 
         // West wall (x = minX) - visual only
         for (let z = minZ + spacing; z < maxZ; z += spacing) {
+            if (this.hasGap(wall, 'west', z)) continue;
             this.placer.place(wall.mesh, {
                 position: { x: minX, y: wall.y, z },
                 rotation: Math.PI / 2
@@ -229,6 +237,7 @@ export class LevelLoader {
 
         // East wall (x = maxX) - visual only
         for (let z = minZ + spacing; z < maxZ; z += spacing) {
+            if (this.hasGap(wall, 'east', z)) continue;
             this.placer.place(wall.mesh, {
                 position: { x: maxX, y: wall.y, z },
                 rotation: -Math.PI / 2
@@ -236,81 +245,127 @@ export class LevelLoader {
         }
 
         // Corners - visual only
+        // Rotations: corners face inward to connect walls properly
         if (wall.cornerMesh) {
+            // North-West corner (-X, +Z)
             this.placer.place(wall.cornerMesh, {
                 position: { x: minX, y: wall.y, z: maxZ },
-                rotation: 0
-            });
-            this.placer.place(wall.cornerMesh, {
-                position: { x: maxX, y: wall.y, z: maxZ },
                 rotation: -Math.PI / 2
             });
+            // North-East corner (+X, +Z)
+            this.placer.place(wall.cornerMesh, {
+                position: { x: maxX, y: wall.y, z: maxZ },
+                rotation: Math.PI
+            });
+            // South-West corner (-X, -Z)
             this.placer.place(wall.cornerMesh, {
                 position: { x: minX, y: wall.y, z: minZ },
-                rotation: Math.PI / 2
+                rotation: 0
             });
+            // South-East corner (+X, -Z)
             this.placer.place(wall.cornerMesh, {
                 position: { x: maxX, y: wall.y, z: minZ },
-                rotation: Math.PI
+                rotation: Math.PI / 2
             });
         }
 
         // Create invisible collision walls (only for the bottom layer y=0)
         if (wall.y === 0) {
-            this.createWallColliders(wall.bounds);
+            this.createWallColliders(wall);
         }
     }
 
-    private createWallColliders(bounds: { minX: number; maxX: number; minZ: number; maxZ: number }): void {
-        const { minX, maxX, minZ, maxZ } = bounds;
+    private createWallColliders(wall: WallSegment): void {
+        const { minX, maxX, minZ, maxZ } = wall.bounds;
+        const spacing = wall.spacing;
         const wallHeight = 6; // Height of collision wall
         const wallThickness = 1;
+        const segmentWidth = spacing; // Each wall segment is 'spacing' units wide
 
-        // North wall collider
-        const northWall = MeshBuilder.CreateBox('collider_north', {
-            width: maxX - minX + wallThickness,
-            height: wallHeight,
-            depth: wallThickness
-        }, this.scene);
-        northWall.position = new Vector3((minX + maxX) / 2, wallHeight / 2, maxZ + wallThickness / 2);
-        northWall.isVisible = false;
-        northWall.checkCollisions = true;
-        this.colliders.push(northWall);
+        // Create segmented colliders for each wall side, skipping gaps
+        let colliderCount = 0;
 
-        // South wall collider
-        const southWall = MeshBuilder.CreateBox('collider_south', {
-            width: maxX - minX + wallThickness,
-            height: wallHeight,
-            depth: wallThickness
-        }, this.scene);
-        southWall.position = new Vector3((minX + maxX) / 2, wallHeight / 2, minZ - wallThickness / 2);
-        southWall.isVisible = false;
-        southWall.checkCollisions = true;
-        this.colliders.push(southWall);
+        // North wall segments (z = maxZ)
+        for (let x = minX; x <= maxX; x += spacing) {
+            if (this.hasGap(wall, 'north', x)) continue;
+            const collider = MeshBuilder.CreateBox(`collider_north_${x}`, {
+                width: segmentWidth,
+                height: wallHeight,
+                depth: wallThickness
+            }, this.scene);
+            collider.position = new Vector3(x, wallHeight / 2, maxZ + wallThickness / 2);
+            collider.isVisible = false;
+            collider.checkCollisions = true;
+            this.colliders.push(collider);
+            colliderCount++;
+        }
 
-        // West wall collider
-        const westWall = MeshBuilder.CreateBox('collider_west', {
-            width: wallThickness,
-            height: wallHeight,
-            depth: maxZ - minZ + wallThickness
-        }, this.scene);
-        westWall.position = new Vector3(minX - wallThickness / 2, wallHeight / 2, (minZ + maxZ) / 2);
-        westWall.isVisible = false;
-        westWall.checkCollisions = true;
-        this.colliders.push(westWall);
+        // South wall segments (z = minZ)
+        for (let x = minX; x <= maxX; x += spacing) {
+            if (this.hasGap(wall, 'south', x)) continue;
+            const collider = MeshBuilder.CreateBox(`collider_south_${x}`, {
+                width: segmentWidth,
+                height: wallHeight,
+                depth: wallThickness
+            }, this.scene);
+            collider.position = new Vector3(x, wallHeight / 2, minZ - wallThickness / 2);
+            collider.isVisible = false;
+            collider.checkCollisions = true;
+            this.colliders.push(collider);
+            colliderCount++;
+        }
 
-        // East wall collider
-        const eastWall = MeshBuilder.CreateBox('collider_east', {
-            width: wallThickness,
-            height: wallHeight,
-            depth: maxZ - minZ + wallThickness
-        }, this.scene);
-        eastWall.position = new Vector3(maxX + wallThickness / 2, wallHeight / 2, (minZ + maxZ) / 2);
-        eastWall.isVisible = false;
-        eastWall.checkCollisions = true;
-        this.colliders.push(eastWall);
+        // West wall segments (x = minX)
+        for (let z = minZ + spacing; z < maxZ; z += spacing) {
+            if (this.hasGap(wall, 'west', z)) continue;
+            const collider = MeshBuilder.CreateBox(`collider_west_${z}`, {
+                width: wallThickness,
+                height: wallHeight,
+                depth: segmentWidth
+            }, this.scene);
+            collider.position = new Vector3(minX - wallThickness / 2, wallHeight / 2, z);
+            collider.isVisible = false;
+            collider.checkCollisions = true;
+            this.colliders.push(collider);
+            colliderCount++;
+        }
 
-        console.log('[LevelLoader] Created wall colliders');
+        // East wall segments (x = maxX)
+        for (let z = minZ + spacing; z < maxZ; z += spacing) {
+            if (this.hasGap(wall, 'east', z)) continue;
+            const collider = MeshBuilder.CreateBox(`collider_east_${z}`, {
+                width: wallThickness,
+                height: wallHeight,
+                depth: segmentWidth
+            }, this.scene);
+            collider.position = new Vector3(maxX + wallThickness / 2, wallHeight / 2, z);
+            collider.isVisible = false;
+            collider.checkCollisions = true;
+            this.colliders.push(collider);
+            colliderCount++;
+        }
+
+        // Corner colliders (small boxes at each corner)
+        const cornerPositions = [
+            { x: minX - wallThickness / 2, z: maxZ + wallThickness / 2 }, // NW
+            { x: maxX + wallThickness / 2, z: maxZ + wallThickness / 2 }, // NE
+            { x: minX - wallThickness / 2, z: minZ - wallThickness / 2 }, // SW
+            { x: maxX + wallThickness / 2, z: minZ - wallThickness / 2 }, // SE
+        ];
+
+        cornerPositions.forEach((pos, i) => {
+            const corner = MeshBuilder.CreateBox(`collider_corner_${i}`, {
+                width: wallThickness,
+                height: wallHeight,
+                depth: wallThickness
+            }, this.scene);
+            corner.position = new Vector3(pos.x, wallHeight / 2, pos.z);
+            corner.isVisible = false;
+            corner.checkCollisions = true;
+            this.colliders.push(corner);
+        });
+
+        console.log(`[LevelLoader] Created ${colliderCount} wall segment colliders + 4 corners`);
     }
 
     private placeProp(prop: PropPlacement, useInstancing: boolean = false): void {

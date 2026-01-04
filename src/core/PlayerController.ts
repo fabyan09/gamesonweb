@@ -828,6 +828,25 @@ export class PlayerController {
     }
 
     /**
+     * Play kick animation (used for opening doors)
+     */
+    playKick(): void {
+        if (this.isDead || this.isAttacking) return;
+
+        this.isAttacking = true;
+        this.playAnimation('kick', false);
+
+        if (this.animations.kick) {
+            this.animations.kick.onAnimationEndObservable.addOnce(() => {
+                this.isAttacking = false;
+                this.playAnimation('idle', true);
+            });
+        } else {
+            this.isAttacking = false;
+        }
+    }
+
+    /**
      * Play death animation and return a Promise that resolves when complete
      */
     playDeath(): Promise<void> {

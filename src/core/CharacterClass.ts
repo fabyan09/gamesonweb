@@ -19,6 +19,7 @@ export interface CharacterController {
     onMouseDown(button: number): void;
     onMouseUp(button: number): void;
     playDeath(): Promise<void>;
+    playKick(): void;
     dispose(): void;
 }
 

@@ -11,6 +11,7 @@ export interface ThirdPersonCameraConfig {
     lowerRadiusLimit?: number;
     upperRadiusLimit?: number;
     followSpeed?: number;
+    initialAlpha?: number;
     bounds?: {
         minX: number;
         maxX: number;
@@ -42,9 +43,10 @@ export class ThirdPersonCamera {
         const sensitivity = config.rotationSensibility ?? settings.cameraSensitivity;
 
         // Create arc rotate camera
+        const initialAlpha = config.initialAlpha ?? -Math.PI / 2;
         this.camera = new ArcRotateCamera(
             'thirdPersonCamera',
-            -Math.PI / 2,  // alpha (horizontal rotation)
+            initialAlpha,  // alpha (horizontal rotation)
             Math.PI / 2.8, // beta - angle plus horizontal pour OTS
             distance,
             new Vector3(0, this.heightOffset, 0),
