@@ -31,6 +31,10 @@ export class AudioManager {
     private arrowShootSound: HTMLAudioElement | null = null;
     private noArrowSound: HTMLAudioElement | null = null;
 
+    // Archer-specific sounds (female voice)
+    private archerPainSounds: HTMLAudioElement[] = [];
+    private archerJumpSounds: HTMLAudioElement[] = [];
+
     // UX sounds
     private winSound: HTMLAudioElement | null = null;
     private loseSound: HTMLAudioElement | null = null;
@@ -300,6 +304,25 @@ export class AudioManager {
             console.log('[AudioManager] Evil laugh sound loaded');
         }
 
+        // Load archer-specific sounds (female voice)
+        const archerPainFiles = ['damaged1.wav', 'damaged2.wav', 'damaged3.wav'];
+        for (const file of archerPainFiles) {
+            const audio = this.createAudio(`${this.basePath}RPG%20Voice%20Starter%20Pack/${file}`, false);
+            if (audio) {
+                this.archerPainSounds.push(audio);
+            }
+        }
+        console.log(`[AudioManager] Loaded ${this.archerPainSounds.length} archer pain sounds`);
+
+        const archerJumpFiles = ['jump1.wav', 'jump2.wav', 'jump3.wav'];
+        for (const file of archerJumpFiles) {
+            const audio = this.createAudio(`${this.basePath}RPG%20Voice%20Starter%20Pack/${file}`, false);
+            if (audio) {
+                this.archerJumpSounds.push(audio);
+            }
+        }
+        console.log(`[AudioManager] Loaded ${this.archerJumpSounds.length} archer jump sounds`);
+
         // Load monster hurt sounds
         await this.loadMonsterHurtSounds();
     }
@@ -491,13 +514,41 @@ export class AudioManager {
     }
 
     /**
-     * Play a random pain sound (when player takes damage)
+     * Play a random pain sound (when player takes damage) - male voice for Knight
      */
     playPainSound(): void {
         if (this.painSounds.length === 0) return;
 
         const randomIndex = Math.floor(Math.random() * this.painSounds.length);
         const sound = this.painSounds[randomIndex];
+        if (sound) {
+            sound.volume = this.getSfxVolume();
+            this.playSound(sound);
+        }
+    }
+
+    /**
+     * Play a random archer pain sound (when archer takes damage) - female voice
+     */
+    playArcherPainSound(): void {
+        if (this.archerPainSounds.length === 0) return;
+
+        const randomIndex = Math.floor(Math.random() * this.archerPainSounds.length);
+        const sound = this.archerPainSounds[randomIndex];
+        if (sound) {
+            sound.volume = this.getSfxVolume();
+            this.playSound(sound);
+        }
+    }
+
+    /**
+     * Play a random archer jump sound - female voice
+     */
+    playArcherJumpSound(): void {
+        if (this.archerJumpSounds.length === 0) return;
+
+        const randomIndex = Math.floor(Math.random() * this.archerJumpSounds.length);
+        const sound = this.archerJumpSounds[randomIndex];
         if (sound) {
             sound.volume = this.getSfxVolume();
             this.playSound(sound);

@@ -394,6 +394,9 @@ export class ArcherController implements CharacterController {
         this.verticalVelocity = this.jumpForce;
         this.playAnimation('jump', false);
 
+        // Play jump sound (female voice)
+        this.audioManager.playArcherJumpSound();
+
         // Play jump animation and let it finish
         const jumpAnim = this.animations.jump;
         if (jumpAnim) {

@@ -62,8 +62,18 @@ if (levelParam && classParam) {
     showCharacterSelect(parseInt(levelParam, 10));
     audioManager.playMenuMusic();
 } else {
-    // No level - show welcome screen first (play menu music)
-    showWelcomeScreen();
+    // No level - check if welcome screen was already shown this session
+    const welcomeShown = sessionStorage.getItem('welcomeShown');
+
+    if (welcomeShown) {
+        // Welcome screen already shown - go directly to main menu
+        hideWelcomeScreen();
+        showMainMenu();
+    } else {
+        // First visit - show welcome screen
+        showWelcomeScreen();
+    }
+
     setupWelcomeScreenListener();
     setupMenuListeners();
     audioManager.playMenuMusic();
@@ -108,6 +118,8 @@ function setupWelcomeScreenListener(): void {
     const enterBtn = document.getElementById('btn-enter');
     if (enterBtn) {
         enterBtn.addEventListener('click', () => {
+            // Mark welcome screen as shown for this session
+            sessionStorage.setItem('welcomeShown', 'true');
             hideWelcomeScreen();
             showMainMenu();
         });

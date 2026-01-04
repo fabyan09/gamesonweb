@@ -510,8 +510,12 @@ export class DungeonScene {
                 console.log(`[DungeonScene] Player stepped on spike trap! -${trap.damage} HP (${this.playerHealth} remaining)`);
                 this.updateHealthUI();
 
-                // Play pain sound
-                this.audioManager.playPainSound();
+                // Play pain sound (female voice for archer, male for knight)
+                if (this.characterClass === 'archer') {
+                    this.audioManager.playArcherPainSound();
+                } else {
+                    this.audioManager.playPainSound();
+                }
 
                 if (this.playerHealth <= 0) {
                     this.handlePlayerDeath();
@@ -594,8 +598,12 @@ export class DungeonScene {
                 console.log(`[DungeonScene] Player took ${damage} damage, health: ${this.playerHealth}`);
                 this.updateHealthUI();
 
-                // Play pain sound
-                this.audioManager.playPainSound();
+                // Play pain sound (female voice for archer, male for knight)
+                if (this.characterClass === 'archer') {
+                    this.audioManager.playArcherPainSound();
+                } else {
+                    this.audioManager.playPainSound();
+                }
 
                 if (this.playerHealth <= 0) {
                     this.handlePlayerDeath();
