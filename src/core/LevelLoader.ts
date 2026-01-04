@@ -725,6 +725,10 @@ export class LevelLoader {
         return this.spikeTraps;
     }
 
+    getColliders(): Mesh[] {
+        return this.colliders;
+    }
+
     dispose(): void {
         this.activeLights.forEach(light => light.dispose());
         this.activeLights = [];

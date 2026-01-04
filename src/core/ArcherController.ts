@@ -657,6 +657,13 @@ export class ArcherController implements CharacterController {
     }
 
     /**
+     * Get the last arrow trajectory for external wall collision checks
+     */
+    getArrowTrajectory(): { origin: Vector3; direction: Vector3; maxDistance: number } | null {
+        return this.lastArrowTrajectory;
+    }
+
+    /**
      * Update all active arrow projectiles
      */
     private updateProjectiles(): void {

@@ -8,6 +8,8 @@ import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { Ray } from '@babylonjs/core/Culling/ray';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 
 // Side-effect imports for collisions
 import '@babylonjs/core/Collisions/collisionCoordinator';
@@ -263,9 +265,9 @@ export class DungeonScene {
 
         // Setup camera to follow player with bounds from level data
         // Convert spawn rotation (degrees) to camera alpha (radians)
-        // Camera should be behind the player, so we add PI to flip it
+        // Camera should be behind the player (opposite direction)
         const spawnRotationRad = (spawn.rotation * Math.PI) / 180;
-        const cameraAlpha = -Math.PI / 2 + spawnRotationRad + Math.PI;
+        const cameraAlpha = Math.PI / 2 - spawnRotationRad;
 
         this.camera = new ThirdPersonCamera(this.scene, this.canvas, {
             distance: 5,
@@ -475,9 +477,9 @@ export class DungeonScene {
 
         // Setup camera to follow player with bounds from level data
         // Convert spawn rotation (degrees) to camera alpha (radians)
-        // Camera should be behind the player, so we add PI to flip it
+        // Camera should be behind the player (opposite direction)
         const spawnRotationRad = (spawn.rotation * Math.PI) / 180;
-        const cameraAlpha = -Math.PI / 2 + spawnRotationRad + Math.PI;
+        const cameraAlpha = Math.PI / 2 - spawnRotationRad;
 
         this.camera = new ThirdPersonCamera(this.scene, this.canvas, {
             distance: 5,
@@ -637,6 +639,9 @@ export class DungeonScene {
             // Set player as target
             enemy.setTarget(this.player.rootMesh);
 
+            // Set wall colliders for line-of-sight checks
+            enemy.setColliders(this.levelLoader.getColliders());
+
             // Handle enemy death
             enemy.onDeath(() => {
                 this.checkLevelComplete();
@@ -689,10 +694,37 @@ export class DungeonScene {
         console.log(`[DungeonScene] Loaded ${this.enemies.length} enemies`);
     }
 
+    /**
+     * Check if there's a clear line of sight between two points (no walls blocking)
+     */
+    private hasLineOfSight(from: Vector3, to: Vector3): boolean {
+        const colliders = this.levelLoader.getColliders();
+        if (colliders.length === 0) return true;
+
+        const direction = to.subtract(from);
+        const distance = direction.length();
+        direction.normalize();
+
+        const ray = new Ray(from, direction, distance);
+        const hit = this.scene.pickWithRay(ray, (mesh) => {
+            return colliders.includes(mesh as Mesh);
+        });
+
+        // If we hit a wall before reaching the target, no line of sight
+        return !hit?.hit;
+    }
+
     private handlePlayerAttack(position: Vector3, range: number): void {
-        // For archer, use trajectory-based hit detection
+        // For archer, use trajectory-based hit detection with wall collision
         if (this.characterClass === 'archer' && this.player) {
             const archer = this.player as ArcherController;
+            const trajectory = archer.getArrowTrajectory();
+
+            if (!trajectory) return;
+
+            // First check if arrow hits a wall
+            const wallHitDistance = this.checkArrowWallCollision(trajectory.origin, trajectory.direction, trajectory.maxDistance);
+
             for (const enemy of this.enemies) {
                 if (enemy.isDead) continue;
 
@@ -701,6 +733,15 @@ export class DungeonScene {
                 enemyCenter.y += 1.0; // Aim at chest height
 
                 if (archer.isPointOnArrowTrajectory(enemyCenter, 1.2)) {
+                    // Check if wall is hit before the enemy
+                    const enemyDistance = Vector3.Distance(trajectory.origin, enemyCenter);
+                    if (wallHitDistance !== null && wallHitDistance < enemyDistance) {
+                        // Arrow hits wall before reaching enemy
+                        archer.markProjectileHit();
+                        console.log(`[DungeonScene] Arrow blocked by wall!`);
+                        return;
+                    }
+
                     // isRanged = true for arrows - triggers enraged state
                     enemy.takeDamage(25, true);
                     archer.markProjectileHit(); // Stop the arrow projectile
@@ -709,17 +750,46 @@ export class DungeonScene {
                 }
             }
         } else {
-            // For knight, use distance-based hit detection
+            // For knight, use distance-based hit detection with line-of-sight check
+            const playerPos = this.player?.rootMesh?.position;
+            if (!playerPos) return;
+
             for (const enemy of this.enemies) {
                 if (enemy.isDead) continue;
 
                 const distance = Vector3.Distance(position, enemy.position);
                 if (distance <= range) {
-                    // isRanged = false for melee - no enraged state
-                    enemy.takeDamage(25, false);
+                    // Check line of sight from player to enemy
+                    const enemyCenter = enemy.position.clone();
+                    enemyCenter.y += 1.0; // Chest height
+                    const playerCenter = playerPos.clone();
+                    playerCenter.y += 1.0;
+
+                    if (this.hasLineOfSight(playerCenter, enemyCenter)) {
+                        // isRanged = false for melee - no enraged state
+                        enemy.takeDamage(25, false);
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * Check if an arrow trajectory hits a wall, returns distance to wall or null
+     */
+    private checkArrowWallCollision(origin: Vector3, direction: Vector3, maxDistance: number): number | null {
+        const colliders = this.levelLoader.getColliders();
+        if (colliders.length === 0) return null;
+
+        const ray = new Ray(origin, direction, maxDistance);
+        const hit = this.scene.pickWithRay(ray, (mesh) => {
+            return colliders.includes(mesh as Mesh);
+        });
+
+        if (hit?.hit && hit.distance !== undefined) {
+            return hit.distance;
+        }
+        return null;
     }
 
     private checkLevelComplete(): void {

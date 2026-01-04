@@ -112,6 +112,9 @@ export class Enemy {
     private lastGrowlTime: number = 0;
     private readonly growlInterval: number = 5000; // 5 seconds between growls
 
+    // Wall colliders for line-of-sight checks
+    private colliders: Mesh[] = [];
+
     constructor(scene: Scene, config: EnemyConfig) {
         this.scene = scene;
 
@@ -592,10 +595,18 @@ export class Enemy {
                     if (currentFrame >= hitFrame) {
                         hitTriggered = true;
                         // Deal damage at midpoint
-                        if (this.state !== 'dead' && this.target) {
-                            const dist = Vector3.Distance(this.rootNode!.position, this.target.position);
+                        if (this.state !== 'dead' && this.target && this.rootNode) {
+                            const dist = Vector3.Distance(this.rootNode.position, this.target.position);
                             if (dist <= this.config.attackRange * 1.5) {
-                                this.onPlayerHitCallback?.(this.config.damage);
+                                // Check line of sight before dealing damage
+                                const enemyCenter = this.rootNode.position.clone();
+                                enemyCenter.y += 1.0;
+                                const targetCenter = this.target.position.clone();
+                                targetCenter.y += 1.0;
+
+                                if (this.hasLineOfSight(enemyCenter, targetCenter)) {
+                                    this.onPlayerHitCallback?.(this.config.damage);
+                                }
                             }
                         }
                     }
@@ -619,6 +630,31 @@ export class Enemy {
 
     setTarget(target: TransformNode): void {
         this.target = target;
+    }
+
+    /**
+     * Set wall colliders for line-of-sight checks
+     */
+    setColliders(colliders: Mesh[]): void {
+        this.colliders = colliders;
+    }
+
+    /**
+     * Check if there's a clear line of sight between two points
+     */
+    private hasLineOfSight(from: Vector3, to: Vector3): boolean {
+        if (this.colliders.length === 0) return true;
+
+        const direction = to.subtract(from);
+        const distance = direction.length();
+        direction.normalize();
+
+        const ray = new Ray(from, direction, distance);
+        const hit = this.scene.pickWithRay(ray, (mesh) => {
+            return this.colliders.includes(mesh as Mesh);
+        });
+
+        return !hit?.hit;
     }
 
     /**
