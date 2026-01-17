@@ -11,6 +11,7 @@ import '@babylonjs/loaders/glTF';
 import { ThirdPersonCamera } from './ThirdPersonCamera';
 import { GameSettings } from './GameSettings';
 import { AudioManager } from './AudioManager';
+import { GamepadManager, GamepadButton } from './GamepadManager';
 
 export interface PlayerConfig {
     position?: Vector3;
@@ -108,6 +109,7 @@ export class PlayerController {
     private transformNodes: Map<string, TransformNode> = new Map();
     private settings: GameSettings;
     private audioManager: AudioManager;
+    private gamepadManager: GamepadManager;
 
     // Physics
     private verticalVelocity = 0;
@@ -131,6 +133,7 @@ export class PlayerController {
         this.scene = scene;
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
+        this.gamepadManager = GamepadManager.getInstance();
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -342,6 +345,68 @@ export class PlayerController {
     private setupInput(): void {
         window.addEventListener('keydown', (e) => this.onKeyDown(e));
         window.addEventListener('keyup', (e) => this.onKeyUp(e));
+
+        // Setup gamepad button callbacks
+        this.setupGamepadInput();
+    }
+
+    private setupGamepadInput(): void {
+        // Button press callbacks
+        this.gamepadManager.onButtonPress((button) => {
+            if (!this.settings.gamepadEnabled || this.isDead) return;
+
+            switch (button) {
+                case GamepadButton.A: // Jump
+                    if (!this.isJumping) {
+                        this.keys.jump = true;
+                        this.triggerJump();
+                    }
+                    break;
+                case GamepadButton.X: // Attack
+                    if (!this.isAttacking) {
+                        this.triggerAttack();
+                    }
+                    break;
+                case GamepadButton.B: // Block
+                    if (!this.isBlocking) {
+                        this.triggerBlock(true);
+                    }
+                    break;
+                case GamepadButton.LB: // Run (hold)
+                    this.keys.run = true;
+                    break;
+            }
+        });
+
+        // Button release callbacks
+        this.gamepadManager.onButtonRelease((button) => {
+            if (!this.settings.gamepadEnabled) return;
+
+            switch (button) {
+                case GamepadButton.B: // Stop blocking
+                    this.triggerBlock(false);
+                    break;
+                case GamepadButton.LB: // Stop running
+                    this.keys.run = false;
+                    break;
+            }
+        });
+    }
+
+    /**
+     * Update movement from gamepad left stick
+     */
+    private updateFromGamepad(): void {
+        if (!this.settings.gamepadEnabled || !this.gamepadManager.isConnected()) return;
+
+        const leftStick = this.gamepadManager.getLeftStick();
+
+        // Update movement keys based on stick direction
+        // Note: Y axis is inverted (negative = forward)
+        this.keys.forward = leftStick.y < -0.1;
+        this.keys.backward = leftStick.y > 0.1;
+        this.keys.left = leftStick.x < -0.1;
+        this.keys.right = leftStick.x > 0.1;
     }
 
     private onKeyDown(e: KeyboardEvent): void {
@@ -719,6 +784,9 @@ export class PlayerController {
 
         // Don't update if game is paused
         if (this.scene.metadata?.isPaused) return;
+
+        // Update gamepad input
+        this.updateFromGamepad();
 
         // Smooth crouch transition - interpolate mesh Y position
         if (this.mesh) {

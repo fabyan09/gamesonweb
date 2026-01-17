@@ -16,6 +16,7 @@ import { GameSettings } from './GameSettings';
 import { CharacterController } from './CharacterClass';
 import { PlayerInventory } from './PlayerInventory';
 import { AudioManager } from './AudioManager';
+import { GamepadManager, GamepadButton } from './GamepadManager';
 
 export interface ArcherConfig {
     position?: Vector3;
@@ -138,11 +139,13 @@ export class ArcherController implements CharacterController {
     // Inventory system for arrows
     private inventory: PlayerInventory | null = null;
     private audioManager: AudioManager;
+    private gamepadManager: GamepadManager;
 
     constructor(scene: Scene, config: ArcherConfig = {}) {
         this.scene = scene;
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
+        this.gamepadManager = GamepadManager.getInstance();
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -343,6 +346,79 @@ export class ArcherController implements CharacterController {
     private setupInput(): void {
         window.addEventListener('keydown', (e) => this.onKeyDown(e));
         window.addEventListener('keyup', (e) => this.onKeyUp(e));
+
+        // Setup gamepad button callbacks
+        this.setupGamepadInput();
+    }
+
+    private setupGamepadInput(): void {
+        // Track LT state for aiming
+        let ltPressed = false;
+
+        // Button press callbacks
+        this.gamepadManager.onButtonPress((button) => {
+            if (!this.settings.gamepadEnabled || this.isDead) return;
+
+            switch (button) {
+                case GamepadButton.A: // Jump
+                    this.keys.jump = true;
+                    this.tryJump();
+                    break;
+                case GamepadButton.X: // Attack (quick shot if not aiming)
+                    if (!this.isAiming && !this.isShooting) {
+                        // Quick shot: draw and immediately shoot
+                        this.startAiming();
+                    }
+                    break;
+                case GamepadButton.B: // Block/Dodge
+                    if (!this.isBlocking) {
+                        this.triggerBlock();
+                    }
+                    break;
+                case GamepadButton.LB: // Run (hold)
+                    this.keys.run = true;
+                    break;
+                case GamepadButton.LT: // Aim (hold to aim, release to shoot)
+                    ltPressed = true;
+                    if (!this.isAiming && !this.isShooting) {
+                        this.startAiming();
+                    }
+                    break;
+            }
+        });
+
+        // Button release callbacks
+        this.gamepadManager.onButtonRelease((button) => {
+            if (!this.settings.gamepadEnabled) return;
+
+            switch (button) {
+                case GamepadButton.LB: // Stop running
+                    this.keys.run = false;
+                    break;
+                case GamepadButton.LT: // Release to shoot
+                    ltPressed = false;
+                    if (this.isAiming) {
+                        this.shootArrow();
+                    }
+                    break;
+            }
+        });
+    }
+
+    /**
+     * Update movement from gamepad left stick
+     */
+    private updateFromGamepad(): void {
+        if (!this.settings.gamepadEnabled || !this.gamepadManager.isConnected()) return;
+
+        const leftStick = this.gamepadManager.getLeftStick();
+
+        // Update movement keys based on stick direction
+        // Note: Y axis is inverted (negative = forward)
+        this.keys.forward = leftStick.y < -0.1;
+        this.keys.backward = leftStick.y > 0.1;
+        this.keys.left = leftStick.x < -0.1;
+        this.keys.right = leftStick.x > 0.1;
     }
 
     private onKeyDown(e: KeyboardEvent): void {
@@ -810,6 +886,9 @@ export class ArcherController implements CharacterController {
 
         // Don't update if game is paused
         if (this.scene.metadata?.isPaused) return;
+
+        // Update gamepad input
+        this.updateFromGamepad();
 
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
         const speed = this.keys.run ? this.config.runSpeed : this.config.walkSpeed;

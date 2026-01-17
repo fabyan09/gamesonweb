@@ -1256,6 +1256,103 @@
             top: 50%;
             transform: translateY(-50%);
         }
+
+        /* ========== GAMEPAD INDICATOR ========== */
+        #gamepad-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            border: 2px solid #4a3a25;
+            transition: all 0.3s ease;
+        }
+
+        #gamepad-indicator::before {
+            content: '';
+            width: 14px;
+            height: 10px;
+            background: #4a3a25;
+            border-radius: 3px;
+            position: relative;
+        }
+
+        #gamepad-indicator::after {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #4a3a25;
+            border-radius: 50%;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #gamepad-indicator.connected {
+            border-color: #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        #gamepad-indicator.connected::before {
+            background: #00ff00;
+        }
+
+        #gamepad-indicator.connected::after {
+            background: #00ff00;
+        }
+
+        /* Gamepad selected state for pause menu */
+        .pause-btn.gamepad-selected {
+            border-color: #ffd700 !important;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5), inset 0 0 10px rgba(255, 215, 0, 0.1) !important;
+            transform: scale(1.02);
+        }
+
+        /* Gamepad settings section */
+        .setting-section-title {
+            color: #ffd700;
+            font-size: 1rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .setting-section-title:first-child {
+            margin-top: 0;
+        }
+
+        .gamepad-connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #706040;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        .gamepad-connection-status .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4a3a25;
+        }
+
+        .gamepad-connection-status.connected .status-dot {
+            background: #00ff00;
+            box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+        }
+
+        .gamepad-connection-status.connected {
+            color: #00ff00;
+        }
     </style>
 </head>
 <body>
@@ -1274,6 +1371,9 @@
     <!-- FPS Counter -->
     <div id="fps-counter">FPS: <span class="fps-value">60</span></div>
     <div id="debug-position">X: <span class="pos-x">0</span> Y: <span class="pos-y">0</span> Z: <span class="pos-z">0</span></div>
+
+    <!-- Gamepad Indicator -->
+    <div id="gamepad-indicator" title="Aucune manette"></div>
 
     <!-- Pause Menu -->
     <div id="pause-menu">
@@ -1362,6 +1462,41 @@
             </div>
 
             <button class="panel-btn btn-controls" id="btn-controls">Changer les Contrôles</button>
+
+            <!-- Gamepad Settings Section -->
+            <h3 class="setting-section-title">Manette</h3>
+
+            <div class="gamepad-connection-status" id="gamepad-status">
+                <span class="status-dot"></span>
+                <span class="status-text">Aucune manette detectee</span>
+            </div>
+
+            <div class="setting-group setting-toggle">
+                <label class="setting-label">Activer la manette</label>
+                <div class="toggle-switch active" id="toggle-gamepad"></div>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">Sensibilite stick droit</label>
+                <input type="range" class="setting-slider" id="gamepad-sensitivity" min="1" max="10" value="5">
+                <div class="setting-value"><span id="gamepad-sensitivity-value">5</span></div>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">Zone morte</label>
+                <input type="range" class="setting-slider" id="gamepad-deadzone" min="5" max="30" value="15">
+                <div class="setting-value"><span id="gamepad-deadzone-value">0.15</span></div>
+            </div>
+
+            <div class="setting-group setting-toggle">
+                <label class="setting-label">Inverser axe Y</label>
+                <div class="toggle-switch" id="toggle-gamepad-inverty"></div>
+            </div>
+
+            <div class="setting-group setting-toggle">
+                <label class="setting-label">Vibrations</label>
+                <div class="toggle-switch active" id="toggle-gamepad-vibration"></div>
+            </div>
 
             <div class="panel-buttons">
                 <button class="panel-btn" id="settings-cancel">Annuler</button>

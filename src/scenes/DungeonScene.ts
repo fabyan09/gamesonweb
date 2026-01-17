@@ -29,6 +29,7 @@ import { AudioManager } from '../core/AudioManager';
 import { PlayerInventory, PotionType } from '../core/PlayerInventory';
 import { ChestSystem } from '../core/ChestSystem';
 import { DoorSystem, InteractiveDoor } from '../core/DoorSystem';
+import { GamepadManager, GamepadButton } from '../core/GamepadManager';
 
 // List of available levels
 const LEVELS = [
@@ -66,6 +67,8 @@ export class DungeonScene {
     private nearbyChest: boolean = false;
     private doorSystem: DoorSystem | null = null;
     private nearbyDoor: InteractiveDoor | null = null;
+    private gamepadManager: GamepadManager;
+    private pauseMenuIndex: number = 0;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
@@ -76,9 +79,11 @@ export class DungeonScene {
         this.levelLoader = new LevelLoader(this.scene);
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
+        this.gamepadManager = GamepadManager.getInstance();
 
         this.setupScene();
         this.setupPauseMenu();
+        this.setupGamepadCallbacks();
     }
 
     private setupScene(): void {
@@ -1702,6 +1707,9 @@ export class DungeonScene {
         // Update debug position
         this.updateDebugPosition();
 
+        // Update gamepad camera look
+        this.updateGamepadCamera();
+
         // Don't update game logic if paused, but still render
         if (!this.isPaused) {
             this.scene.render();
@@ -1903,5 +1911,142 @@ export class DungeonScene {
                 this.usePotion();
             }
         });
+    }
+
+    /**
+     * Setup gamepad button callbacks for global actions
+     */
+    private setupGamepadCallbacks(): void {
+        this.gamepadManager.onButtonPress((button) => {
+            if (!this.settings.gamepadEnabled) return;
+
+            // Start button - Pause/Resume
+            if (button === GamepadButton.Start) {
+                if (this.isPlayerDead || this.isLevelComplete) return;
+
+                // If settings or controls panel is open, close it
+                const settingsPanel = document.getElementById('settings-panel');
+                const controlsPanel = document.getElementById('controls-panel');
+                if (settingsPanel?.classList.contains('visible')) {
+                    settingsPanel.classList.remove('visible');
+                    return;
+                }
+                if (controlsPanel?.classList.contains('visible')) {
+                    controlsPanel.classList.remove('visible');
+                    return;
+                }
+
+                this.togglePause();
+                return;
+            }
+
+            // Pause menu navigation (only when paused)
+            if (this.isPaused) {
+                const pauseMenu = document.getElementById('pause-menu');
+                if (pauseMenu?.classList.contains('visible')) {
+                    this.handlePauseMenuGamepad(button);
+                }
+                return;
+            }
+
+            // In-game buttons (only when not paused)
+            if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
+
+            switch (button) {
+                // Y button - Interact
+                case GamepadButton.Y:
+                    this.handleGamepadInteract();
+                    break;
+
+                // D-pad - Potions 1-4
+                case GamepadButton.DpadUp:
+                case GamepadButton.DpadDown:
+                case GamepadButton.DpadLeft:
+                case GamepadButton.DpadRight:
+                    this.usePotion();
+                    break;
+            }
+        });
+
+        // Apply gamepad settings from GameSettings
+        this.gamepadManager.setDeadZone(this.settings.gamepadDeadZone);
+        this.gamepadManager.setEnabled(this.settings.gamepadEnabled);
+    }
+
+    /**
+     * Handle gamepad input for pause menu navigation
+     */
+    private handlePauseMenuGamepad(button: GamepadButton): void {
+        const buttons = Array.from(document.querySelectorAll('#pause-menu button'));
+        if (buttons.length === 0) return;
+
+        switch (button) {
+            case GamepadButton.DpadUp:
+                this.pauseMenuIndex = Math.max(0, this.pauseMenuIndex - 1);
+                this.updatePauseMenuSelection(buttons);
+                break;
+            case GamepadButton.DpadDown:
+                this.pauseMenuIndex = Math.min(buttons.length - 1, this.pauseMenuIndex + 1);
+                this.updatePauseMenuSelection(buttons);
+                break;
+            case GamepadButton.A:
+                // Activate selected button
+                const selectedBtn = buttons[this.pauseMenuIndex] as HTMLButtonElement;
+                if (selectedBtn) {
+                    selectedBtn.click();
+                }
+                break;
+            case GamepadButton.B:
+                // Resume game
+                this.resumeGame();
+                break;
+        }
+    }
+
+    /**
+     * Update pause menu visual selection
+     */
+    private updatePauseMenuSelection(buttons: Element[]): void {
+        buttons.forEach((btn, index) => {
+            if (index === this.pauseMenuIndex) {
+                btn.classList.add('gamepad-selected');
+            } else {
+                btn.classList.remove('gamepad-selected');
+            }
+        });
+    }
+
+    /**
+     * Handle gamepad interact button
+     */
+    private handleGamepadInteract(): void {
+        // Try to open door if nearby (highest priority)
+        if (this.nearbyDoor && this.doorSystem) {
+            if (this.player) {
+                this.player.playKick();
+            }
+            setTimeout(() => {
+                this.doorSystem?.tryOpenDoor();
+            }, 200);
+        }
+        // Try to open chest if nearby
+        else if (this.nearbyChest && this.chestSystem) {
+            this.chestSystem.tryOpenChest();
+        } else if (this.chestSystem?.hasNearbyItem()) {
+            this.chestSystem.tryPickupItem();
+        }
+    }
+
+    /**
+     * Apply gamepad camera look - called from render loop
+     */
+    private updateGamepadCamera(): void {
+        if (!this.settings.gamepadEnabled || !this.gamepadManager.isConnected()) return;
+        if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
+
+        const rightStick = this.gamepadManager.getRightStick();
+        if (Math.abs(rightStick.x) > 0.01 || Math.abs(rightStick.y) > 0.01) {
+            this.camera?.applyGamepadLook(rightStick.x, rightStick.y);
+        }
     }
 }

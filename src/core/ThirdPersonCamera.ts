@@ -161,4 +161,32 @@ export class ThirdPersonCamera {
         this.camera.angularSensibilityX = settings.cameraSensitivity;
         this.camera.angularSensibilityY = settings.cameraSensitivity * 1.5;
     }
+
+    /**
+     * Apply gamepad right stick input to camera rotation
+     * @param rightStickX - Right stick X axis value (-1 to 1)
+     * @param rightStickY - Right stick Y axis value (-1 to 1)
+     */
+    applyGamepadLook(rightStickX: number, rightStickY: number): void {
+        const settings = GameSettings.getInstance();
+        const sensitivity = settings.gamepadLookMultiplier;
+        const invertY = settings.gamepadInvertY;
+
+        // Apply horizontal rotation (alpha)
+        this.camera.alpha -= rightStickX * sensitivity;
+
+        // Apply vertical rotation (beta) with optional Y inversion
+        const yInput = invertY ? -rightStickY : rightStickY;
+        this.camera.beta += yInput * sensitivity;
+
+        // Clamp beta to limits
+        const lowerLimit = this.camera.lowerBetaLimit ?? 0.1;
+        const upperLimit = this.camera.upperBetaLimit ?? Math.PI;
+        if (this.camera.beta < lowerLimit) {
+            this.camera.beta = lowerLimit;
+        }
+        if (this.camera.beta > upperLimit) {
+            this.camera.beta = upperLimit;
+        }
+    }
 }

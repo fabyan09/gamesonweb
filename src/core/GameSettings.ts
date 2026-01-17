@@ -27,6 +27,12 @@ interface SettingsData {
     showControls: boolean;
     keyBindings: KeyBindings;
     crouchMode: CrouchMode;
+    // Gamepad settings
+    gamepadEnabled: boolean;
+    gamepadDeadZone: number;
+    gamepadLookSensitivity: number;
+    gamepadVibration: boolean;
+    gamepadInvertY: boolean;
 }
 
 export const DEFAULT_KEYBINDINGS: KeyBindings = {
@@ -48,7 +54,13 @@ const DEFAULT_SETTINGS: SettingsData = {
     showFps: false,
     showControls: true,
     keyBindings: { ...DEFAULT_KEYBINDINGS },
-    crouchMode: 'toggle'
+    crouchMode: 'toggle',
+    // Gamepad defaults
+    gamepadEnabled: true,
+    gamepadDeadZone: 0.15,
+    gamepadLookSensitivity: 5,
+    gamepadVibration: true,
+    gamepadInvertY: false
 };
 
 export class GameSettings {
@@ -61,6 +73,12 @@ export class GameSettings {
     private _showControls: boolean;
     private _keyBindings: KeyBindings;
     private _crouchMode: CrouchMode;
+    // Gamepad settings
+    private _gamepadEnabled: boolean;
+    private _gamepadDeadZone: number;
+    private _gamepadLookSensitivity: number;
+    private _gamepadVibration: boolean;
+    private _gamepadInvertY: boolean;
 
     private constructor() {
         const saved = this.load();
@@ -71,6 +89,12 @@ export class GameSettings {
         this._showControls = saved.showControls;
         this._keyBindings = saved.keyBindings;
         this._crouchMode = saved.crouchMode;
+        // Gamepad settings
+        this._gamepadEnabled = saved.gamepadEnabled;
+        this._gamepadDeadZone = saved.gamepadDeadZone;
+        this._gamepadLookSensitivity = saved.gamepadLookSensitivity;
+        this._gamepadVibration = saved.gamepadVibration;
+        this._gamepadInvertY = saved.gamepadInvertY;
     }
 
     static getInstance(): GameSettings {
@@ -106,7 +130,13 @@ export class GameSettings {
                 showFps: this._showFps,
                 showControls: this._showControls,
                 keyBindings: this._keyBindings,
-                crouchMode: this._crouchMode
+                crouchMode: this._crouchMode,
+                // Gamepad settings
+                gamepadEnabled: this._gamepadEnabled,
+                gamepadDeadZone: this._gamepadDeadZone,
+                gamepadLookSensitivity: this._gamepadLookSensitivity,
+                gamepadVibration: this._gamepadVibration,
+                gamepadInvertY: this._gamepadInvertY
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             console.log('[GameSettings] Settings saved');
@@ -237,5 +267,54 @@ export class GameSettings {
     get cameraSensitivity(): number {
         // Invert so higher setting = more sensitive (lower number in BabylonJS)
         return 1100 - (this._mouseSensitivity * 100);
+    }
+
+    // Gamepad settings getters and setters
+
+    get gamepadEnabled(): boolean {
+        return this._gamepadEnabled;
+    }
+
+    set gamepadEnabled(value: boolean) {
+        this._gamepadEnabled = value;
+    }
+
+    get gamepadDeadZone(): number {
+        return this._gamepadDeadZone;
+    }
+
+    set gamepadDeadZone(value: number) {
+        this._gamepadDeadZone = Math.max(0.05, Math.min(0.3, value));
+    }
+
+    get gamepadLookSensitivity(): number {
+        return this._gamepadLookSensitivity;
+    }
+
+    set gamepadLookSensitivity(value: number) {
+        this._gamepadLookSensitivity = Math.max(1, Math.min(10, value));
+    }
+
+    get gamepadVibration(): boolean {
+        return this._gamepadVibration;
+    }
+
+    set gamepadVibration(value: boolean) {
+        this._gamepadVibration = value;
+    }
+
+    get gamepadInvertY(): boolean {
+        return this._gamepadInvertY;
+    }
+
+    set gamepadInvertY(value: boolean) {
+        this._gamepadInvertY = value;
+    }
+
+    /**
+     * Get gamepad look sensitivity as a multiplier (0.02 - 0.1)
+     */
+    get gamepadLookMultiplier(): number {
+        return 0.02 + (this._gamepadLookSensitivity - 1) * 0.009;
     }
 }

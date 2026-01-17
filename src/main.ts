@@ -4,6 +4,7 @@ import { CharacterClassName } from './core/CharacterClass';
 import { CharacterPreview, createCharacterPreviews } from './core/CharacterPreview';
 import { assetPreloader } from './core/AssetPreloader';
 import { AudioManager } from './core/AudioManager';
+import { GamepadManager } from './core/GamepadManager';
 
 const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
 
@@ -296,6 +297,32 @@ function setupMenuListeners(): void {
         (e.target as HTMLElement).classList.toggle('active');
     });
 
+    // Gamepad settings sliders
+    document.getElementById('gamepad-sensitivity')?.addEventListener('input', (e) => {
+        const value = (e.target as HTMLInputElement).value;
+        const display = document.getElementById('gamepad-sensitivity-value');
+        if (display) display.textContent = value;
+    });
+
+    document.getElementById('gamepad-deadzone')?.addEventListener('input', (e) => {
+        const value = parseInt((e.target as HTMLInputElement).value, 10);
+        const display = document.getElementById('gamepad-deadzone-value');
+        if (display) display.textContent = (value / 100).toFixed(2);
+    });
+
+    // Gamepad toggle switches
+    document.getElementById('toggle-gamepad')?.addEventListener('click', (e) => {
+        (e.target as HTMLElement).classList.toggle('active');
+    });
+
+    document.getElementById('toggle-gamepad-inverty')?.addEventListener('click', (e) => {
+        (e.target as HTMLElement).classList.toggle('active');
+    });
+
+    document.getElementById('toggle-gamepad-vibration')?.addEventListener('click', (e) => {
+        (e.target as HTMLElement).classList.toggle('active');
+    });
+
     // Settings cancel
     document.getElementById('settings-cancel')?.addEventListener('click', () => {
         document.getElementById('settings-panel')?.classList.remove('visible');
@@ -405,6 +432,13 @@ function loadSettingsToUI(): void {
     const controlsToggle = document.getElementById('toggle-controls');
     const crouchModeToggle = document.getElementById('toggle-crouch-mode');
 
+    // Gamepad settings
+    const gamepadToggle = document.getElementById('toggle-gamepad');
+    const gamepadSensitivitySlider = document.getElementById('gamepad-sensitivity') as HTMLInputElement;
+    const gamepadDeadzoneSlider = document.getElementById('gamepad-deadzone') as HTMLInputElement;
+    const gamepadInvertYToggle = document.getElementById('toggle-gamepad-inverty');
+    const gamepadVibrationToggle = document.getElementById('toggle-gamepad-vibration');
+
     if (musicSlider) {
         musicSlider.value = String(settings.musicVolume);
         const display = document.getElementById('music-value');
@@ -435,6 +469,34 @@ function loadSettingsToUI(): void {
         // Active = hold mode, Inactive = toggle mode
         crouchModeToggle.classList.toggle('active', settings.crouchMode === 'hold');
     }
+
+    // Gamepad settings
+    if (gamepadToggle) {
+        gamepadToggle.classList.toggle('active', settings.gamepadEnabled);
+    }
+
+    if (gamepadSensitivitySlider) {
+        gamepadSensitivitySlider.value = String(settings.gamepadLookSensitivity);
+        const display = document.getElementById('gamepad-sensitivity-value');
+        if (display) display.textContent = String(settings.gamepadLookSensitivity);
+    }
+
+    if (gamepadDeadzoneSlider) {
+        gamepadDeadzoneSlider.value = String(Math.round(settings.gamepadDeadZone * 100));
+        const display = document.getElementById('gamepad-deadzone-value');
+        if (display) display.textContent = settings.gamepadDeadZone.toFixed(2);
+    }
+
+    if (gamepadInvertYToggle) {
+        gamepadInvertYToggle.classList.toggle('active', settings.gamepadInvertY);
+    }
+
+    if (gamepadVibrationToggle) {
+        gamepadVibrationToggle.classList.toggle('active', settings.gamepadVibration);
+    }
+
+    // Update gamepad connection status
+    updateGamepadConnectionStatus();
 }
 
 function saveSettingsFromUI(): void {
@@ -444,6 +506,13 @@ function saveSettingsFromUI(): void {
     const fpsToggle = document.getElementById('toggle-fps');
     const controlsToggle = document.getElementById('toggle-controls');
     const crouchModeToggle = document.getElementById('toggle-crouch-mode');
+
+    // Gamepad settings
+    const gamepadToggle = document.getElementById('toggle-gamepad');
+    const gamepadSensitivitySlider = document.getElementById('gamepad-sensitivity') as HTMLInputElement;
+    const gamepadDeadzoneSlider = document.getElementById('gamepad-deadzone') as HTMLInputElement;
+    const gamepadInvertYToggle = document.getElementById('toggle-gamepad-inverty');
+    const gamepadVibrationToggle = document.getElementById('toggle-gamepad-vibration');
 
     if (musicSlider) {
         settings.musicVolume = parseInt(musicSlider.value, 10);
@@ -470,11 +539,37 @@ function saveSettingsFromUI(): void {
         settings.crouchMode = crouchModeToggle.classList.contains('active') ? 'hold' : 'toggle';
     }
 
+    // Save gamepad settings
+    if (gamepadToggle) {
+        settings.gamepadEnabled = gamepadToggle.classList.contains('active');
+    }
+
+    if (gamepadSensitivitySlider) {
+        settings.gamepadLookSensitivity = parseInt(gamepadSensitivitySlider.value, 10);
+    }
+
+    if (gamepadDeadzoneSlider) {
+        settings.gamepadDeadZone = parseInt(gamepadDeadzoneSlider.value, 10) / 100;
+    }
+
+    if (gamepadInvertYToggle) {
+        settings.gamepadInvertY = gamepadInvertYToggle.classList.contains('active');
+    }
+
+    if (gamepadVibrationToggle) {
+        settings.gamepadVibration = gamepadVibrationToggle.classList.contains('active');
+    }
+
     settings.save();
     updateControlsDisplay();
 
     // Apply volume changes immediately to menu music
     audioManager.applyVolumes();
+
+    // Apply gamepad settings to GamepadManager
+    const gamepadManager = GamepadManager.getInstance();
+    gamepadManager.setEnabled(settings.gamepadEnabled);
+    gamepadManager.setDeadZone(settings.gamepadDeadZone);
 }
 
 function updateControlsDisplay(): void {
@@ -514,3 +609,46 @@ function updateControlsDisplay(): void {
 
 // Update controls display on page load
 updateControlsDisplay();
+
+// Gamepad connection status helper
+function updateGamepadConnectionStatus(): void {
+    const gamepadManager = GamepadManager.getInstance();
+    const isConnected = gamepadManager.isConnected();
+
+    // Update settings panel status
+    const statusElement = document.getElementById('gamepad-status');
+    const statusText = statusElement?.querySelector('.status-text');
+    if (statusElement && statusText) {
+        if (isConnected) {
+            statusElement.classList.add('connected');
+            statusText.textContent = 'Manette connectee';
+        } else {
+            statusElement.classList.remove('connected');
+            statusText.textContent = 'Aucune manette detectee';
+        }
+    }
+
+    // Update global indicator
+    const indicator = document.getElementById('gamepad-indicator');
+    if (indicator) {
+        if (isConnected) {
+            indicator.classList.add('connected');
+            indicator.setAttribute('title', 'Manette connectee');
+        } else {
+            indicator.classList.remove('connected');
+            indicator.setAttribute('title', 'Aucune manette');
+        }
+    }
+}
+
+// Listen for gamepad connection changes
+window.addEventListener('gamepadconnected', () => {
+    updateGamepadConnectionStatus();
+});
+
+window.addEventListener('gamepaddisconnected', () => {
+    updateGamepadConnectionStatus();
+});
+
+// Initial gamepad status check
+updateGamepadConnectionStatus();
