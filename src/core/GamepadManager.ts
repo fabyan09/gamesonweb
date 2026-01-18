@@ -318,6 +318,19 @@ export class GamepadManager {
     }
 
     /**
+     * Detect controller type from gamepad id string
+     */
+    getControllerType(): 'xbox' | 'playstation' {
+        for (const gamepad of this.gamepads.values()) {
+            const id = gamepad.id.toLowerCase();
+            if (id.includes('playstation') || id.includes('dualshock') || id.includes('dualsense') || id.includes('sony')) {
+                return 'playstation';
+            }
+        }
+        return 'xbox';
+    }
+
+    /**
      * Get display name for a button (for UI)
      */
     static getButtonDisplayName(button: GamepadButton, type: 'xbox' | 'playstation' = 'xbox'): string {

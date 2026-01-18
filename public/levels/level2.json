@@ -261,7 +261,7 @@
         { "mesh": "wall_B", "position": { "x": 2, "y": 2, "z": 6 }, "collision": true },
         { "mesh": "wall_B", "position": { "x": 4, "y": 2, "z": 6 }, "collision": true },
         { "mesh": "wall_B", "position": { "x": 6, "y": 2, "z": 6 }, "collision": true },
-        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": 6 }, "collision": true },
+        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": 6 }, "rotation": 180, "collision": true },
 
         { "mesh": "pillar_big", "position": { "x": -22, "y": 0, "z": -22 }, "collision": true },
         { "mesh": "pillar_big", "position": { "x": 22, "y": 0, "z": -22 }, "collision": true },
@@ -385,7 +385,8 @@
     ],
 
     "interactiveDoors": [
-        { "position": { "x": 0, "y": 0, "z": -28 } }
+        { "position": { "x": 0, "y": 0, "z": -28 } },
+        { "position": { "x": 0, "y": 0, "z": 6 }}
     ],
 
     "cameraBounds": {

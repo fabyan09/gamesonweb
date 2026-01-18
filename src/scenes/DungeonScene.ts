@@ -65,6 +65,7 @@ export class DungeonScene {
     private playerInventory: PlayerInventory | null = null;
     private chestSystem: ChestSystem | null = null;
     private nearbyChest: boolean = false;
+    private nearbyItem: boolean = false;
     private doorSystem: DoorSystem | null = null;
     private nearbyDoor: InteractiveDoor | null = null;
     private gamepadManager: GamepadManager;
@@ -305,26 +306,22 @@ export class DungeonScene {
         // Setup chest and item nearby callbacks
         this.chestSystem.onChestNearby((nearby) => {
             this.nearbyChest = nearby;
-            this.updateInteractPrompt(nearby, false);
+            // Update prompt based on all nearby states
+            this.updateInteractPrompt(nearby, this.nearbyItem, !!this.nearbyDoor);
         });
 
         this.chestSystem.onItemNearby((nearby) => {
-            if (nearby) {
-                this.updateInteractPrompt(false, true);
-            } else if (!this.nearbyChest && !this.nearbyDoor) {
-                this.updateInteractPrompt(false, false);
-            }
+            this.nearbyItem = nearby;
+            // Update prompt based on all nearby states
+            this.updateInteractPrompt(this.nearbyChest, nearby, !!this.nearbyDoor);
         });
 
         // Setup door nearby callback
         if (this.doorSystem) {
             this.doorSystem.onDoorNearby((nearby, door) => {
                 this.nearbyDoor = door;
-                if (nearby) {
-                    this.updateInteractPrompt(false, false, true);
-                } else if (!this.nearbyChest) {
-                    this.updateInteractPrompt(false, false, false);
-                }
+                // Update prompt based on all nearby states
+                this.updateInteractPrompt(this.nearbyChest, this.nearbyItem, nearby);
             });
         }
 
@@ -517,26 +514,22 @@ export class DungeonScene {
         // Setup chest and item nearby callbacks
         this.chestSystem.onChestNearby((nearby) => {
             this.nearbyChest = nearby;
-            this.updateInteractPrompt(nearby, false);
+            // Update prompt based on all nearby states
+            this.updateInteractPrompt(nearby, this.nearbyItem, !!this.nearbyDoor);
         });
 
         this.chestSystem.onItemNearby((nearby) => {
-            if (nearby) {
-                this.updateInteractPrompt(false, true);
-            } else if (!this.nearbyChest && !this.nearbyDoor) {
-                this.updateInteractPrompt(false, false);
-            }
+            this.nearbyItem = nearby;
+            // Update prompt based on all nearby states
+            this.updateInteractPrompt(this.nearbyChest, nearby, !!this.nearbyDoor);
         });
 
         // Setup door nearby callback
         if (this.doorSystem) {
             this.doorSystem.onDoorNearby((nearby, door) => {
                 this.nearbyDoor = door;
-                if (nearby) {
-                    this.updateInteractPrompt(false, false, true);
-                } else if (!this.nearbyChest) {
-                    this.updateInteractPrompt(false, false, false);
-                }
+                // Update prompt based on all nearby states
+                this.updateInteractPrompt(this.nearbyChest, this.nearbyItem, nearby);
             });
         }
 
@@ -1845,7 +1838,14 @@ export class DungeonScene {
                 document.body.appendChild(prompt);
             }
 
-            const interactKey = this.settings.getBindingDisplay('interact');
+            // Show gamepad button if gamepad is active, otherwise keyboard key
+            let interactKey: string;
+            if (this.gamepadManager.getActiveInputType() === 'gamepad' && this.gamepadManager.isConnected()) {
+                const controllerType = this.gamepadManager.getControllerType();
+                interactKey = GamepadManager.getButtonDisplayName(GamepadButton.Y, controllerType);
+            } else {
+                interactKey = this.settings.getBindingDisplay('interact');
+            }
             if (nearDoor) {
                 prompt.innerHTML = `<span style="background: #2a2015; padding: 2px 8px; border-radius: 3px; margin-right: 8px;">${interactKey}</span> Ouvrir la porte`;
             } else if (nearChest) {
@@ -1971,6 +1971,84 @@ export class DungeonScene {
         // Apply gamepad settings from GameSettings
         this.gamepadManager.setDeadZone(this.settings.gamepadDeadZone);
         this.gamepadManager.setEnabled(this.settings.gamepadEnabled);
+
+        // Update HUD controls display when input type changes
+        this.gamepadManager.onInputTypeChange((inputType) => {
+            this.updateHUDControls(inputType === 'gamepad');
+        });
+
+        // Initialize HUD with current input type
+        this.updateHUDControls(this.gamepadManager.getActiveInputType() === 'gamepad' && this.gamepadManager.isConnected());
+    }
+
+    /**
+     * Update the HUD controls display for keyboard or gamepad
+     */
+    private updateHUDControls(isGamepad: boolean): void {
+        const instructions = document.getElementById('instructions');
+        if (!instructions) return;
+
+        // Define keyboard and gamepad mappings
+        const keyboardControls: Record<string, string> = {
+            'movement': 'ZQSD',
+            'run': 'Shift',
+            'look': 'Souris',
+            'attack': 'Clic G',
+            'block': 'Clic D',
+            'crouch': 'Ctrl',
+            'interact': 'F',
+            'potions': '1-4',
+            'pause': 'P'
+        };
+
+        // Detect controller type (PlayStation or Xbox)
+        const controllerType = this.gamepadManager.getControllerType();
+        const getBtn = (btn: GamepadButton) => GamepadManager.getButtonDisplayName(btn, controllerType);
+
+        const gamepadControls: Record<string, string> = {
+            'movement': '🕹️ G',
+            'run': getBtn(GamepadButton.LB),
+            'look': '🕹️ D',
+            'attack': getBtn(GamepadButton.X),
+            'block': getBtn(GamepadButton.B),
+            'crouch': getBtn(GamepadButton.RS),
+            'interact': getBtn(GamepadButton.Y),
+            'potions': '↑↓←→',
+            'pause': getBtn(GamepadButton.Start)
+        };
+
+        const controls = isGamepad ? gamepadControls : keyboardControls;
+
+        // Update all control elements
+        const rows = instructions.querySelectorAll('.row');
+        rows.forEach(row => {
+            const keySpan = row.querySelector('.key');
+            const actionSpan = row.querySelector('.action');
+            if (!keySpan || !actionSpan) return;
+
+            const actionText = actionSpan.textContent?.toLowerCase() || '';
+
+            // Match action to control type
+            if (actionText.includes('déplacer')) {
+                keySpan.textContent = controls['movement'];
+            } else if (actionText.includes('courir')) {
+                keySpan.textContent = controls['run'];
+            } else if (actionText.includes('regarder')) {
+                keySpan.textContent = controls['look'];
+            } else if (actionText.includes('attaquer')) {
+                keySpan.textContent = controls['attack'];
+            } else if (actionText.includes('bloquer')) {
+                keySpan.textContent = controls['block'];
+            } else if (actionText.includes('accroupir')) {
+                keySpan.textContent = controls['crouch'];
+            } else if (actionText.includes('interagir')) {
+                keySpan.textContent = controls['interact'];
+            } else if (actionText.includes('potion')) {
+                keySpan.textContent = controls['potions'];
+            } else if (actionText.includes('pause')) {
+                keySpan.textContent = controls['pause'];
+            }
+        });
     }
 
     /**

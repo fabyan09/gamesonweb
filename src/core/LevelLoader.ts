@@ -7,6 +7,9 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Engine } from '@babylonjs/core/Engines/engine';
+
+// Import for occlusion queries
+import '@babylonjs/core/Culling/Octrees/octreeSceneComponent';
 import { MeshPlacer } from '../utils/MeshPlacer';
 import { LoadedAssets } from './AssetLoader';
 import { LevelData, WallSegment, GridPlacement, PropPlacement, LightData } from './LevelData';
@@ -18,6 +21,17 @@ const COLLIDER_PADDING = 0.1;
 const CULLING_UPDATE_INTERVAL = 15;
 // Reserved uniform blocks for other stuff (camera, materials, etc.)
 const RESERVED_UNIFORM_BLOCKS = 4;
+
+// Meshes that benefit from hardware occlusion culling (walls and large static props)
+const OCCLUSION_MESH_PATTERNS = [
+    'wall_A', 'wall_B', 'wall_corner_A', 'upper_wall',
+    'pillar_', 'statue_', 'fountain', 'brazier_', 'torch',
+    'hanging_cage_', 'gargolyle_', 'gargoyle_',
+    'coffin', 'sarcophagus', 'altar'
+];
+
+// Number of frames to wait before checking occlusion again
+const OCCLUSION_RETRY_COUNT = 3;
 
 interface LightDefinition {
     position: Vector3;
@@ -84,6 +98,40 @@ export class LevelLoader {
         } catch (e) {
             console.warn('[LevelLoader] Could not detect GPU capabilities, using defaults');
             this.maxActiveLights = 8;
+        }
+    }
+
+    /**
+     * Check if a mesh name should have hardware occlusion culling enabled
+     */
+    private shouldEnableOcclusion(meshName: string): boolean {
+        return OCCLUSION_MESH_PATTERNS.some(pattern => meshName.startsWith(pattern));
+    }
+
+    /**
+     * Enable hardware occlusion culling on a mesh and its children
+     * Uses OPTIMISTIC mode: renders if visible in previous frame, avoids scintillation
+     */
+    private enableOcclusionOnMesh(mesh: AbstractMesh | null, meshType: string): void {
+        if (!mesh) return;
+
+        // Enable occlusion on the mesh itself
+        mesh.occlusionType = AbstractMesh.OCCLUSION_TYPE_OPTIMISTIC;
+        mesh.occlusionRetryCount = OCCLUSION_RETRY_COUNT;
+
+        // Store metadata for debugging/classification
+        mesh.metadata = {
+            ...(mesh.metadata || {}),
+            meshType,
+            isStatic: true,
+            occlusionEnabled: true
+        };
+
+        // Enable on all child meshes as well
+        const children = mesh.getChildMeshes(false);
+        for (const child of children) {
+            child.occlusionType = AbstractMesh.OCCLUSION_TYPE_OPTIMISTIC;
+            child.occlusionRetryCount = OCCLUSION_RETRY_COUNT;
         }
     }
 
@@ -208,65 +256,87 @@ export class LevelLoader {
 
         const { minX, maxX, minZ, maxZ } = wall.bounds;
         const spacing = wall.spacing;
+        const enableOcclusion = this.shouldEnableOcclusion(wall.mesh);
 
         // North wall (z = maxZ) - visual only
         for (let x = minX; x <= maxX; x += spacing) {
             if (this.hasGap(wall, 'north', x)) continue;
-            this.placer.place(wall.mesh, {
+            const placedMesh = this.placer.place(wall.mesh, {
                 position: { x, y: wall.y, z: maxZ }
             });
+            if (enableOcclusion) {
+                this.enableOcclusionOnMesh(placedMesh, 'wall');
+            }
         }
 
         // South wall (z = minZ) - visual only
         for (let x = minX; x <= maxX; x += spacing) {
             if (this.hasGap(wall, 'south', x)) continue;
-            this.placer.place(wall.mesh, {
+            const placedMesh = this.placer.place(wall.mesh, {
                 position: { x, y: wall.y, z: minZ },
                 rotation: Math.PI
             });
+            if (enableOcclusion) {
+                this.enableOcclusionOnMesh(placedMesh, 'wall');
+            }
         }
 
         // West wall (x = minX) - visual only
         for (let z = minZ + spacing; z < maxZ; z += spacing) {
             if (this.hasGap(wall, 'west', z)) continue;
-            this.placer.place(wall.mesh, {
+            const placedMesh = this.placer.place(wall.mesh, {
                 position: { x: minX, y: wall.y, z },
                 rotation: Math.PI / 2
             });
+            if (enableOcclusion) {
+                this.enableOcclusionOnMesh(placedMesh, 'wall');
+            }
         }
 
         // East wall (x = maxX) - visual only
         for (let z = minZ + spacing; z < maxZ; z += spacing) {
             if (this.hasGap(wall, 'east', z)) continue;
-            this.placer.place(wall.mesh, {
+            const placedMesh = this.placer.place(wall.mesh, {
                 position: { x: maxX, y: wall.y, z },
                 rotation: -Math.PI / 2
             });
+            if (enableOcclusion) {
+                this.enableOcclusionOnMesh(placedMesh, 'wall');
+            }
         }
 
         // Corners - visual only
         // Rotations: corners face inward to connect walls properly
         if (wall.cornerMesh) {
+            const enableCornerOcclusion = this.shouldEnableOcclusion(wall.cornerMesh);
+
             // North-West corner (-X, +Z)
-            this.placer.place(wall.cornerMesh, {
+            const nw = this.placer.place(wall.cornerMesh, {
                 position: { x: minX, y: wall.y, z: maxZ },
                 rotation: -Math.PI / 2
             });
+            if (enableCornerOcclusion) this.enableOcclusionOnMesh(nw, 'wall');
+
             // North-East corner (+X, +Z)
-            this.placer.place(wall.cornerMesh, {
+            const ne = this.placer.place(wall.cornerMesh, {
                 position: { x: maxX, y: wall.y, z: maxZ },
                 rotation: Math.PI
             });
+            if (enableCornerOcclusion) this.enableOcclusionOnMesh(ne, 'wall');
+
             // South-West corner (-X, -Z)
-            this.placer.place(wall.cornerMesh, {
+            const sw = this.placer.place(wall.cornerMesh, {
                 position: { x: minX, y: wall.y, z: minZ },
                 rotation: 0
             });
+            if (enableCornerOcclusion) this.enableOcclusionOnMesh(sw, 'wall');
+
             // South-East corner (+X, -Z)
-            this.placer.place(wall.cornerMesh, {
+            const se = this.placer.place(wall.cornerMesh, {
                 position: { x: maxX, y: wall.y, z: minZ },
                 rotation: Math.PI / 2
             });
+            if (enableCornerOcclusion) this.enableOcclusionOnMesh(se, 'wall');
         }
 
         // Create invisible collision walls (only for the bottom layer y=0)
@@ -387,6 +457,11 @@ export class LevelLoader {
                 rotation: prop.rotation ? (prop.rotation * Math.PI / 180) : undefined,
                 scale: prop.scale
             });
+
+        // Enable occlusion on static props (not doors, spike traps, or interactive objects)
+        if (placedMesh && this.shouldEnableOcclusion(prop.mesh) && !prop.mesh.includes('door') && prop.mesh !== 'spiketrap') {
+            this.enableOcclusionOnMesh(placedMesh as AbstractMesh, 'prop');
+        }
 
         // Create invisible collision box based on mesh bounding box if collision is enabled
         if (prop.collision && placedMesh) {
