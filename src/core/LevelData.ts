@@ -99,6 +99,13 @@ export interface InteractiveDoorData {
     rotation?: number;
 }
 
+export interface ExitDoorData {
+    /** Position of the exit door */
+    position: Vec3;
+    /** Y-axis rotation in degrees */
+    rotation?: number;
+}
+
 export interface LevelData {
     /** Level metadata */
     name: string;
@@ -124,6 +131,9 @@ export interface LevelData {
 
     /** Interactive doors that can be opened */
     interactiveDoors?: InteractiveDoorData[];
+
+    /** Exit door to next level (sealed until all enemies defeated) */
+    exitDoor?: ExitDoorData;
 
     /** Scene settings */
     scene?: {

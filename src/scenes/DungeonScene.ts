@@ -68,6 +68,8 @@ export class DungeonScene {
     private nearbyItem: boolean = false;
     private doorSystem: DoorSystem | null = null;
     private nearbyDoor: InteractiveDoor | null = null;
+    private nearbyExitDoor: boolean = false;
+    private exitDoorSealed: boolean = true;
     private gamepadManager: GamepadManager;
     private pauseMenuIndex: number = 0;
 
@@ -265,6 +267,10 @@ export class DungeonScene {
         if (this.currentLevel?.interactiveDoors) {
             this.doorSystem.registerDoorsFromLevelData(this.currentLevel.interactiveDoors);
         }
+        // Register exit door if present
+        if (this.currentLevel?.exitDoor) {
+            this.doorSystem.registerExitDoorFromLevelData(this.currentLevel.exitDoor);
+        }
 
         // Load enemies
         await this.loadEnemies();
@@ -322,6 +328,21 @@ export class DungeonScene {
                 this.nearbyDoor = door;
                 // Update prompt based on all nearby states
                 this.updateInteractPrompt(this.nearbyChest, this.nearbyItem, nearby);
+            });
+
+            // Setup exit door callbacks
+            this.doorSystem.onExitDoorNearby((nearby, isSealed) => {
+                this.nearbyExitDoor = nearby;
+                this.exitDoorSealed = isSealed;
+                this.updateExitDoorPrompt(nearby, isSealed);
+            });
+
+            this.doorSystem.onExitDoorPassed(() => {
+                // Player passed through exit door - trigger victory
+                if (!this.isLevelComplete) {
+                    this.isLevelComplete = true;
+                    this.showVictoryMessage();
+                }
             });
         }
 
@@ -473,6 +494,10 @@ export class DungeonScene {
         if (this.currentLevel?.interactiveDoors) {
             this.doorSystem.registerDoorsFromLevelData(this.currentLevel.interactiveDoors);
         }
+        // Register exit door if present
+        if (this.currentLevel?.exitDoor) {
+            this.doorSystem.registerExitDoorFromLevelData(this.currentLevel.exitDoor);
+        }
 
         // Load enemies
         await this.loadEnemies();
@@ -530,6 +555,21 @@ export class DungeonScene {
                 this.nearbyDoor = door;
                 // Update prompt based on all nearby states
                 this.updateInteractPrompt(this.nearbyChest, this.nearbyItem, nearby);
+            });
+
+            // Setup exit door callbacks
+            this.doorSystem.onExitDoorNearby((nearby, isSealed) => {
+                this.nearbyExitDoor = nearby;
+                this.exitDoorSealed = isSealed;
+                this.updateExitDoorPrompt(nearby, isSealed);
+            });
+
+            this.doorSystem.onExitDoorPassed(() => {
+                // Player passed through exit door - trigger victory
+                if (!this.isLevelComplete) {
+                    this.isLevelComplete = true;
+                    this.showVictoryMessage();
+                }
             });
         }
 
@@ -793,8 +833,15 @@ export class DungeonScene {
     private checkLevelComplete(): void {
         const allDead = this.enemies.every(e => e.isDead);
         if (allDead && !this.isLevelComplete) {
-            this.isLevelComplete = true;
-            this.showVictoryMessage();
+            // If there's an exit door, unseal it instead of immediately showing victory
+            if (this.doorSystem?.hasExitDoor()) {
+                this.doorSystem.unsealExitDoor();
+                console.log('[DungeonScene] All enemies defeated - exit door unsealed!');
+            } else {
+                // No exit door - show victory immediately (original behavior)
+                this.isLevelComplete = true;
+                this.showVictoryMessage();
+            }
         }
     }
 
@@ -1860,6 +1907,58 @@ export class DungeonScene {
     }
 
     /**
+     * Update UI prompt for exit door interaction
+     */
+    private updateExitDoorPrompt(nearby: boolean, isSealed: boolean): void {
+        // Get or create the exit door prompt element
+        let prompt = document.getElementById('exit-door-prompt');
+
+        if (nearby) {
+            if (!prompt) {
+                prompt = document.createElement('div');
+                prompt.id = 'exit-door-prompt';
+                prompt.style.cssText = `
+                    position: fixed;
+                    bottom: 25%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    padding: 12px 24px;
+                    background: linear-gradient(135deg, rgba(20, 15, 10, 0.95) 0%, rgba(40, 30, 20, 0.9) 100%);
+                    border: 2px solid #8b6914;
+                    border-radius: 8px;
+                    font-family: 'Montaga', Georgia, serif;
+                    font-size: 16px;
+                    color: #ffd700;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+                    z-index: 100;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,215,0,0.1);
+                `;
+                document.body.appendChild(prompt);
+            }
+
+            // Show gamepad button if gamepad is active, otherwise keyboard key
+            let interactKey: string;
+            if (this.gamepadManager.getActiveInputType() === 'gamepad' && this.gamepadManager.isConnected()) {
+                const controllerType = this.gamepadManager.getControllerType();
+                interactKey = GamepadManager.getButtonDisplayName(GamepadButton.Y, controllerType);
+            } else {
+                interactKey = this.settings.getBindingDisplay('interact');
+            }
+
+            if (isSealed) {
+                prompt.innerHTML = `<span style="color: #ff4444;">🔒 Porte scellée</span> - Éliminez tous les ennemis`;
+                prompt.style.borderColor = '#8b0000';
+            } else {
+                prompt.innerHTML = `<span style="background: #2a2015; padding: 2px 8px; border-radius: 3px; margin-right: 8px;">${interactKey}</span> Traverser vers le niveau suivant`;
+                prompt.style.borderColor = '#228b22';
+            }
+            prompt.style.display = 'block';
+        } else if (prompt) {
+            prompt.style.display = 'none';
+        }
+    }
+
+    /**
      * Handle the use potion action
      */
     private usePotion(): void {
@@ -1885,8 +1984,23 @@ export class DungeonScene {
                 // Don't interact if game is paused or player is dead
                 if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
 
-                // Try to open door if nearby (highest priority)
-                if (this.nearbyDoor && this.doorSystem) {
+                // Try to open exit door if nearby (highest priority)
+                if (this.nearbyExitDoor && this.doorSystem) {
+                    if (!this.exitDoorSealed) {
+                        // Play kick animation then open exit door
+                        if (this.player) {
+                            this.player.playKick();
+                        }
+                        // Delay door opening slightly for animation sync
+                        setTimeout(() => {
+                            this.doorSystem?.tryOpenExitDoor();
+                        }, 200);
+                    }
+                    // If sealed, do nothing (prompt already shows message)
+                    return;
+                }
+                // Try to open regular door if nearby
+                else if (this.nearbyDoor && this.doorSystem) {
                     // Play kick animation then open door
                     if (this.player) {
                         this.player.playKick();
@@ -2098,8 +2212,21 @@ export class DungeonScene {
      * Handle gamepad interact button
      */
     private handleGamepadInteract(): void {
-        // Try to open door if nearby (highest priority)
-        if (this.nearbyDoor && this.doorSystem) {
+        // Try to open exit door if nearby (highest priority)
+        if (this.nearbyExitDoor && this.doorSystem) {
+            if (!this.exitDoorSealed) {
+                if (this.player) {
+                    this.player.playKick();
+                }
+                setTimeout(() => {
+                    this.doorSystem?.tryOpenExitDoor();
+                }, 200);
+            }
+            // If sealed, do nothing (prompt already shows message)
+            return;
+        }
+        // Try to open regular door if nearby
+        else if (this.nearbyDoor && this.doorSystem) {
             if (this.player) {
                 this.player.playKick();
             }

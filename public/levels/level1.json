@@ -29,14 +29,20 @@
             "cornerMesh": "wall_corner_A",
             "bounds": { "minX": -22, "maxX": 20, "minZ": -22, "maxZ": 20 },
             "y": 0,
-            "spacing": 2
+            "spacing": 2,
+            "gaps": [
+                { "wall": "north", "position": 0 }
+            ]
         },
         {
             "mesh": "wall_B",
             "cornerMesh": "wall_corner_A",
             "bounds": { "minX": -22, "maxX": 20, "minZ": -22, "maxZ": 20 },
             "y": 2,
-            "spacing": 2
+            "spacing": 2,
+            "gaps": [
+                { "wall": "north", "position": 0 }
+            ]
         },
         {
             "mesh": "upper_wall",
@@ -99,7 +105,6 @@
 
         { "mesh": "torch", "position": { "x": -16, "y": 3.5, "z": 19.7 }, "rotation": 180 },
         { "mesh": "torch", "position": { "x": -8, "y": 3.5, "z": 19.7 }, "rotation": 180 },
-        { "mesh": "torch", "position": { "x": 0, "y": 3.5, "z": 19.7 }, "rotation": 180 },
         { "mesh": "torch", "position": { "x": 8, "y": 3.5, "z": 19.7 }, "rotation": 180 },
         { "mesh": "torch", "position": { "x": 16, "y": 3.5, "z": 19.7 }, "rotation": 180 },
 
@@ -135,13 +140,61 @@
         { "mesh": "gargolyle_A", "position": { "x": -18, "y": 2.5, "z": 18 } },
         { "mesh": "gargolyle_B", "position": { "x": 18, "y": 2.5, "z": 18 }, "rotation": 180 },
 
-        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": 0 }, "collision": true }
+        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": 0 }, "collision": true },
+        { "mesh": "door_framebig_A", "position": { "x": 0, "y": 0, "z": 20 }, "rotation":180, "collision": true },
+
+        { "mesh": "steps", "position": { "x": 0, "y": -1, "z": 22 }},
+        { "mesh": "steps", "position": { "x": 0, "y": -2, "z": 24 }},
+        { "mesh": "steps", "position": { "x": 0, "y": -3, "z": 26 }},
+        { "mesh": "steps", "position": { "x": 0, "y": -4, "z": 28 }},
+        { "mesh": "steps", "position": { "x": 0, "y": -5, "z": 30 }},
+
+        { "mesh": "steps", "position": { "x": 0, "y": 3, "z": 22 }},
+        { "mesh": "steps", "position": { "x": 0, "y": 2, "z": 24 }},
+        { "mesh": "steps", "position": { "x": 0, "y": 1, "z": 26 }},
+        { "mesh": "steps", "position": { "x": 0, "y": 0, "z": 28 }},
+        { "mesh": "steps", "position": { "x": 0, "y": -1, "z": 30 }},
+
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 2, "z": 22 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 2, "z": 24 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 2, "z": 26 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 2, "z": 28 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 2, "z": 30 }, "rotation":90, "collision": true },
+
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 2, "z": 22 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 2, "z": 24 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 2, "z": 26 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 2, "z": 28 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 2, "z": 30 }, "rotation":90, "collision": true },
+
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 0, "z": 22 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 0, "z": 24 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 0, "z": 26 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 0, "z": 28 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": 0, "z": 30 }, "rotation":90, "collision": true },
+
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 0, "z": 22 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 0, "z": 24 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 0, "z": 26 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 0, "z": 28 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": 0, "z": 30 }, "rotation":90, "collision": true },
+
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": -2, "z": 22 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": -2, "z": 24 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": -2, "z": 26 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": -2, "z": 28 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": -1.2, "y": -2, "z": 30 }, "rotation":90, "collision": true },
+
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": -2, "z": 22 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": -2, "z": 24 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": -2, "z": 26 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": -2, "z": 28 }, "rotation":90, "collision": true },
+        { "mesh": "wall_A", "position": { "x": 1.2, "y": -2, "z": 30 }, "rotation":90, "collision": true }
     ],
 
     "lights": [
         { "position": { "x": -16, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
         { "position": { "x": -8, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
-        { "position": { "x": 0, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
         { "position": { "x": 8, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
         { "position": { "x": 16, "y": 4.5, "z": 19 }, "color": { "x": 1, "y": 0.6, "z": 0.2 }, "intensity": 1.5, "range": 15 },
 
@@ -186,5 +239,10 @@
         "minZ": -21,
         "maxZ": 19,
         "maxY": 5
+    },
+
+    "exitDoor": {
+        "position": { "x": 0, "y": 0, "z": 20 },
+        "rotation": 0
     }
 }
