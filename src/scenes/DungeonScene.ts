@@ -19,6 +19,7 @@ import { AssetLoader } from '../core/AssetLoader';
 import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 import { PlayerController } from '../core/PlayerController';
 import { ArcherController } from '../core/ArcherController';
+import { WizardController } from '../core/WizardController';
 import { CharacterClassName, CharacterController } from '../core/CharacterClass';
 import { LevelLoader, TrapData } from '../core/LevelLoader';
 import { LevelData } from '../core/LevelData';
@@ -243,6 +244,17 @@ export class DungeonScene {
 
             // Connect inventory to archer for arrow management
             (this.player as ArcherController).setInventory(this.playerInventory);
+        } else if (this.characterClass === 'wizard') {
+            this.player = new WizardController(this.scene, {
+                position: spawn.position,
+                scale: 1,
+                walkSpeed: 0.045,
+                runSpeed: 0.09,
+                meshYOffset: 0
+            });
+
+            const playerBasePath = `${import.meta.env.BASE_URL}assets/Wizard Pack/`;
+            await this.player.load(playerBasePath);
         } else {
             // Default: Knight
             this.player = new PlayerController(this.scene, {
@@ -489,6 +501,17 @@ export class DungeonScene {
 
             // Connect inventory to archer for arrow management
             (this.player as ArcherController).setInventory(this.playerInventory);
+        } else if (this.characterClass === 'wizard') {
+            this.player = new WizardController(this.scene, {
+                position: spawn.position,
+                scale: 1,
+                walkSpeed: 0.045,
+                runSpeed: 0.09,
+                meshYOffset: 0
+            });
+
+            const playerBasePath = `${import.meta.env.BASE_URL}assets/Wizard Pack/`;
+            await this.player.load(playerBasePath);
         } else {
             // Default: Knight
             this.player = new PlayerController(this.scene, {
@@ -667,7 +690,7 @@ export class DungeonScene {
                 console.log(`[DungeonScene] Player stepped on spike trap! -${trap.damage} HP (${this.playerHealth} remaining)`);
                 this.updateHealthUI();
 
-                // Play pain sound (female voice for archer, male for knight)
+                // Play pain sound (female voice for archer, male for knight/wizard)
                 if (this.characterClass === 'archer') {
                     this.audioManager.playArcherPainSound();
                 } else {
@@ -736,8 +759,10 @@ export class DungeonScene {
 
                 // Check if player is blocking - reduce damage based on class
                 if (this.player?.isCurrentlyBlocking) {
-                    // Archer blocks 50% damage, Knight blocks 70% damage
-                    const blockReduction = this.characterClass === 'archer' ? 0.5 : 0.7;
+                    // Knight blocks 70% damage, Archer blocks 50%, Wizard blocks 40%
+                    let blockReduction = 0.7; // Knight default
+                    if (this.characterClass === 'archer') blockReduction = 0.5;
+                    else if (this.characterClass === 'wizard') blockReduction = 0.4;
                     const reducedDamage = Math.ceil(damage * (1 - blockReduction));
                     console.log(`[DungeonScene] Player blocked! Reduced ${damage} to ${reducedDamage} damage (${blockReduction * 100}% reduction)`);
                     // Play shield block sound
@@ -758,7 +783,7 @@ export class DungeonScene {
                 console.log(`[DungeonScene] Player took ${damage} damage, health: ${this.playerHealth}`);
                 this.updateHealthUI();
 
-                // Play pain sound (female voice for archer, male for knight)
+                // Play pain sound (female voice for archer, male for knight/wizard)
                 if (this.characterClass === 'archer') {
                     this.audioManager.playArcherPainSound();
                 } else {
@@ -829,6 +854,40 @@ export class DungeonScene {
                     archer.markProjectileHit(); // Stop the arrow projectile
                     console.log(`[DungeonScene] Arrow hit ${enemy.typeName}!`);
                     break; // Arrow only hits first enemy in path
+                }
+            }
+        } else if (this.characterClass === 'wizard' && this.player) {
+            // For wizard, use trajectory-based hit detection similar to archer
+            const wizard = this.player as WizardController;
+            const trajectory = wizard.getMagicTrajectory();
+
+            if (!trajectory) return;
+
+            // First check if magic hits a wall
+            const wallHitDistance = this.checkArrowWallCollision(trajectory.origin, trajectory.direction, trajectory.maxDistance);
+
+            for (const enemy of this.enemies) {
+                if (enemy.isDead) continue;
+
+                // Check if enemy is on the magic trajectory (with 1.5m tolerance for magic area)
+                const enemyCenter = enemy.position.clone();
+                enemyCenter.y += 1.0; // Aim at chest height
+
+                if (wizard.isPointOnMagicTrajectory(enemyCenter, 1.5)) {
+                    // Check if wall is hit before the enemy
+                    const enemyDistance = Vector3.Distance(trajectory.origin, enemyCenter);
+                    if (wallHitDistance !== null && wallHitDistance < enemyDistance) {
+                        // Magic hits wall before reaching enemy
+                        wizard.markProjectileHit();
+                        console.log(`[DungeonScene] Magic blocked by wall!`);
+                        return;
+                    }
+
+                    // isRanged = true for magic - triggers enraged state
+                    enemy.takeDamage(20, true); // Wizard deals 20 damage
+                    wizard.markProjectileHit(); // Stop the magic projectile
+                    console.log(`[DungeonScene] Magic hit ${enemy.typeName}!`);
+                    break; // Magic only hits first enemy in path
                 }
             }
         } else {

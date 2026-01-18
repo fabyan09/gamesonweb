@@ -36,6 +36,9 @@ export class AudioManager {
     private archerPainSounds: HTMLAudioElement[] = [];
     private archerJumpSounds: HTMLAudioElement[] = [];
 
+    // Wizard spell sounds
+    private spellSounds: HTMLAudioElement[] = [];
+
     // UX sounds
     private winSound: HTMLAudioElement | null = null;
     private loseSound: HTMLAudioElement | null = null;
@@ -330,6 +333,16 @@ export class AudioManager {
         }
         console.log(`[AudioManager] Loaded ${this.archerJumpSounds.length} archer jump sounds`);
 
+        // Load wizard spell sounds
+        const spellFiles = ['magical_2.ogg', 'magical_4.ogg', 'magical_5.ogg'];
+        for (const file of spellFiles) {
+            const audio = this.createAudio(`${this.basePath}Spells/${file}`, false);
+            if (audio) {
+                this.spellSounds.push(audio);
+            }
+        }
+        console.log(`[AudioManager] Loaded ${this.spellSounds.length} spell sounds`);
+
         // Load monster hurt sounds
         await this.loadMonsterHurtSounds();
     }
@@ -556,6 +569,20 @@ export class AudioManager {
 
         const randomIndex = Math.floor(Math.random() * this.archerJumpSounds.length);
         const sound = this.archerJumpSounds[randomIndex];
+        if (sound) {
+            sound.volume = this.getSfxVolume();
+            this.playSound(sound);
+        }
+    }
+
+    /**
+     * Play a random spell sound (when wizard casts a spell)
+     */
+    playSpellSound(): void {
+        if (this.spellSounds.length === 0) return;
+
+        const randomIndex = Math.floor(Math.random() * this.spellSounds.length);
+        const sound = this.spellSounds[randomIndex];
         if (sound) {
             sound.volume = this.getSfxVolume();
             this.playSound(sound);

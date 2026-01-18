@@ -2,7 +2,7 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { ThirdPersonCamera } from './ThirdPersonCamera';
 
-export type CharacterClassName = 'knight' | 'archer';
+export type CharacterClassName = 'knight' | 'archer' | 'wizard';
 
 export interface CharacterController {
     // Properties
@@ -42,5 +42,11 @@ export const CHARACTER_CLASSES: CharacterClassInfo[] = [
         name: 'Archère',
         description: 'Une combattante agile équipée d\'un arc. Précise et mortelle à distance.',
         icon: 'bow-arrow'
+    },
+    {
+        id: 'wizard',
+        name: 'Sorcier',
+        description: 'Un mage puissant maîtrisant les arts arcanes. Dévastateur à distance avec ses sorts.',
+        icon: 'magic-wand'
     }
 ];

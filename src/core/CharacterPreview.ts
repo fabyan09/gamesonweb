@@ -12,6 +12,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/loaders/glTF';
 
 import { CharacterClassName } from './CharacterClass';
+import { PixelFilter } from './PixelFilter';
 
 const ROOT_MOTION_NODES = ['Armature', 'Hips', 'mixamorig:Hips'];
 
@@ -22,6 +23,7 @@ export class CharacterPreview {
     private rootNode: TransformNode | null = null;
     private currentAnimation: AnimationGroup | null = null;
     private isDisposed = false;
+    private pixelFilter: PixelFilter | null = null;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -60,6 +62,11 @@ export class CharacterPreview {
 
         // Disable user input - just for display
         camera.inputs.clear();
+
+        // Apply pixel filter for retro look
+        this.pixelFilter = new PixelFilter(this.scene);
+        this.pixelFilter.applyToCamera(camera);
+        this.pixelFilter.setPixelSize(3);
     }
 
     private setupLighting(): void {
@@ -88,6 +95,11 @@ export class CharacterPreview {
             modelPath = `${basePath}Pro Longbow Pack/`;
             modelFile = 'Erika Archer With Bow Arrow.glb';
             idleFile = 'standing idle 03 examine.glb';
+            scale = 1;
+        } else if (characterClass === 'wizard') {
+            modelPath = `${basePath}Wizard Pack/`;
+            modelFile = 'Wizard.glb';
+            idleFile = 'standing idle.glb';
             scale = 1;
         } else {
             modelPath = `${basePath}Sword and Shield Pack/`;
@@ -189,22 +201,26 @@ export class CharacterPreview {
     dispose(): void {
         this.isDisposed = true;
         this.currentAnimation?.dispose();
+        this.pixelFilter?.dispose();
         this.scene.dispose();
         this.engine.dispose();
     }
 }
 
-export async function createCharacterPreviews(): Promise<{ knight: CharacterPreview; archer: CharacterPreview }> {
+export async function createCharacterPreviews(): Promise<{ knight: CharacterPreview; archer: CharacterPreview; wizard: CharacterPreview }> {
     const knightCanvas = document.getElementById('knight-preview-canvas') as HTMLCanvasElement;
     const archerCanvas = document.getElementById('archer-preview-canvas') as HTMLCanvasElement;
+    const wizardCanvas = document.getElementById('wizard-preview-canvas') as HTMLCanvasElement;
 
     const knightPreview = new CharacterPreview(knightCanvas);
     const archerPreview = new CharacterPreview(archerCanvas);
+    const wizardPreview = new CharacterPreview(wizardCanvas);
 
     await Promise.all([
         knightPreview.loadCharacter('knight'),
-        archerPreview.loadCharacter('archer')
+        archerPreview.loadCharacter('archer'),
+        wizardPreview.loadCharacter('wizard')
     ]);
 
-    return { knight: knightPreview, archer: archerPreview };
+    return { knight: knightPreview, archer: archerPreview, wizard: wizardPreview };
 }

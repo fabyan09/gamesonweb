@@ -18,7 +18,7 @@ const settings = GameSettings.getInstance();
 // State variables (declared early to avoid temporal dead zone)
 let pendingLevel: number = 1;
 let isRandomLevel: boolean = false;
-let characterPreviews: { knight: CharacterPreview; archer: CharacterPreview } | null = null;
+let characterPreviews: { knight: CharacterPreview; archer: CharacterPreview; wizard: CharacterPreview } | null = null;
 let previewsLoading = false;
 
 // Check if we should show menu or start game directly
@@ -194,6 +194,7 @@ function closeCharacterSelect(): void {
     if (characterPreviews) {
         characterPreviews.knight.dispose();
         characterPreviews.archer.dispose();
+        characterPreviews.wizard.dispose();
         characterPreviews = null;
     }
 
