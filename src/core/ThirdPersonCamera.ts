@@ -89,6 +89,13 @@ export class ThirdPersonCamera {
         });
     }
 
+    /**
+     * Get the underlying ArcRotateCamera for post-processing effects
+     */
+    getCamera(): ArcRotateCamera {
+        return this.camera;
+    }
+
     setTarget(node: TransformNode): void {
         this.target = node;
         // Initialize current target to avoid camera jumping from origin

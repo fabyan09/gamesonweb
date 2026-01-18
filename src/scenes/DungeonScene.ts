@@ -30,6 +30,9 @@ import { PlayerInventory, PotionType } from '../core/PlayerInventory';
 import { ChestSystem } from '../core/ChestSystem';
 import { DoorSystem, InteractiveDoor } from '../core/DoorSystem';
 import { GamepadManager, GamepadButton } from '../core/GamepadManager';
+import { PixelFilter } from '../core/PixelFilter';
+import { HealingEffect } from '../core/HealingEffect';
+import { HealthVignette } from '../core/HealthVignette';
 
 // List of available levels
 const LEVELS = [
@@ -72,6 +75,9 @@ export class DungeonScene {
     private exitDoorSealed: boolean = true;
     private gamepadManager: GamepadManager;
     private pauseMenuIndex: number = 0;
+    private pixelFilter: PixelFilter | null = null;
+    private healingEffect: HealingEffect | null = null;
+    private healthVignette: HealthVignette | null = null;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
@@ -301,6 +307,25 @@ export class DungeonScene {
         }
         this.player.setCamera(this.camera);
 
+        // Apply pixel filter for retro look
+        if (this.pixelFilter) {
+            this.pixelFilter.dispose();
+        }
+        this.pixelFilter = new PixelFilter(this.scene);
+        this.pixelFilter.applyToCamera(this.camera.getCamera());
+        this.pixelFilter.setPixelSize(3); // Adjust for more/less pixelation (2-6)
+
+        // Initialize healing effect
+        this.healingEffect = new HealingEffect(this.scene);
+        if (this.player.rootMesh) {
+            this.healingEffect.setPlayerTarget(this.player.rootMesh);
+        }
+
+        // Initialize health vignette effect
+        this.healthVignette = new HealthVignette(this.scene);
+        this.healthVignette.applyToCamera(this.camera.getCamera());
+        this.healthVignette.updateHealth(this.playerHealth);
+
         // Setup player attack callback
         this.player.onAttackHit((position, range) => {
             this.handlePlayerAttack(position, range);
@@ -527,6 +552,25 @@ export class DungeonScene {
             }
         }
         this.player.setCamera(this.camera);
+
+        // Apply pixel filter for retro look
+        if (this.pixelFilter) {
+            this.pixelFilter.dispose();
+        }
+        this.pixelFilter = new PixelFilter(this.scene);
+        this.pixelFilter.applyToCamera(this.camera.getCamera());
+        this.pixelFilter.setPixelSize(3); // Adjust for more/less pixelation (2-6)
+
+        // Initialize healing effect
+        this.healingEffect = new HealingEffect(this.scene);
+        if (this.player.rootMesh) {
+            this.healingEffect.setPlayerTarget(this.player.rootMesh);
+        }
+
+        // Initialize health vignette effect
+        this.healthVignette = new HealthVignette(this.scene);
+        this.healthVignette.applyToCamera(this.camera.getCamera());
+        this.healthVignette.updateHealth(this.playerHealth);
 
         // Setup player attack callback
         this.player.onAttackHit((position, range) => {
@@ -1120,6 +1164,9 @@ export class DungeonScene {
         } else {
             healthBar.classList.remove('full');
         }
+
+        // Update health vignette effect
+        this.healthVignette?.updateHealth(this.playerHealth);
     }
 
     private async handlePlayerDeath(): Promise<void> {
@@ -1970,6 +2017,8 @@ export class DungeonScene {
             this.playerHealth = Math.min(100, this.playerHealth + healAmount);
             this.updateHealthUI();
             this.audioManager.playPotionDrinkSound();
+            // Play healing visual effect
+            this.healingEffect?.play();
             console.log(`[DungeonScene] Used ${potion} potion, healed ${healAmount}, health: ${this.playerHealth}`);
         }
     }
