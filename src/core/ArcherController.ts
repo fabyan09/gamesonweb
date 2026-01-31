@@ -1067,4 +1067,37 @@ export class ArcherController implements CharacterController {
         this.mesh?.dispose();
         this.colliderMesh?.dispose();
     }
+
+    /**
+     * Get the world position of the character's head bone for first-person camera
+     */
+    getHeadWorldPosition(): Vector3 | null {
+        if (!this.skeleton || !this.mesh) return null;
+
+        // Try common head bone names
+        const headBoneNames = ['Head', 'head', 'mixamorig:Head', 'Bip001 Head', 'Bone_Head'];
+        let headBone = null;
+
+        for (const name of headBoneNames) {
+            headBone = this.skeleton.bones.find(b => b.name === name || b.name.toLowerCase().includes('head'));
+            if (headBone) break;
+        }
+
+        if (!headBone) {
+            // Fallback: use mesh position with height offset
+            return this.rootNode ? new Vector3(
+                this.rootNode.position.x,
+                this.rootNode.position.y + 1.7,
+                this.rootNode.position.z
+            ) : null;
+        }
+
+        // Get bone world position
+        const worldMatrix = headBone.getWorldMatrix();
+        return new Vector3(
+            worldMatrix.m[12],
+            worldMatrix.m[13],
+            worldMatrix.m[14]
+        );
+    }
 }

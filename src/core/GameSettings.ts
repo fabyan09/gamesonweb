@@ -18,6 +18,7 @@ export interface KeyBindings {
 }
 
 export type CrouchMode = 'toggle' | 'hold';
+export type CameraMode = 'thirdPerson' | 'firstPerson';
 
 interface SettingsData {
     musicVolume: number;
@@ -27,6 +28,7 @@ interface SettingsData {
     showControls: boolean;
     keyBindings: KeyBindings;
     crouchMode: CrouchMode;
+    cameraMode: CameraMode;
     // Gamepad settings
     gamepadEnabled: boolean;
     gamepadDeadZone: number;
@@ -55,6 +57,7 @@ const DEFAULT_SETTINGS: SettingsData = {
     showControls: true,
     keyBindings: { ...DEFAULT_KEYBINDINGS },
     crouchMode: 'toggle',
+    cameraMode: 'thirdPerson',
     // Gamepad defaults
     gamepadEnabled: true,
     gamepadDeadZone: 0.15,
@@ -73,6 +76,7 @@ export class GameSettings {
     private _showControls: boolean;
     private _keyBindings: KeyBindings;
     private _crouchMode: CrouchMode;
+    private _cameraMode: CameraMode;
     // Gamepad settings
     private _gamepadEnabled: boolean;
     private _gamepadDeadZone: number;
@@ -89,6 +93,7 @@ export class GameSettings {
         this._showControls = saved.showControls;
         this._keyBindings = saved.keyBindings;
         this._crouchMode = saved.crouchMode;
+        this._cameraMode = saved.cameraMode;
         // Gamepad settings
         this._gamepadEnabled = saved.gamepadEnabled;
         this._gamepadDeadZone = saved.gamepadDeadZone;
@@ -131,6 +136,7 @@ export class GameSettings {
                 showControls: this._showControls,
                 keyBindings: this._keyBindings,
                 crouchMode: this._crouchMode,
+                cameraMode: this._cameraMode,
                 // Gamepad settings
                 gamepadEnabled: this._gamepadEnabled,
                 gamepadDeadZone: this._gamepadDeadZone,
@@ -258,6 +264,14 @@ export class GameSettings {
 
     set crouchMode(value: CrouchMode) {
         this._crouchMode = value;
+    }
+
+    get cameraMode(): CameraMode {
+        return this._cameraMode;
+    }
+
+    set cameraMode(value: CameraMode) {
+        this._cameraMode = value;
     }
 
     /**

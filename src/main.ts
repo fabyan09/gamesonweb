@@ -298,6 +298,10 @@ function setupMenuListeners(): void {
         (e.target as HTMLElement).classList.toggle('active');
     });
 
+    document.getElementById('toggle-camera-mode')?.addEventListener('click', (e) => {
+        (e.target as HTMLElement).classList.toggle('active');
+    });
+
     // Gamepad settings sliders
     document.getElementById('gamepad-sensitivity')?.addEventListener('input', (e) => {
         const value = (e.target as HTMLInputElement).value;
@@ -432,6 +436,7 @@ function loadSettingsToUI(): void {
     const fpsToggle = document.getElementById('toggle-fps');
     const controlsToggle = document.getElementById('toggle-controls');
     const crouchModeToggle = document.getElementById('toggle-crouch-mode');
+    const cameraModeToggle = document.getElementById('toggle-camera-mode');
 
     // Gamepad settings
     const gamepadToggle = document.getElementById('toggle-gamepad');
@@ -471,6 +476,11 @@ function loadSettingsToUI(): void {
         crouchModeToggle.classList.toggle('active', settings.crouchMode === 'hold');
     }
 
+    if (cameraModeToggle) {
+        // Active = first-person mode, Inactive = third-person mode
+        cameraModeToggle.classList.toggle('active', settings.cameraMode === 'firstPerson');
+    }
+
     // Gamepad settings
     if (gamepadToggle) {
         gamepadToggle.classList.toggle('active', settings.gamepadEnabled);
@@ -507,6 +517,7 @@ function saveSettingsFromUI(): void {
     const fpsToggle = document.getElementById('toggle-fps');
     const controlsToggle = document.getElementById('toggle-controls');
     const crouchModeToggle = document.getElementById('toggle-crouch-mode');
+    const cameraModeToggle = document.getElementById('toggle-camera-mode');
 
     // Gamepad settings
     const gamepadToggle = document.getElementById('toggle-gamepad');
@@ -538,6 +549,11 @@ function saveSettingsFromUI(): void {
     if (crouchModeToggle) {
         // Active = hold mode, Inactive = toggle mode
         settings.crouchMode = crouchModeToggle.classList.contains('active') ? 'hold' : 'toggle';
+    }
+
+    if (cameraModeToggle) {
+        // Active = first-person mode, Inactive = third-person mode
+        settings.cameraMode = cameraModeToggle.classList.contains('active') ? 'firstPerson' : 'thirdPerson';
     }
 
     // Save gamepad settings

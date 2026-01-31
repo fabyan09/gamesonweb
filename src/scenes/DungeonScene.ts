@@ -308,6 +308,8 @@ export class DungeonScene {
 
         if (this.player.rootMesh) {
             this.camera.setTarget(this.player.rootMesh);
+            // Apply saved camera mode
+            this.camera.setCameraMode(this.settings.cameraMode, this.player.rootMesh);
             // Setup dynamic light culling based on player position
             this.levelLoader.setPlayerTarget(this.player.rootMesh);
             // Setup chest system player target
@@ -565,6 +567,8 @@ export class DungeonScene {
 
         if (this.player.rootMesh) {
             this.camera.setTarget(this.player.rootMesh);
+            // Apply saved camera mode
+            this.camera.setCameraMode(this.settings.cameraMode, this.player.rootMesh);
             // Setup dynamic light culling based on player position
             this.levelLoader.setPlayerTarget(this.player.rootMesh);
             // Setup chest system player target
@@ -1442,8 +1446,22 @@ export class DungeonScene {
     }
 
     private setupPauseMenu(): void {
-        // P key to toggle pause (configurable)
+        // P key to toggle pause (configurable), V key to toggle camera mode
         window.addEventListener('keydown', (e) => {
+            // V key to toggle camera mode
+            if (e.code === 'KeyV') {
+                // Don't toggle if game is over or paused
+                if (this.isPlayerDead || this.isLevelComplete || this.isPaused) return;
+
+                if (this.camera && this.player?.rootMesh) {
+                    const newMode = this.camera.isFirstPerson ? 'thirdPerson' : 'firstPerson';
+                    this.camera.setCameraMode(newMode, this.player.rootMesh);
+                    this.settings.cameraMode = newMode;
+                    this.settings.save();
+                }
+                return;
+            }
+
             // Check if pause key is pressed
             if (this.settings.isKeyBound('pause', e.code)) {
                 // Don't pause if game is over

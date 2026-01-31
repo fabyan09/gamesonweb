@@ -580,7 +580,11 @@ export class WizardController implements CharacterController {
     private crouch(): void {
         if (this.isCrouching || this.isJumping || this.isCasting) return;
 
+        // Update camera height immediately for first-person mode
+        this.camera?.setCrouching(true);
+
         this.isCrouching = true;
+        this.updateCrouchMetadata();
         this.playAnimation('standToCrouch', false);
 
         // Set target mesh Y for smooth transition (move mesh down to keep feet on ground)
@@ -609,6 +613,9 @@ export class WizardController implements CharacterController {
     private standUp(): void {
         if (!this.isCrouching) return;
 
+        // Update camera height immediately for first-person mode
+        this.camera?.setCrouching(false);
+
         this.playAnimation('crouchToStand', false);
 
         // Set target mesh Y back to standing position
@@ -626,10 +633,12 @@ export class WizardController implements CharacterController {
         if (transitionAnim) {
             transitionAnim.onAnimationEndObservable.addOnce(() => {
                 this.isCrouching = false;
+                this.updateCrouchMetadata();
                 this.playAnimation(this.getRandomIdleAnim(), true);
             });
         } else {
             this.isCrouching = false;
+            this.updateCrouchMetadata();
             this.playAnimation(this.getRandomIdleAnim(), true);
         }
     }
@@ -1167,5 +1176,47 @@ export class WizardController implements CharacterController {
         Object.values(this.animations).forEach(anim => anim?.dispose());
         this.mesh?.dispose();
         this.colliderMesh?.dispose();
+    }
+
+    private updateCrouchMetadata(): void {
+        if (!this.scene.metadata) {
+            this.scene.metadata = {};
+        }
+        this.scene.metadata.playerCrouching = this.isCrouching;
+        // Update camera height for first-person mode
+        this.camera?.setCrouching(this.isCrouching);
+    }
+
+    /**
+     * Get the world position of the character's head bone for first-person camera
+     */
+    getHeadWorldPosition(): Vector3 | null {
+        if (!this.skeleton || !this.mesh) return null;
+
+        // Try common head bone names
+        const headBoneNames = ['Head', 'head', 'mixamorig:Head', 'Bip001 Head', 'Bone_Head'];
+        let headBone = null;
+
+        for (const name of headBoneNames) {
+            headBone = this.skeleton.bones.find(b => b.name === name || b.name.toLowerCase().includes('head'));
+            if (headBone) break;
+        }
+
+        if (!headBone) {
+            // Fallback: use mesh position with height offset
+            return this.rootNode ? new Vector3(
+                this.rootNode.position.x,
+                this.rootNode.position.y + 1.7,
+                this.rootNode.position.z
+            ) : null;
+        }
+
+        // Get bone world position
+        const worldMatrix = headBone.getWorldMatrix();
+        return new Vector3(
+            worldMatrix.m[12],
+            worldMatrix.m[13],
+            worldMatrix.m[14]
+        );
     }
 }

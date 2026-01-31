@@ -21,6 +21,9 @@ export interface CharacterController {
     playDeath(): Promise<void>;
     playKick(): void;
     dispose(): void;
+
+    // First-person camera support
+    getHeadWorldPosition(): Vector3 | null;
 }
 
 export interface CharacterClassInfo {

@@ -2,7 +2,7 @@ import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { Vector2, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Scene } from '@babylonjs/core/scene';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
-import { GameSettings } from './GameSettings';
+import { CameraMode, GameSettings } from './GameSettings';
 
 export interface ThirdPersonCameraConfig {
     distance?: number;
@@ -31,7 +31,18 @@ export class ThirdPersonCamera {
 
     // Over-the-shoulder offset (right shoulder)
     private readonly shoulderOffsetX = 0.6;  // Décalage à droite
-    private readonly shoulderOffsetY = 1.6;  // Hauteur de l'épaule
+    private shoulderOffsetY = 1.6;  // Hauteur de l'épaule
+
+    // Camera mode tracking
+    private currentMode: CameraMode = 'thirdPerson';
+    private playerRoot: TransformNode | null = null;
+
+    // Crouch state tracking for first-person mode
+    private isCrouching = false;
+    private readonly fpStandingHeight = 1.7;
+    private readonly fpCrouchingHeight = 1.0;
+    private readonly tpStandingHeight = 1.6;
+    private readonly tpCrouchingHeight = 1.0;
 
     constructor(scene: Scene, canvas: HTMLCanvasElement, config: ThirdPersonCameraConfig = {}) {
         const distance = config.distance ?? 3;  // Encore plus proche
@@ -194,6 +205,83 @@ export class ThirdPersonCamera {
         }
         if (this.camera.beta > upperLimit) {
             this.camera.beta = upperLimit;
+        }
+    }
+
+    /**
+     * Set camera mode (first-person or third-person)
+     * @param mode - The camera mode to set
+     * @param playerRoot - Optional player root mesh for visibility control
+     */
+    setCameraMode(mode: CameraMode, playerRoot?: TransformNode): void {
+        if (playerRoot) {
+            this.playerRoot = playerRoot;
+        }
+
+        if (mode === 'firstPerson') {
+            // First-person mode: camera at eye level, no distance
+            this.camera.lowerRadiusLimit = 0.1;
+            this.camera.upperRadiusLimit = 0.1;
+            this.camera.radius = 0.1;
+            // Eye level - adjust for crouch state
+            this.shoulderOffsetY = this.isCrouching ? this.fpCrouchingHeight : this.fpStandingHeight;
+            this.camera.targetScreenOffset.set(0, 0); // Centered view
+            // More vertical freedom in first-person
+            this.camera.lowerBetaLimit = Math.PI / 6;  // ~30 degrees from top
+            this.camera.upperBetaLimit = Math.PI * 0.85; // ~153 degrees
+            this.setPlayerMeshVisibility(false);
+        } else {
+            // Third-person mode: over-the-shoulder camera
+            this.camera.lowerRadiusLimit = 2.5;
+            this.camera.upperRadiusLimit = 5;
+            this.camera.radius = 3;
+            // Shoulder height - adjust for crouch state
+            this.shoulderOffsetY = this.isCrouching ? this.tpCrouchingHeight : this.tpStandingHeight;
+            this.camera.targetScreenOffset.set(-0.8, 0); // Over-the-shoulder offset
+            // Standard third-person limits
+            this.camera.lowerBetaLimit = Math.PI / 3;
+            this.camera.upperBetaLimit = Math.PI * 0.60;
+            this.setPlayerMeshVisibility(true);
+        }
+
+        this.currentMode = mode;
+    }
+
+    /**
+     * Set player mesh visibility (hide in first-person, show in third-person)
+     */
+    private setPlayerMeshVisibility(visible: boolean): void {
+        if (!this.playerRoot) return;
+        this.playerRoot.getChildMeshes(false).forEach(mesh => {
+            mesh.isVisible = visible;
+        });
+    }
+
+    /**
+     * Check if camera is in first-person mode
+     */
+    get isFirstPerson(): boolean {
+        return this.currentMode === 'firstPerson';
+    }
+
+    /**
+     * Get current camera mode
+     */
+    get mode(): CameraMode {
+        return this.currentMode;
+    }
+
+    /**
+     * Set crouching state - adjusts camera height in first-person mode
+     * @param crouching - Whether the player is crouching
+     */
+    setCrouching(crouching: boolean): void {
+        this.isCrouching = crouching;
+
+        if (this.currentMode === 'firstPerson') {
+            this.shoulderOffsetY = crouching ? this.fpCrouchingHeight : this.fpStandingHeight;
+        } else {
+            this.shoulderOffsetY = crouching ? this.tpCrouchingHeight : this.tpStandingHeight;
         }
     }
 }
