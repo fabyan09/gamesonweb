@@ -41,6 +41,7 @@ interface WizardAnimationSet {
     magicAttack2: AnimationGroup | null;
     magicAttack3: AnimationGroup | null;
     areaAttack: AnimationGroup | null;
+    doorOpen: AnimationGroup | null;
     // Block
     blockStart: AnimationGroup | null;
     blockIdle: AnimationGroup | null;
@@ -147,6 +148,7 @@ export class WizardController implements CharacterController {
         magicAttack2: null,
         magicAttack3: null,
         areaAttack: null,
+        doorOpen: null,
         blockStart: null,
         blockIdle: null,
         blockEnd: null,
@@ -293,6 +295,7 @@ export class WizardController implements CharacterController {
         await this.loadAnimation(basePath, 'Standing 2H Magic Attack 02.glb', 'magicAttack2', 'full');
         await this.loadAnimation(basePath, 'Standing 2H Magic Attack 03.glb', 'magicAttack3', 'full');
         await this.loadAnimation(basePath, 'Standing 2H Magic Area Attack 01.glb', 'areaAttack', 'full');
+        await this.loadAnimation(basePath, 'Standing 1H Magic Attack 03.glb', 'doorOpen', 'full');
         await this.loadAnimation(basePath, 'Standing Block Start.glb', 'blockStart', 'full');
         await this.loadAnimation(basePath, 'Standing Block Idle.glb', 'blockIdle', 'full');
         await this.loadAnimation(basePath, 'Standing Block End.glb', 'blockEnd', 'full');
@@ -1025,19 +1028,23 @@ export class WizardController implements CharacterController {
         if (this.keys.left) moveX -= 1;
         if (this.keys.right) moveX += 1;
 
-        // Apply movement
-        if (isMoving && !this.isBlocking && !this.isCasting) {
+        // Apply movement (allow movement while casting, but not while blocking)
+        if (isMoving && !this.isBlocking) {
             const inputAngle = Math.atan2(moveX, moveZ);
             const moveAngle = cameraAngle + inputAngle;
 
-            // Rotate character to face movement direction
-            this.rootNode.rotation.y = moveAngle + Math.PI;
+            // Only rotate character to face movement direction if not casting
+            // (when casting, rotation is handled separately to face camera)
+            if (!this.isCasting) {
+                this.rootNode.rotation.y = moveAngle + Math.PI;
+            }
 
-            // Calculate movement velocity
+            // Calculate movement velocity (slower while casting)
+            const castingSpeedMult = this.isCasting ? 0.5 : 1.0;
             const velocity = new Vector3(
-                Math.sin(moveAngle) * speed,
+                Math.sin(moveAngle) * speed * castingSpeedMult,
                 0,
-                Math.cos(moveAngle) * speed
+                Math.cos(moveAngle) * speed * castingSpeedMult
             );
 
             // Move with collision detection
@@ -1114,16 +1121,16 @@ export class WizardController implements CharacterController {
     }
 
     /**
-     * Play kick animation (used for opening doors) - wizard uses magic attack 03
+     * Play kick animation (used for opening doors) - wizard uses 1H magic attack
      */
     playKick(): void {
         if (this.isDead || this.isCasting) return;
 
         this.isCasting = true;
-        this.playAnimation('magicAttack3', false);
+        this.playAnimation('doorOpen', false);
 
-        if (this.animations.magicAttack3) {
-            this.animations.magicAttack3.onAnimationEndObservable.addOnce(() => {
+        if (this.animations.doorOpen) {
+            this.animations.doorOpen.onAnimationEndObservable.addOnce(() => {
                 this.isCasting = false;
                 this.playAnimation('idle', true);
             });
