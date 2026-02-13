@@ -56,7 +56,6 @@ export class DungeonScene {
     private isLevelComplete: boolean = false;
     private isPlayerDead: boolean = false;
     private isPaused: boolean = false;
-    private isRandomLevel: boolean = false;
     private settings: GameSettings;
     private lastFpsUpdate: number = 0;
     private frameCount: number = 0;
@@ -176,8 +175,8 @@ export class DungeonScene {
         // Reset audio state for new level (fixes sounds not playing after level transitions)
         this.audioManager.resetForNewLevel();
 
-        // Set current level index (clamped to valid range)
-        this.currentLevelIndex = Math.max(0, Math.min(levelIndex, LEVELS.length - 1));
+        // Store the raw level index (0-indexed)
+        this.currentLevelIndex = levelIndex;
 
         // Start stats session
         this.statsService.startSession(this.characterClass, this.currentLevelIndex);
@@ -194,13 +193,66 @@ export class DungeonScene {
 
         console.log('[DungeonScene] Available meshes:', Array.from(assets.meshes.keys()));
 
-        // Determine level to load
-        const levelPath = `${import.meta.env.BASE_URL}levels/${LEVELS[this.currentLevelIndex]}`;
-        console.log(`[DungeonScene] Loading level ${this.currentLevelIndex + 1}/${LEVELS.length}: ${LEVELS[this.currentLevelIndex]}`);
+        if (levelIndex < LEVELS.length) {
+            // ===== Handmade level =====
+            const levelPath = `${import.meta.env.BASE_URL}levels/${LEVELS[levelIndex]}`;
+            console.log(`[DungeonScene] Loading level ${levelIndex + 1}/${LEVELS.length}: ${LEVELS[levelIndex]}`);
 
-        // Load and build level
-        this.currentLevel = await this.levelLoader.loadFromUrl(levelPath);
-        this.levelLoader.buildLevel(this.currentLevel, assets);
+            this.currentLevel = await this.levelLoader.loadFromUrl(levelPath);
+            this.levelLoader.buildLevel(this.currentLevel, assets);
+        } else {
+            // ===== Procedural level (BSP) =====
+            console.log(`[DungeonScene] Generating procedural level ${levelIndex + 1}...`);
+
+            const tier = levelIndex - LEVELS.length; // 0, 1, 2, 3+
+
+            // Progressive difficulty
+            let enemyTypes: string[];
+            let enemyMin: number;
+            let enemyMax: number;
+            let sizeBase: number;
+            let sizeRange: number;
+
+            if (tier === 0) {
+                enemyTypes = ['vampire', 'parasite'];
+                enemyMin = 3; enemyMax = 5;
+                sizeBase = 20; sizeRange = 10;
+            } else if (tier === 1) {
+                enemyTypes = ['vampire', 'parasite', 'mutant'];
+                enemyMin = 4; enemyMax = 6;
+                sizeBase = 22; sizeRange = 10;
+            } else if (tier === 2) {
+                enemyTypes = ['parasite', 'mutant', 'skeletonzombie'];
+                enemyMin = 5; enemyMax = 7;
+                sizeBase = 24; sizeRange = 10;
+            } else {
+                enemyTypes = ['mutant', 'skeletonzombie', 'warrok'];
+                enemyMin = Math.min(6 + Math.floor((tier - 3) / 2), 10);
+                enemyMax = Math.min(8 + Math.floor((tier - 3) / 2), 12);
+                sizeBase = Math.min(26 + (tier - 3) * 2, 40);
+                sizeRange = 10;
+            }
+
+            const generator = new BSPDungeonGenerator({
+                width: sizeBase + Math.floor(Math.random() * sizeRange),
+                height: sizeBase + Math.floor(Math.random() * sizeRange),
+                minRoomSize: 4,
+                maxRoomSize: 8,
+                tileSpacing: 2,
+                enemyCount: enemyMin + Math.floor(Math.random() * (enemyMax - enemyMin + 1)),
+                enemyTypes: enemyTypes
+            });
+
+            this.currentLevel = generator.generate();
+            console.log(`[DungeonScene] Generated: ${this.currentLevel.name}`);
+            console.log(`[DungeonScene] Rooms: ${generator.getRooms().length}, Enemies: ${this.currentLevel.enemies?.length}`);
+
+            this.levelLoader.buildLevelOptimized(this.currentLevel, assets);
+        }
+
+        // Get spike traps for damage detection
+        this.spikeTraps = this.levelLoader.getSpikeTraps();
+        console.log(`[DungeonScene] Loaded ${this.spikeTraps.length} spike traps`);
 
         // Get player spawn from level data
         const spawn = this.levelLoader.getPlayerSpawn(this.currentLevel);
@@ -233,285 +285,6 @@ export class DungeonScene {
             console.log(`[DungeonScene] Cleared saved state after restoration`);
         } else if (savedState) {
             console.log(`[DungeonScene] Saved state exists but class mismatch or null - not restoring`);
-        }
-
-        // Load player based on selected class
-        if (this.characterClass === 'archer') {
-            this.player = new ArcherController(this.scene, {
-                position: spawn.position,
-                scale: 1,
-                walkSpeed: 0.06,
-                runSpeed: 0.12,
-                meshYOffset: 0
-            });
-
-            const playerBasePath = `${import.meta.env.BASE_URL}assets/Pro Longbow Pack/`;
-            await this.player.load(playerBasePath);
-
-            // Connect inventory to archer for arrow management
-            (this.player as ArcherController).setInventory(this.playerInventory);
-        } else if (this.characterClass === 'wizard') {
-            this.player = new WizardController(this.scene, {
-                position: spawn.position,
-                scale: 1,
-                walkSpeed: 0.045,
-                runSpeed: 0.09,
-                meshYOffset: 0
-            });
-
-            const playerBasePath = `${import.meta.env.BASE_URL}assets/Wizard Pack/`;
-            await this.player.load(playerBasePath);
-        } else {
-            // Default: Knight
-            this.player = new PlayerController(this.scene, {
-                position: spawn.position,
-                scale: 1,
-                walkSpeed: 0.08,
-                runSpeed: 0.15,
-                meshYOffset: 0
-            });
-
-            const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
-            await this.player.load(playerBasePath);
-        }
-
-        // Apply spawn rotation to player mesh
-        if (this.player.rootMesh) {
-            this.player.rootMesh.rotation.y = (spawn.rotation * Math.PI) / 180;
-        }
-
-        // Initialize chest system
-        this.chestSystem = new ChestSystem(this.scene, this.playerInventory, this.characterClass === 'archer');
-        await this.chestSystem.loadAssets(`${import.meta.env.BASE_URL}assets/`);
-        this.chestSystem.registerChests();
-
-        // Initialize door system
-        this.doorSystem = new DoorSystem(this.scene);
-        this.doorSystem.setAssets(assets);
-        if (this.currentLevel?.interactiveDoors) {
-            this.doorSystem.registerDoorsFromLevelData(this.currentLevel.interactiveDoors);
-        }
-        // Register exit door if present
-        if (this.currentLevel?.exitDoor) {
-            this.doorSystem.registerExitDoorFromLevelData(this.currentLevel.exitDoor);
-        }
-
-        // Load enemies
-        await this.loadEnemies();
-
-        // Setup camera to follow player with bounds from level data
-        // Convert spawn rotation (degrees) to camera alpha (radians)
-        // Camera should be behind the player (opposite direction)
-        const spawnRotationRad = (spawn.rotation * Math.PI) / 180;
-        const cameraAlpha = Math.PI / 2 - spawnRotationRad;
-
-        this.camera = new ThirdPersonCamera(this.scene, this.canvas, {
-            distance: 5,
-            heightOffset: 1.5,
-            bounds: this.currentLevel.cameraBounds,
-            initialAlpha: cameraAlpha
-        });
-
-        if (this.player.rootMesh) {
-            this.camera.setTarget(this.player.rootMesh);
-            // Apply saved camera mode
-            this.camera.setCameraMode(this.settings.cameraMode, this.player.rootMesh);
-            // Setup dynamic light culling based on player position
-            this.levelLoader.setPlayerTarget(this.player.rootMesh);
-            // Setup chest system player target
-            this.chestSystem.setPlayerTarget(this.player.rootMesh);
-            // Setup door system player target
-            if (this.doorSystem) {
-                this.doorSystem.setPlayerTarget(this.player.rootMesh);
-            }
-        }
-        this.player.setCamera(this.camera);
-
-        // Apply pixel filter for retro look
-        if (this.pixelFilter) {
-            this.pixelFilter.dispose();
-        }
-        this.pixelFilter = new PixelFilter(this.scene);
-        this.pixelFilter.applyToCamera(this.camera.getCamera());
-        this.pixelFilter.setPixelSize(3); // Adjust for more/less pixelation (2-6)
-
-        // Initialize healing effect
-        this.healingEffect = new HealingEffect(this.scene);
-        if (this.player.rootMesh) {
-            this.healingEffect.setPlayerTarget(this.player.rootMesh);
-        }
-
-        // Initialize health vignette effect
-        this.healthVignette = new HealthVignette(this.scene);
-        this.healthVignette.applyToCamera(this.camera.getCamera());
-        this.healthVignette.updateHealth(this.playerHealth);
-
-        // Setup player attack callback
-        this.player.onAttackHit((position, range) => {
-            this.handlePlayerAttack(position, range);
-        });
-
-        // Setup mouse events for attack/block
-        this.setupMouseEvents();
-
-        // Setup chest and item nearby callbacks
-        this.chestSystem.onChestNearby((nearby) => {
-            this.nearbyChest = nearby;
-            // Update prompt based on all nearby states
-            this.updateInteractPrompt(nearby, this.nearbyItem, !!this.nearbyDoor);
-        });
-
-        this.chestSystem.onItemNearby((nearby) => {
-            this.nearbyItem = nearby;
-            // Update prompt based on all nearby states
-            this.updateInteractPrompt(this.nearbyChest, nearby, !!this.nearbyDoor);
-        });
-
-        // Setup item pickup notification callback
-        this.chestSystem.onItemPickup((type, potionType, arrowCount) => {
-            if (type === 'potion' && potionType) {
-                const healAmounts: Record<string, number> = { 'p1': 20, 'p2': 35, 'p3': 50, 'p4': 100 };
-                const tierNames: Record<string, string> = { 'p1': 'I', 'p2': 'II', 'p3': 'III', 'p4': 'IV' };
-                const colors: Record<string, string> = { 'p1': '#ff8c00', 'p2': '#0080ff', 'p3': '#00cc00', 'p4': '#ff1a4d' };
-                this.showPickupNotification(
-                    `+Potion ${tierNames[potionType]} (+${healAmounts[potionType]} HP)`,
-                    colors[potionType]
-                );
-            } else if (type === 'arrows' && arrowCount) {
-                this.showPickupNotification(`+${arrowCount} Flèches`, '#ffd700');
-            }
-        });
-
-        // Setup door nearby callback
-        if (this.doorSystem) {
-            this.doorSystem.onDoorNearby((nearby, door) => {
-                this.nearbyDoor = door;
-                // Update prompt based on all nearby states
-                this.updateInteractPrompt(this.nearbyChest, this.nearbyItem, nearby);
-            });
-
-            // Setup exit door callbacks
-            this.doorSystem.onExitDoorNearby((nearby, isSealed) => {
-                this.nearbyExitDoor = nearby;
-                this.exitDoorSealed = isSealed;
-                this.updateExitDoorPrompt(nearby, isSealed);
-            });
-
-            this.doorSystem.onExitDoorPassed(() => {
-                // Player passed through exit door - trigger victory
-                if (!this.isLevelComplete) {
-                    this.isLevelComplete = true;
-                    this.showVictoryMessage();
-                }
-            });
-        }
-
-        // Update camera in render loop (only when not paused)
-        this.scene.onBeforeRenderObservable.add(() => {
-            if (!this.scene.metadata?.isPaused) {
-                this.camera?.update();
-                this.chestSystem?.update();
-                this.doorSystem?.update();
-            }
-        });
-
-        // Show health bar
-        this.updateHealthUI();
-
-        // Update controls display with current keybindings
-        this.updateControlsDisplay();
-
-        // Initialize audio and start ambient music
-        await this.audioManager.init(this.scene);
-        this.audioManager.playAmbientMusic();
-
-        // Setup brazier sounds
-        this.setupBrazierSounds();
-
-        // Setup interaction keyboard listener
-        this.setupInteractionListener();
-
-        // Hide loading and show inventory
-        document.getElementById('loading')?.classList.add('hidden');
-        const invUI = document.getElementById('inventory-ui');
-        if (invUI) invUI.style.visibility = 'visible';
-    }
-
-    /**
-     * Initialize a randomly generated level using BSP algorithm
-     */
-    async initRandomLevel(): Promise<void> {
-        // Reset audio state for new level (fixes sounds not playing after level transitions)
-        this.audioManager.resetForNewLevel();
-
-        // Start stats session for random level
-        this.statsService.startSession(this.characterClass, -1);
-
-        // Lighting
-        this.setupLighting();
-
-        // Load dungeon assets
-        const assets = await this.assetLoader.loadGLB(
-            'dungeon',
-            `${import.meta.env.BASE_URL}assets/Dungeon_set/`,
-            'Dungeon_set.glb'
-        );
-
-        console.log('[DungeonScene] Generating random level...');
-        this.isRandomLevel = true;
-
-        // Generate random level using BSP (smaller for better performance)
-        const generator = new BSPDungeonGenerator({
-            width: 20 + Math.floor(Math.random() * 10), // 20-30 tiles (reduced)
-            height: 20 + Math.floor(Math.random() * 10),
-            minRoomSize: 4,
-            maxRoomSize: 8,
-            tileSpacing: 2,
-            enemyCount: 3 + Math.floor(Math.random() * 3), // 3-5 enemies
-            enemyTypes: ['vampire', 'parasite']
-        });
-
-        this.currentLevel = generator.generate();
-        console.log(`[DungeonScene] Generated: ${this.currentLevel.name}`);
-        console.log(`[DungeonScene] Rooms: ${generator.getRooms().length}, Enemies: ${this.currentLevel.enemies?.length}`);
-
-        // Build level from generated data with instancing optimization
-        this.levelLoader.buildLevelOptimized(this.currentLevel, assets);
-
-        // Get spike traps for damage detection
-        this.spikeTraps = this.levelLoader.getSpikeTraps();
-        console.log(`[DungeonScene] Loaded ${this.spikeTraps.length} spike traps`);
-
-        // Get player spawn from level data
-        const spawn = this.levelLoader.getPlayerSpawn(this.currentLevel);
-
-        // Initialize player inventory
-        this.playerInventory = new PlayerInventory(this.characterClass === 'archer');
-        this.playerInventory.onUpdate((state) => {
-            this.updateInventoryUI(state);
-        });
-
-        // Restore saved state if available (for level transitions in random mode)
-        const savedState = PlayerInventory.loadGameState();
-        console.log(`[DungeonScene Random] Checking saved state: exists=${!!savedState}, currentClass="${this.characterClass}"`);
-        if (savedState) {
-            console.log(`[DungeonScene Random] Saved state details: class="${savedState.characterClass}", health=${savedState.health}, potions=${savedState.potions.length}, arrows=${savedState.arrows}`);
-            console.log(`[DungeonScene Random] Class match: "${savedState.characterClass}" === "${this.characterClass}" = ${savedState.characterClass === this.characterClass}`);
-        }
-        if (savedState && savedState.characterClass === this.characterClass) {
-            // Restore health FIRST before any UI updates
-            this.playerHealth = savedState.health;
-            console.log(`[DungeonScene Random] Set playerHealth to ${this.playerHealth}`);
-
-            // Then restore inventory
-            this.playerInventory.restoreFromSave(savedState);
-            console.log(`[DungeonScene Random] Restored inventory: potions=${this.playerInventory.getPotionCount()}, arrows=${this.playerInventory.getArrowCount()}`);
-
-            // Clear the saved state after restoring
-            PlayerInventory.clearGameState();
-            console.log(`[DungeonScene Random] Cleared saved state after restoration`);
-        } else if (savedState) {
-            console.log(`[DungeonScene Random] Saved state exists but class mismatch - not restoring`);
         }
 
         // Load player based on selected class
@@ -1019,27 +792,21 @@ export class DungeonScene {
         // Release pointer lock so user can click buttons
         document.exitPointerLock();
 
-        const hasNextLevel = this.currentLevelIndex < LEVELS.length - 1;
         // Convert to 1-indexed for user-friendly URLs
         const nextLevelNumber = this.currentLevelIndex + 2;
+        const isLastHandmade = this.currentLevelIndex === LEVELS.length - 1;
 
-        // Determine buttons based on level type
-        let buttonsHtml: string;
-        if (this.isRandomLevel) {
-            buttonsHtml = `
-                <button id="new-random-btn">Nouveau Niveau Aléatoire</button>
-                <button id="menu-btn" class="secondary">Menu Principal</button>
-            `;
-        } else if (hasNextLevel) {
-            buttonsHtml = `
-                <button id="next-level-btn">Niveau Suivant</button>
-            `;
-        } else {
-            buttonsHtml = `
-                <p class="complete">Félicitations ! Vous avez terminé le jeu !</p>
-                <button id="restart-btn">Rejouer</button>
-            `;
+        // Transition message when moving from handmade to procedural levels
+        let transitionHtml = '';
+        if (isLastHandmade) {
+            transitionHtml = `<p class="transition-msg">Attention, les prochaines cryptes sont de véritables labyrinthes générés par la malédiction... Chaque crypte sera unique et plus dangereuse.</p>`;
         }
+
+        const buttonsHtml = `
+            ${transitionHtml}
+            <button id="next-level-btn">Niveau Suivant</button>
+            <button id="menu-btn" class="secondary">Menu Principal</button>
+        `;
 
         const overlay = document.createElement('div');
         overlay.id = 'victory-overlay';
@@ -1141,10 +908,16 @@ export class DungeonScene {
                 from { transform: translateY(20px); opacity: 0; }
                 to { transform: translateY(0); opacity: 1; }
             }
-            .victory-content .complete {
-                font-size: 1.3rem;
-                color: #ffd700;
-                margin-top: 1.5rem;
+            .victory-content .transition-msg {
+                font-size: 1rem;
+                color: #ff8c00;
+                margin: 1.5rem auto 0;
+                max-width: 400px;
+                line-height: 1.6;
+                font-style: italic;
+                text-align: center;
+                opacity: 0;
+                animation: victoryText 0.8s ease-out 0.8s forwards;
             }
             .victory-content button {
                 margin-top: 2.5rem;
@@ -1190,34 +963,18 @@ export class DungeonScene {
         document.body.appendChild(overlay);
 
         // Add event listeners
-        if (this.isRandomLevel) {
-            document.getElementById('new-random-btn')?.addEventListener('click', () => {
-                // Save game state before transitioning to next random level
-                if (this.playerInventory) {
-                    PlayerInventory.saveGameState(this.playerInventory, this.playerHealth, this.characterClass);
-                    console.log(`[DungeonScene] Saved state before random level: health=${this.playerHealth}, potions=${this.playerInventory.getPotionCount()}`);
-                }
-                window.location.href = `${window.location.pathname}?random=true&class=${this.characterClass}`;
-            });
-            document.getElementById('menu-btn')?.addEventListener('click', () => {
-                PlayerInventory.clearGameState();
-                window.location.href = window.location.pathname;
-            });
-        } else if (hasNextLevel) {
-            document.getElementById('next-level-btn')?.addEventListener('click', () => {
-                // Save game state before transitioning to next level
-                if (this.playerInventory) {
-                    PlayerInventory.saveGameState(this.playerInventory, this.playerHealth, this.characterClass);
-                    console.log(`[DungeonScene] Saved state before level ${nextLevelNumber}: health=${this.playerHealth}, potions=${this.playerInventory.getPotionCount()}`);
-                }
-                window.location.href = `${window.location.pathname}?level=${nextLevelNumber}&class=${this.characterClass}`;
-            });
-        } else {
-            document.getElementById('restart-btn')?.addEventListener('click', () => {
-                PlayerInventory.clearGameState();
-                window.location.href = window.location.pathname;
-            });
-        }
+        document.getElementById('next-level-btn')?.addEventListener('click', () => {
+            // Save game state before transitioning to next level
+            if (this.playerInventory) {
+                PlayerInventory.saveGameState(this.playerInventory, this.playerHealth, this.characterClass);
+                console.log(`[DungeonScene] Saved state before level ${nextLevelNumber}: health=${this.playerHealth}, potions=${this.playerInventory.getPotionCount()}`);
+            }
+            window.location.href = `${window.location.pathname}?level=${nextLevelNumber}&class=${this.characterClass}`;
+        });
+        document.getElementById('menu-btn')?.addEventListener('click', () => {
+            PlayerInventory.clearGameState();
+            window.location.href = window.location.pathname;
+        });
     }
 
     private updateHealthUI(): void {

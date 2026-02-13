@@ -9,12 +9,10 @@ export class Game {
     private currentScene: DungeonScene | null = null;
     private settings: GameSettings;
     private characterClass: CharacterClassName;
-    private isRandomLevel: boolean;
 
-    constructor(canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight', isRandomLevel: boolean = false) {
+    constructor(canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
         this.characterClass = characterClass;
-        this.isRandomLevel = isRandomLevel;
         this.settings = GameSettings.getInstance();
 
         this.engine = new Engine(canvas, true, {
@@ -35,13 +33,8 @@ export class Game {
 
         this.currentScene = new DungeonScene(this.engine, this.canvas, this.characterClass);
 
-        if (this.isRandomLevel) {
-            // Generate and load a random level
-            await this.currentScene.initRandomLevel();
-        } else {
-            // Load a specific level from file
-            await this.currentScene.init(levelIndex);
-        }
+        // Always call init with levelIndex — DungeonScene handles handmade vs procedural
+        await this.currentScene.init(levelIndex);
 
         // Apply settings after scene is loaded
         this.settings.apply();

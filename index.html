@@ -522,7 +522,7 @@
         }
 
         /* ========== SETTINGS PANEL ========== */
-        #settings-panel, #rules-panel, #level-select-panel, #controls-panel {
+        #settings-panel, #rules-panel, #controls-panel {
             position: fixed;
             top: 0;
             left: 0;
@@ -540,7 +540,7 @@
             transition: opacity 0.3s ease-out;
         }
 
-        #settings-panel.visible, #rules-panel.visible, #level-select-panel.visible, #controls-panel.visible {
+        #settings-panel.visible, #rules-panel.visible, #controls-panel.visible {
             opacity: 1;
             pointer-events: auto;
             visibility: visible;
@@ -1382,55 +1382,41 @@
             color: #00ff00;
         }
 
-        /* ========== AUTH AREA (in main menu) ========== */
-        .auth-area {
-            margin-top: 2rem;
-            text-align: center;
+        /* ========== PROFILE CORNER (top-right of main menu) ========== */
+        .profile-corner {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
         }
 
-        .auth-area .auth-logged-out {
+        .profile-corner .auth-logged-out {
             display: flex;
             gap: 0.8rem;
+        }
+
+        .profile-corner .auth-logged-in {
+            display: flex;
+            align-items: center;
+        }
+
+        .profile-icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            transition: transform 0.2s ease, filter 0.2s ease;
+            display: flex;
+            align-items: center;
             justify-content: center;
         }
 
-        .auth-area .auth-logged-in {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .auth-area .auth-welcome {
-            color: #d4c4a0;
-            font-size: 0.95rem;
-            letter-spacing: 0.05em;
-        }
-
-        .auth-area .auth-welcome strong {
-            color: #ffd700;
-        }
-
-        .auth-area .auth-links {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .auth-area .auth-link {
-            background: none;
-            border: none;
-            color: #b8960c;
-            font-family: 'Montaga', 'Georgia', serif;
-            font-size: 0.85rem;
-            cursor: pointer;
-            text-decoration: underline;
-            letter-spacing: 0.05em;
-            padding: 0;
-            transition: color 0.2s;
-        }
-
-        .auth-area .auth-link:hover {
-            color: #ffd700;
+        .profile-icon-btn:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
         }
 
         .auth-small-btn {
@@ -1449,6 +1435,33 @@
         .auth-small-btn:hover {
             border-color: #ffd700;
             color: #ffd700;
+        }
+
+        .profile-panel-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+
+        .profile-logout-btn {
+            padding: 0.6rem 1.5rem;
+            font-family: 'Montaga', 'Georgia', serif;
+            font-size: 0.95rem;
+            background: linear-gradient(180deg, #8b0000 0%, #5a0000 100%);
+            color: #ffcccc;
+            border: 1px solid #aa0000;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 0.08em;
+            transition: all 0.3s ease;
+        }
+
+        .profile-logout-btn:hover {
+            background: linear-gradient(180deg, #aa0000 0%, #700000 100%);
+            color: #fff;
+            border-color: #ff4444;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
         }
 
         /* ========== AUTH PANEL ========== */
@@ -1787,24 +1800,24 @@
             <p class="menu-subtitle">Les Cryptes de l'Oubli</p>
             <div class="menu-buttons">
                 <button class="menu-btn primary" id="btn-play">Jouer</button>
-                <button class="menu-btn" id="btn-levels">Sélection Niveau</button>
-                <button class="menu-btn" id="btn-random">Niveau Aléatoire</button>
                 <button class="menu-btn" id="btn-rules">Règles & Histoire</button>
                 <button class="menu-btn" id="btn-settings">Paramètres</button>
                 <button class="menu-btn" id="btn-leaderboard">Classement</button>
             </div>
-            <div class="auth-area" id="auth-area">
-                <div class="auth-logged-out" id="auth-logged-out">
-                    <button class="auth-small-btn" id="btn-auth-login">Connexion</button>
-                    <button class="auth-small-btn" id="btn-auth-signup">Inscription</button>
-                </div>
-                <div class="auth-logged-in" id="auth-logged-in" style="display:none;">
-                    <span class="auth-welcome">Bienvenue, <strong id="auth-display-name"></strong></span>
-                    <div class="auth-links">
-                        <button class="auth-link" id="btn-profile">Mon Profil</button>
-                        <button class="auth-link" id="btn-logout">Déconnexion</button>
-                    </div>
-                </div>
+        </div>
+        <div class="profile-corner" id="profile-corner">
+            <div class="auth-logged-out" id="auth-logged-out">
+                <button class="auth-small-btn" id="btn-auth-login">Connexion</button>
+                <button class="auth-small-btn" id="btn-auth-signup">Inscription</button>
+            </div>
+            <div class="auth-logged-in" id="auth-logged-in" style="display:none;">
+                <button class="profile-icon-btn" id="btn-profile" title="Mon Profil">
+                    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="18" cy="18" r="17" stroke="#ffd700" stroke-width="2" fill="rgba(20,15,10,0.8)"/>
+                        <circle cx="18" cy="14" r="5" fill="#ffd700"/>
+                        <path d="M8 30c0-5.5 4.5-10 10-10s10 4.5 10 10" stroke="#ffd700" stroke-width="2" fill="none"/>
+                    </svg>
+                </button>
             </div>
         </div>
         <div class="menu-footer">Games On Web 2026</div>
@@ -2025,28 +2038,6 @@
 
             <div class="panel-buttons">
                 <button class="panel-btn save" id="rules-close">Compris</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Level Select Panel -->
-    <div id="level-select-panel">
-        <div class="panel-container">
-            <h2 class="panel-title">Sélection du Niveau</h2>
-
-            <div class="level-grid">
-                <div class="level-card" data-level="1">
-                    <div class="level-number">I</div>
-                    <div class="level-name">Le Hall des Cryptes</div>
-                </div>
-                <div class="level-card" data-level="2">
-                    <div class="level-number">II</div>
-                    <div class="level-name">Les Profondeurs</div>
-                </div>
-            </div>
-
-            <div class="panel-buttons">
-                <button class="panel-btn" id="levels-back">Retour</button>
             </div>
         </div>
     </div>
@@ -2314,7 +2305,10 @@
                     </div>
                 </div>
             </div>
-            <button class="panel-back-btn" id="profile-back">Retour</button>
+            <div class="profile-panel-buttons">
+                <button class="panel-back-btn" id="profile-back">Retour</button>
+                <button class="profile-logout-btn" id="btn-profile-logout">Déconnexion</button>
+            </div>
         </div>
     </div>
 

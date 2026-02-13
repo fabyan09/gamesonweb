@@ -67,7 +67,64 @@ const DEFAULT_CONFIG: BSPConfig = {
     enemyTypes: ['vampire', 'parasite'],
 };
 
+const CRYPT_NAMES = [
+    'Les Catacombes Oubliées',
+    'Le Caveau du Roi Maudit',
+    'Les Entrailles de l\'Abîme',
+    'La Fosse aux Damnés',
+    'Le Sanctuaire Profané',
+    'Les Galeries de l\'Agonie',
+    'Le Tombeau des Âmes Errantes',
+    'La Crypte du Silence Éternel',
+    'Les Couloirs de la Démence',
+    'Le Repaire du Néant',
+    'Les Geôles Maudites',
+    'Le Labyrinthe des Ombres',
+    'La Chambre des Supplices',
+    'Les Abysses Souterraines',
+    'Le Passage des Esprits',
+    'La Salle du Jugement Dernier',
+    'Les Ténèbres Vivantes',
+    'Le Gouffre Sans Retour',
+    'La Crypte des Os Anciens',
+    'Le Sanctuaire des Dévoreurs',
+    'Les Ruines Enfouies',
+    'Le Temple de la Malédiction',
+    'La Grotte des Murmures',
+    'Les Profondeurs Interdites',
+    'Le Terrier des Parasites',
+    'La Fosse du Désespoir',
+    'Le Corridor des Lamentations',
+    'Les Caveaux Ensanglantés',
+    'Le Hall des Revenants',
+    'La Prison des Immortels',
+    'Les Méandres de la Nuit',
+    'Le Tombeau du Dernier Gardien',
+    'La Chambre des Échos',
+    'Les Fosses Putrides',
+    'Le Passage du Crépuscule',
+    'La Salle des Reliques Noires',
+    'Les Souterrains de Cendres',
+    'Le Puits des Âmes',
+    'La Crypte du Sang Ancien',
+    'Les Donjons Oubliés',
+    'Le Refuge des Bêtes',
+    'La Tanière du Warrok',
+    'Les Voûtes Brisées',
+    'Le Charnier des Cryptes',
+    'La Galerie des Suppliciés',
+    'Les Fondations Maudites',
+    'Le Seuil de l\'Oubli',
+    'La Forge Abandonnée',
+    'Les Cloîtres Hantés',
+    'Le Tombeau Éventré',
+];
+
 export class BSPDungeonGenerator {
+    private static randomCryptName(rng: () => number): string {
+        return CRYPT_NAMES[Math.floor(rng() * CRYPT_NAMES.length)];
+    }
+
     private config: BSPConfig;
     private rooms: Room[] = [];
     private corridors: Corridor[] = [];
@@ -362,7 +419,7 @@ export class BSPDungeonGenerator {
         }];
 
         return {
-            name: `Crypte Procédurale #${Math.floor(this.random() * 10000)}`,
+            name: BSPDungeonGenerator.randomCryptName(this.random),
             version: '1.0',
             playerSpawn: {
                 position: spawnPos,
