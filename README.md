@@ -1,4 +1,4 @@
-# 🏰 Dungeon Crawler 3D
+# 🏰 Oblivion's Crypt
 
 > **Games On Web 2026** - Un jeu d'action-aventure 3D immersif développé avec Babylon.js
 
@@ -10,7 +10,7 @@
 
 ## 🎮 À Propos du Jeu
 
-Plongez dans les profondeurs d'un donjon mystérieux peuplé de créatures terrifiantes. Choisissez votre classe de personnage, explorez des niveaux générés procéduralement, combattez des ennemis redoutables et découvrez les secrets cachés dans les tombeaux ancestraux.
+Plongez dans les profondeurs des Cryptes de l'Oubli, peuplées de créatures terrifiantes. Choisissez votre classe de personnage, explorez des niveaux générés procéduralement, combattez des ennemis redoutables et découvrez les secrets cachés dans les tombeaux ancestraux.
 
 ### ✨ Caractéristiques Principales
 
@@ -18,7 +18,7 @@ Plongez dans les profondeurs d'un donjon mystérieux peuplé de créatures terri
 |----------------|-------------|
 | 🗡️ **2 Classes Jouables** | Chevalier (combat rapproché) et Archer (combat à distance) |
 | 👹 **5 Types d'Ennemis** | Vampire, Parasite, Mutant, Skeleton Zombie, Warrok (Boss) |
-| 🏗️ **Génération Procédurale** | Donjons uniques à chaque partie (algorithme BSP) |
+| 🏗️ **Génération Procédurale** | Cryptes uniques à chaque partie (algorithme BSP) |
 | 🎒 **Système d'Inventaire** | Potions de soin et flèches à collecter |
 | 🚪 **Portes Interactives** | Système de kick pour ouvrir les portes |
 | 🎵 **Design Audio Immersif** | Musique d'ambiance et effets sonores spatialisés |
@@ -154,7 +154,7 @@ Les niveaux sont définis en JSON dans `/public/levels/` :
 
 ### Génération Procédurale (BSP)
 
-Le mode "Niveau Aléatoire" utilise l'algorithme **Binary Space Partitioning** pour créer des donjons uniques :
+Le mode "Niveau Aléatoire" utilise l'algorithme **Binary Space Partitioning** pour créer des cryptes uniques :
 
 1. L'espace est divisé récursivement en zones
 2. Des salles sont créées dans chaque zone
@@ -326,7 +326,7 @@ Ce projet a été créé dans le cadre du concours **Games On Web 2026**.
 
 <div align="center">
 
-**🎮 Bonne exploration du donjon ! 🏰**
+**🎮 Bonne exploration des Cryptes de l'Oubli ! 🏰**
 
 *Développé avec ❤️ et beaucoup de ☕*
 

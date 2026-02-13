@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A full-featured 3D dungeon crawler game built with **Babylon.js** for the Games On Web 2026 competition. Features two playable character classes (Knight and Archer), procedural dungeon generation, enemy AI, combat system, inventory management, and audio design.
+**Oblivion's Crypt** - A full-featured 3D dungeon crawler game built with **Babylon.js** for the Games On Web 2026 competition. Features two playable character classes (Knight and Archer), procedural dungeon generation, enemy AI, combat system, inventory management, and audio design.
 
 ## Commands
 

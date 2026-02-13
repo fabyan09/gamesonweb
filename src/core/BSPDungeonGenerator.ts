@@ -362,7 +362,7 @@ export class BSPDungeonGenerator {
         }];
 
         return {
-            name: `Donjon Procédural #${Math.floor(this.random() * 10000)}`,
+            name: `Crypte Procédurale #${Math.floor(this.random() * 10000)}`,
             version: '1.0',
             playerSpawn: {
                 position: spawnPos,
