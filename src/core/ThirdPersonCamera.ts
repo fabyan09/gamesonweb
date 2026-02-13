@@ -33,6 +33,12 @@ export class ThirdPersonCamera {
     private readonly shoulderOffsetX = 0.6;  // Décalage à droite
     private shoulderOffsetY = 1.6;  // Hauteur de l'épaule
 
+    // Screen shake
+    private shakeIntensity: number = 0;
+    private shakeDuration: number = 0;
+    private shakeElapsed: number = 0;
+    private isShaking: boolean = false;
+
     // Camera mode tracking
     private currentMode: CameraMode = 'thirdPerson';
     private playerRoot: TransformNode | null = null;
@@ -114,6 +120,18 @@ export class ThirdPersonCamera {
         this.currentTarget.y += this.heightOffset;
     }
 
+    /**
+     * Trigger a screen shake effect
+     * @param intensity - Maximum offset magnitude
+     * @param duration - Duration in milliseconds
+     */
+    shake(intensity: number, duration: number): void {
+        this.shakeIntensity = intensity;
+        this.shakeDuration = duration;
+        this.shakeElapsed = 0;
+        this.isShaking = true;
+    }
+
     update(): void {
         if (this.target) {
             // Calculate desired target position (at shoulder height)
@@ -123,6 +141,23 @@ export class ThirdPersonCamera {
             // Smoothly interpolate to desired position
             this.currentTarget = Vector3.Lerp(this.currentTarget, desiredTarget, this.followSpeed);
             this.camera.target.copyFrom(this.currentTarget);
+
+            // Apply screen shake offset
+            if (this.isShaking) {
+                const dt = this.camera.getScene().getEngine().getDeltaTime();
+                this.shakeElapsed += dt;
+                if (this.shakeElapsed >= this.shakeDuration) {
+                    this.isShaking = false;
+                } else {
+                    const decay = 1 - this.shakeElapsed / this.shakeDuration;
+                    const offsetX = (Math.random() * 2 - 1) * this.shakeIntensity * decay;
+                    const offsetY = (Math.random() * 2 - 1) * this.shakeIntensity * decay;
+                    const offsetZ = (Math.random() * 2 - 1) * this.shakeIntensity * decay;
+                    this.camera.target.x += offsetX;
+                    this.camera.target.y += offsetY;
+                    this.camera.target.z += offsetZ;
+                }
+            }
 
             // Clamp camera position to bounds
             if (this.bounds) {

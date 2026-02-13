@@ -202,15 +202,18 @@
         }
 
         .loading-tip {
-            margin-top: 3rem;
-            padding: 1rem 2rem;
+            margin: 3rem auto 0;
+            padding: 1.2rem 2.5rem;
             background: rgba(255, 215, 0, 0.05);
-            border: 1px solid rgba(255, 215, 0, 0.1);
-            border-radius: 4px;
-            color: #706040;
-            font-size: 0.85rem;
+            border: 1px solid rgba(255, 215, 0, 0.15);
+            border-radius: 6px;
+            color: #9a8560;
+            font-size: 1.1rem;
             font-style: italic;
-            max-width: 400px;
+            max-width: 550px;
+            line-height: 1.6;
+            text-align: center;
+            transition: opacity 0.4s ease-in-out;
         }
 
         .loading-tip::before {
@@ -232,10 +235,13 @@
             align-items: center;
             z-index: 350;
             font-family: 'Montaga', 'Georgia', serif;
+            transition: opacity 0.5s ease-out;
         }
 
         #welcome-screen.hidden {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
         }
 
         .welcome-background {
@@ -390,10 +396,13 @@
             align-items: center;
             z-index: 300;
             font-family: 'Montaga', 'Georgia', serif;
+            transition: opacity 0.5s ease-out;
         }
 
         #main-menu.hidden {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
         }
 
         .menu-background {
@@ -520,15 +529,21 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.95);
-            display: none;
+            display: flex;
             justify-content: center;
             align-items: center;
             z-index: 600;
             font-family: 'Montaga', 'Georgia', serif;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out;
         }
 
         #settings-panel.visible, #rules-panel.visible, #level-select-panel.visible, #controls-panel.visible {
-            display: flex;
+            opacity: 1;
+            pointer-events: auto;
+            visibility: visible;
         }
 
         .panel-container {
@@ -844,16 +859,22 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.85);
-            display: none;
+            display: flex;
             justify-content: center;
             align-items: center;
             z-index: 500;
             font-family: 'Montaga', 'Georgia', serif;
             backdrop-filter: blur(5px);
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out;
         }
 
         #pause-menu.visible {
-            display: flex;
+            opacity: 1;
+            pointer-events: auto;
+            visibility: visible;
         }
 
         .pause-container {
@@ -1051,15 +1072,21 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.95);
-            display: none;
+            display: flex;
             justify-content: center;
             align-items: center;
             z-index: 600;
             font-family: 'Montaga', 'Georgia', serif;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 0.4s ease-out;
         }
 
         #character-select-panel.visible {
-            display: flex;
+            opacity: 1;
+            pointer-events: auto;
+            visibility: visible;
         }
 
         .character-select-container {

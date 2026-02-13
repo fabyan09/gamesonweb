@@ -361,6 +361,21 @@ export class DungeonScene {
             this.updateInteractPrompt(this.nearbyChest, nearby, !!this.nearbyDoor);
         });
 
+        // Setup item pickup notification callback
+        this.chestSystem.onItemPickup((type, potionType, arrowCount) => {
+            if (type === 'potion' && potionType) {
+                const healAmounts: Record<string, number> = { 'p1': 20, 'p2': 35, 'p3': 50, 'p4': 100 };
+                const tierNames: Record<string, string> = { 'p1': 'I', 'p2': 'II', 'p3': 'III', 'p4': 'IV' };
+                const colors: Record<string, string> = { 'p1': '#ff8c00', 'p2': '#0080ff', 'p3': '#00cc00', 'p4': '#ff1a4d' };
+                this.showPickupNotification(
+                    `+Potion ${tierNames[potionType]} (+${healAmounts[potionType]} HP)`,
+                    colors[potionType]
+                );
+            } else if (type === 'arrows' && arrowCount) {
+                this.showPickupNotification(`+${arrowCount} Flèches`, '#ffd700');
+            }
+        });
+
         // Setup door nearby callback
         if (this.doorSystem) {
             this.doorSystem.onDoorNearby((nearby, door) => {
@@ -410,8 +425,10 @@ export class DungeonScene {
         // Setup interaction keyboard listener
         this.setupInteractionListener();
 
-        // Hide loading
+        // Hide loading and show inventory
         document.getElementById('loading')?.classList.add('hidden');
+        const invUI = document.getElementById('inventory-ui');
+        if (invUI) invUI.style.visibility = 'visible';
     }
 
     /**
@@ -620,6 +637,21 @@ export class DungeonScene {
             this.updateInteractPrompt(this.nearbyChest, nearby, !!this.nearbyDoor);
         });
 
+        // Setup item pickup notification callback
+        this.chestSystem.onItemPickup((type, potionType, arrowCount) => {
+            if (type === 'potion' && potionType) {
+                const healAmounts: Record<string, number> = { 'p1': 20, 'p2': 35, 'p3': 50, 'p4': 100 };
+                const tierNames: Record<string, string> = { 'p1': 'I', 'p2': 'II', 'p3': 'III', 'p4': 'IV' };
+                const colors: Record<string, string> = { 'p1': '#ff8c00', 'p2': '#0080ff', 'p3': '#00cc00', 'p4': '#ff1a4d' };
+                this.showPickupNotification(
+                    `+Potion ${tierNames[potionType]} (+${healAmounts[potionType]} HP)`,
+                    colors[potionType]
+                );
+            } else if (type === 'arrows' && arrowCount) {
+                this.showPickupNotification(`+${arrowCount} Flèches`, '#ffd700');
+            }
+        });
+
         // Setup door nearby callback
         if (this.doorSystem) {
             this.doorSystem.onDoorNearby((nearby, door) => {
@@ -670,8 +702,10 @@ export class DungeonScene {
         // Setup interaction keyboard listener
         this.setupInteractionListener();
 
-        // Hide loading
+        // Hide loading and show inventory
         document.getElementById('loading')?.classList.add('hidden');
+        const invUI = document.getElementById('inventory-ui');
+        if (invUI) invUI.style.visibility = 'visible';
     }
 
     private checkTrapDamage(): void {
@@ -693,6 +727,7 @@ export class DungeonScene {
                 this.playerHealth -= trap.damage;
                 console.log(`[DungeonScene] Player stepped on spike trap! -${trap.damage} HP (${this.playerHealth} remaining)`);
                 this.updateHealthUI();
+                this.camera?.shake(0.1, 150);
 
                 // Play pain sound (female voice for archer, male for knight/wizard)
                 if (this.characterClass === 'archer') {
@@ -775,6 +810,8 @@ export class DungeonScene {
                     if (reducedDamage > 0) {
                         this.playerHealth -= reducedDamage;
                         this.updateHealthUI();
+                        this.camera?.shake(0.08, 120);
+                        this.showDamageIndicator(enemy.position);
 
                         if (this.playerHealth <= 0) {
                             this.handlePlayerDeath();
@@ -786,6 +823,8 @@ export class DungeonScene {
                 this.playerHealth -= damage;
                 console.log(`[DungeonScene] Player took ${damage} damage, health: ${this.playerHealth}`);
                 this.updateHealthUI();
+                this.camera?.shake(0.15, 200);
+                this.showDamageIndicator(enemy.position);
 
                 // Play pain sound (female voice for archer, male for knight/wizard)
                 if (this.characterClass === 'archer') {
@@ -1900,6 +1939,7 @@ export class DungeonScene {
                 gap: 20px;
                 font-family: 'Montaga', 'Georgia', serif;
                 z-index: 100;
+                visibility: hidden;
             `;
 
             const style = document.createElement('style');
@@ -1930,24 +1970,79 @@ export class DungeonScene {
                 #inventory-ui .arrows .inv-count.empty {
                     color: #ff4444;
                 }
+                #inventory-ui .potion-slots {
+                    display: flex;
+                    gap: 6px;
+                }
+                #inventory-ui .potion-slot {
+                    width: 48px;
+                    height: 52px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    background: linear-gradient(180deg, rgba(20, 15, 10, 0.9) 0%, rgba(10, 8, 5, 0.95) 100%);
+                    border: 2px solid #3d2f1f;
+                    border-radius: 4px;
+                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+                    position: relative;
+                }
+                #inventory-ui .potion-slot.empty {
+                    opacity: 0.35;
+                }
+                #inventory-ui .potion-slot .slot-key {
+                    position: absolute;
+                    top: 2px;
+                    left: 4px;
+                    font-size: 9px;
+                    color: #706040;
+                    font-family: 'Consolas', monospace;
+                }
+                #inventory-ui .potion-slot .slot-tier {
+                    font-size: 16px;
+                    font-weight: bold;
+                    text-shadow: 0 0 6px currentColor;
+                }
+                #inventory-ui .potion-slot .slot-heal {
+                    font-size: 9px;
+                    color: #b8a070;
+                }
             `;
             document.head.appendChild(style);
             document.body.appendChild(inventoryUI);
         }
 
-        // Build UI content based on class
-        let html = '';
+        // Potion color/tier config
+        const potionConfig: Record<string, { color: string; tier: string; heal: string }> = {
+            'p1': { color: '#ff8c00', tier: 'I', heal: '+20' },
+            'p2': { color: '#0080ff', tier: 'II', heal: '+35' },
+            'p3': { color: '#00cc00', tier: 'III', heal: '+50' },
+            'p4': { color: '#ff1a4d', tier: 'IV', heal: '+100' },
+        };
 
-        // Potions (show for both classes)
-        html += `
-            <div class="inv-item potions">
-                <span class="inv-icon">🧪</span>
-                <div>
-                    <span class="inv-count">${state.potions.length}</span>
-                    <span class="inv-label">/4</span>
-                </div>
-            </div>
-        `;
+        // Build UI content
+        let html = '<div class="potion-slots">';
+        for (let i = 0; i < 4; i++) {
+            const potion = state.potions[i];
+            if (potion) {
+                const cfg = potionConfig[potion];
+                html += `
+                    <div class="potion-slot" style="border-color: ${cfg.color};">
+                        <span class="slot-key">${i + 1}</span>
+                        <span class="slot-tier" style="color: ${cfg.color};">${cfg.tier}</span>
+                        <span class="slot-heal">${cfg.heal}</span>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="potion-slot empty">
+                        <span class="slot-key">${i + 1}</span>
+                        <span class="slot-tier" style="color: #3d2f1f;">-</span>
+                    </div>
+                `;
+            }
+        }
+        html += '</div>';
 
         // Arrows (only for archer)
         if (this.characterClass === 'archer') {
@@ -2083,12 +2178,123 @@ export class DungeonScene {
     }
 
     /**
+     * Show a circular damage direction indicator centered on screen.
+     * The side of the circle facing the enemy lights up in red.
+     */
+    private showDamageIndicator(enemyPosition: Vector3): void {
+        if (!this.player?.rootMesh || !this.camera) return;
+
+        const playerPos = this.player.rootMesh.position;
+        // Direction from player to enemy in world XZ plane
+        const dx = enemyPosition.x - playerPos.x;
+        const dz = enemyPosition.z - playerPos.z;
+        const worldAngle = Math.atan2(dx, dz);
+
+        // Camera alpha is the horizontal rotation of an ArcRotateCamera
+        const cameraAlpha = this.camera.alpha;
+        // Relative angle: direction from camera forward to enemy
+        // ArcRotateCamera alpha: 0 = +X, PI/2 = +Z. Forward = -alpha - PI/2
+        const relativeAngle = worldAngle - (-cameraAlpha - Math.PI / 2);
+
+        // Convert to degrees for SVG arc, offset so 0 = top of screen
+        const angleDeg = (relativeAngle * 180 / Math.PI) - 90;
+
+        // Create the SVG circle indicator
+        const size = 200;
+        const cx = size / 2;
+        const cy = size / 2;
+        const r = 80;
+        const strokeWidth = 10;
+        const arcSpread = 50; // degrees of the arc highlight
+
+        // Calculate arc start/end angles
+        const startAngle = angleDeg - arcSpread / 2;
+        const endAngle = angleDeg + arcSpread / 2;
+
+        // SVG arc helper
+        const polarToCartesian = (cxp: number, cyp: number, rp: number, deg: number) => {
+            const rad = (deg * Math.PI) / 180;
+            return { x: cxp + rp * Math.cos(rad), y: cyp + rp * Math.sin(rad) };
+        };
+        const start = polarToCartesian(cx, cy, r, endAngle);
+        const end = polarToCartesian(cx, cy, r, startAngle);
+        const largeArc = arcSpread > 180 ? 1 : 0;
+        const arcPath = `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+
+        const indicator = document.createElement('div');
+        indicator.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: ${size}px;
+            height: ${size}px;
+            margin-left: -${cx}px;
+            margin-top: -${cy}px;
+            pointer-events: none;
+            z-index: 150;
+        `;
+        indicator.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255, 30, 30, 0.08)" stroke-width="${strokeWidth}"/>
+            <path d="${arcPath}" fill="none" stroke="rgba(255, 20, 20, 0.85)" stroke-width="${strokeWidth}" stroke-linecap="round"
+                  style="filter: drop-shadow(0 0 8px rgba(255, 40, 40, 0.7)) drop-shadow(0 0 16px rgba(255, 0, 0, 0.4));"/>
+        </svg>`;
+        document.body.appendChild(indicator);
+
+        // Force layout then animate fade out
+        indicator.getBoundingClientRect();
+        indicator.style.transition = 'opacity 1.2s ease-out';
+        indicator.style.opacity = '0';
+
+        // Remove from DOM
+        setTimeout(() => {
+            indicator.remove();
+        }, 1300);
+    }
+
+    /**
+     * Show a floating pickup notification above the HUD
+     */
+    private showPickupNotification(text: string, color: string): void {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%) translateY(0px);
+            font-family: 'Montaga', 'Georgia', serif;
+            font-size: 20px;
+            font-weight: bold;
+            color: ${color};
+            text-shadow: 0 0 12px ${color}, 0 0 24px ${color}, 0 2px 4px rgba(0,0,0,0.9);
+            pointer-events: none;
+            z-index: 200;
+            white-space: nowrap;
+            letter-spacing: 0.05em;
+        `;
+        notification.textContent = text;
+        document.body.appendChild(notification);
+
+        // Force layout reflow before starting transition
+        notification.getBoundingClientRect();
+        notification.style.transition = 'transform 1.5s ease-out, opacity 1.5s ease-out';
+        notification.style.transform = 'translateX(-50%) translateY(-50px)';
+        notification.style.opacity = '0';
+
+        // Remove from DOM
+        setTimeout(() => {
+            notification.remove();
+        }, 1600);
+    }
+
+    /**
      * Handle the use potion action
      */
-    private usePotion(): void {
+    private usePotion(slotIndex?: number): void {
         if (!this.playerInventory || this.isPlayerDead) return;
 
-        const potion = this.playerInventory.usePotion();
+        const potion = slotIndex !== undefined
+            ? this.playerInventory.usePotionAtIndex(slotIndex)
+            : this.playerInventory.usePotion();
         if (potion) {
             const healAmount = PlayerInventory.getPotionHealAmount(potion);
             this.playerHealth = Math.min(100, this.playerHealth + healAmount);
@@ -2145,10 +2351,11 @@ export class DungeonScene {
                 }
             }
 
-            // Number keys 1-4 to use potions
+            // Number keys 1-4 to use potions (mapped to slot index 0-3)
             if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4') {
                 if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
-                this.usePotion();
+                const slotIndex = parseInt(e.code.charAt(5), 10) - 1;
+                this.usePotion(slotIndex);
             }
         });
     }

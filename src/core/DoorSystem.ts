@@ -5,11 +5,14 @@
 
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Animation } from '@babylonjs/core/Animations/animation';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
 import { AudioManager } from './AudioManager';
 import { InteractiveDoorData, ExitDoorData } from './LevelData';
 import { LoadedAssets } from './AssetLoader';
@@ -40,6 +43,7 @@ export class DoorSystem {
 
     // Exit door (sealed until all enemies are defeated)
     private exitDoor: ExitDoor | null = null;
+    private glowLayer: GlowLayer | null = null;
 
     // UI callbacks
     private onDoorNearbyCallback: ((nearby: boolean, door: InteractiveDoor | null) => void) | null = null;
@@ -137,8 +141,52 @@ export class DoorSystem {
     unsealExitDoor(): void {
         if (this.exitDoor) {
             this.exitDoor.isSealed = false;
+            this.applyGoldenGlow();
             console.log('[DoorSystem] Exit door unsealed - can now be opened!');
         }
+    }
+
+    /**
+     * Apply a golden glow effect to the exit door meshes
+     */
+    private applyGoldenGlow(): void {
+        if (!this.exitDoor) return;
+
+        this.glowLayer = new GlowLayer('exitDoorGlow', this.scene, {
+            mainTextureFixedSize: 512,
+            blurKernelSize: 64
+        });
+        this.glowLayer.intensity = 0.8;
+
+        const goldenColor = new Color3(1, 0.84, 0);
+        const doorMeshes: AbstractMesh[] = [];
+
+        // Collect all meshes from left and right doors
+        if (this.exitDoor.leftDoor) {
+            doorMeshes.push(this.exitDoor.leftDoor as Mesh);
+            doorMeshes.push(...(this.exitDoor.leftDoor as TransformNode).getChildMeshes());
+        }
+        if (this.exitDoor.rightDoor) {
+            doorMeshes.push(this.exitDoor.rightDoor as Mesh);
+            doorMeshes.push(...(this.exitDoor.rightDoor as TransformNode).getChildMeshes());
+        }
+
+        for (const mesh of doorMeshes) {
+            // Apply emissive color to make the glow work
+            if (mesh.material && mesh.material instanceof StandardMaterial) {
+                mesh.material = mesh.material.clone(`${mesh.material.name}_glow`);
+                (mesh.material as StandardMaterial).emissiveColor = goldenColor.scale(0.4);
+            } else if (mesh.material) {
+                // For non-standard materials, create a wrapper
+                const glowMat = new StandardMaterial(`${mesh.name}_glowMat`, this.scene);
+                glowMat.emissiveColor = goldenColor.scale(0.4);
+                glowMat.diffuseColor = new Color3(0.3, 0.25, 0.15);
+                mesh.material = glowMat;
+            }
+            this.glowLayer!.addIncludedOnlyMesh(mesh as Mesh);
+        }
+
+        console.log(`[DoorSystem] Applied golden glow to ${doorMeshes.length} exit door meshes`);
     }
 
     /**
@@ -435,6 +483,10 @@ export class DoorSystem {
     dispose(): void {
         this.doors = [];
         this.exitDoor = null;
+        if (this.glowLayer) {
+            this.glowLayer.dispose();
+            this.glowLayer = null;
+        }
         this.onDoorNearbyCallback = null;
         this.onDoorOpenCallback = null;
         this.onExitDoorNearbyCallback = null;

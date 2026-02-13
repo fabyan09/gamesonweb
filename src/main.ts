@@ -8,6 +8,74 @@ import { GamepadManager } from './core/GamepadManager';
 
 const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
 
+// ========== Loading Tips System ==========
+const LOADING_TIPS: string[] = [
+    // Gameplay tips
+    'Utilisez le bouclier pour bloquer les attaques ennemies',
+    'Les coffres contiennent des potions et des flèches pour l\'archer',
+    'Les ennemis enragent quand ils sont touchés à distance — attention à leur vitesse !',
+    'Le chevalier bloque 70% des dégâts, l\'archer 50% et le sorcier 40%',
+    'Accroupissez-vous pour réduire votre détection par les ennemis',
+    'Les potions de niveau IV restaurent toute votre vie',
+    'Éliminez tous les ennemis pour déverrouiller la porte de sortie',
+    'L\'archer peut porter jusqu\'à 10 flèches — trouvez-en dans les coffres',
+    'Courir vous permet de fuir les ennemis mais consomme votre endurance',
+    'Ouvrez les coffres avec la touche d\'interaction pour obtenir du butin',
+    'Les pièges à pointes infligent des dégâts — regardez où vous marchez !',
+    'Le sorcier peut lancer des boules de feu dévastatrices à distance',
+    'Utilisez les touches 1 à 4 pour consommer vos potions rapidement',
+    'Changez de mode caméra avec V pour passer en vue première personne',
+    'Le Warrok est le gardien le plus puissant — préparez-vous bien !',
+    // Lore phrases
+    'Les Cryptes de l\'Oubli n\'ont jamais rendu leurs prisonniers...',
+    'Le Roi Maudit Aldric scella son âme dans ces profondeurs il y a des siècles',
+    'Des murmures anciens résonnent entre les murs de pierre...',
+    'L\'Ordre de l\'Aube Dorée envoya ses meilleurs guerriers — aucun ne revint',
+    'Les vampires rôdent dans l\'obscurité, attendant leur prochain repas',
+    'Les parasites se nourrissent de la peur de leurs victimes',
+    'Les mutants sont le résultat d\'expériences interdites du Roi Maudit',
+    'Chaque niveau vous rapproche du cœur des ténèbres',
+    'Les braseros sont les seules lumières dans cet abîme sans fin',
+    'La malédiction s\'étend... le monde des vivants est en danger',
+    'Les zombies squelettes gardent les passages les plus profonds',
+    'Seul un héros au cœur pur peut briser la malédiction d\'Aldric',
+    'Les cryptes changent de forme pour piéger les intrus...',
+    'Chaque coffre pourrait contenir la clé de votre survie',
+    'Les ténèbres murmurent votre nom... ne les écoutez pas',
+];
+
+let tipRotationInterval: ReturnType<typeof setInterval> | null = null;
+
+function startTipRotation(): void {
+    const tipElement = document.querySelector('.loading-tip');
+    if (!tipElement) return;
+
+    // Set a random initial tip
+    tipElement.textContent = LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)];
+
+    tipRotationInterval = setInterval(() => {
+        const el = document.querySelector('.loading-tip') as HTMLElement | null;
+        if (!el) return;
+
+        // Fade out
+        el.style.opacity = '0';
+
+        setTimeout(() => {
+            // Change text
+            el.textContent = LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)];
+            // Fade in
+            el.style.opacity = '1';
+        }, 400);
+    }, 4500);
+}
+
+function stopTipRotation(): void {
+    if (tipRotationInterval !== null) {
+        clearInterval(tipRotationInterval);
+        tipRotationInterval = null;
+    }
+}
+
 // Initialize audio manager for menu sounds
 const audioManager = AudioManager.getInstance();
 audioManager.loadMenuSounds();
@@ -29,21 +97,27 @@ const randomParam = urlParams.get('random');
 
 if (levelParam && classParam) {
     // Level and class specified - start game directly (show loading screen)
-    hideWelcomeScreen();
-    hideMainMenu();
+    hideScreenInstant('welcome-screen');
+    hideScreenInstant('main-menu');
+    hideScreenInstant('character-select-panel');
     audioManager.playLoadingSound();
+    startTipRotation();
     const game = new Game(canvas, classParam);
     game.init().then(() => {
+        stopTipRotation();
         audioManager.stopLoadingSound();
         game.run();
     });
 } else if (randomParam && classParam) {
     // Random level with class specified - start game directly (show loading screen)
-    hideWelcomeScreen();
-    hideMainMenu();
+    hideScreenInstant('welcome-screen');
+    hideScreenInstant('main-menu');
+    hideScreenInstant('character-select-panel');
     audioManager.playLoadingSound();
+    startTipRotation();
     const game = new Game(canvas, classParam, true); // true = random level
     game.init().then(() => {
+        stopTipRotation();
         audioManager.stopLoadingSound();
         game.run();
     });
@@ -81,6 +155,21 @@ if (levelParam && classParam) {
 
     // Start preloading assets in background
     assetPreloader.preloadCharacterAssets();
+}
+
+/**
+ * Instantly hide a screen by skipping CSS transitions (used on page load to avoid flashes)
+ */
+function hideScreenInstant(id: string): void {
+    const el = document.getElementById(id);
+    if (el) {
+        el.style.transition = 'none';
+        el.classList.add('hidden');
+        el.classList.remove('visible');
+        el.style.opacity = '0';
+        el.style.visibility = 'hidden';
+        el.style.pointerEvents = 'none';
+    }
 }
 
 function hideMainMenu(): void {

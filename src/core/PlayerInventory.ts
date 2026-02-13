@@ -93,6 +93,20 @@ export class PlayerInventory {
     }
 
     /**
+     * Use a potion at a specific slot index
+     * @returns the potion type used, or null if slot is empty
+     */
+    usePotionAtIndex(index: number): PotionType | null {
+        if (index < 0 || index >= this.potions.length) {
+            return null;
+        }
+        const potion = this.potions.splice(index, 1)[0];
+        console.log(`[PlayerInventory] Used potion ${potion} from slot ${index}, remaining: ${this.potions.length}`);
+        this.notifyUpdate();
+        return potion;
+    }
+
+    /**
      * Get the healing amount for a potion type
      */
     static getPotionHealAmount(type: PotionType): number {

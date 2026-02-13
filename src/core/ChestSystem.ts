@@ -63,6 +63,7 @@ export class ChestSystem {
     private onChestNearbyCallback: ((nearby: boolean, chest: ChestData | null) => void) | null = null;
     private onChestOpenCallback: ((contents: ChestContents) => void) | null = null;
     private onItemNearbyCallback: ((nearby: boolean, item: DroppedItem | null) => void) | null = null;
+    private onItemPickupCallback: ((type: 'potion' | 'arrows', potionType?: PotionType, arrowCount?: number) => void) | null = null;
 
     constructor(scene: Scene, inventory: PlayerInventory, isArcher: boolean = false) {
         this.scene = scene;
@@ -261,6 +262,13 @@ export class ChestSystem {
     }
 
     /**
+     * Set callback for when an item is picked up
+     */
+    onItemPickup(callback: (type: 'potion' | 'arrows', potionType?: PotionType, arrowCount?: number) => void): void {
+        this.onItemPickupCallback = callback;
+    }
+
+    /**
      * Check for nearby chests and items (call each frame)
      */
     update(): void {
@@ -384,6 +392,7 @@ export class ChestSystem {
             if (this.playerInventory.addPotion(nearestItem.potionType)) {
                 this.removeItem(nearestIndex);
                 this.audioManager.playPotionPickupSound(); // bottle.wav
+                this.onItemPickupCallback?.('potion', nearestItem.potionType);
                 return true;
             }
         } else if (nearestItem.type === 'arrows' && nearestItem.arrowCount) {
@@ -391,6 +400,7 @@ export class ChestSystem {
             if (added > 0) {
                 this.removeItem(nearestIndex);
                 this.audioManager.playArrowPickupSound(); // wood.wav
+                this.onItemPickupCallback?.('arrows', undefined, nearestItem.arrowCount);
                 return true;
             }
         }
