@@ -845,6 +845,7 @@ document.getElementById('btn-login-submit')?.addEventListener('click', async () 
         await authService.login(email, password);
         hideAuthPanel();
     } catch (err: unknown) {
+        console.error('[Auth] Login error:', err);
         const code = (err as { code?: string }).code || '';
         showAuthError(translateFirebaseError(code));
     }
@@ -860,6 +861,7 @@ document.getElementById('btn-signup-submit')?.addEventListener('click', async ()
         await authService.signup(email, password, name);
         hideAuthPanel();
     } catch (err: unknown) {
+        console.error('[Auth] Signup error:', err);
         const code = (err as { code?: string }).code || '';
         showAuthError(translateFirebaseError(code));
     }
