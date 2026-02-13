@@ -2185,69 +2185,72 @@ export class DungeonScene {
         if (!this.player?.rootMesh || !this.camera) return;
 
         const playerPos = this.player.rootMesh.position;
-        // Direction from player to enemy in world XZ plane
         const dx = enemyPosition.x - playerPos.x;
         const dz = enemyPosition.z - playerPos.z;
         const worldAngle = Math.atan2(dx, dz);
 
-        // Camera alpha is the horizontal rotation of an ArcRotateCamera
         const cameraAlpha = this.camera.alpha;
-        // Relative angle: direction from camera forward to enemy
-        // ArcRotateCamera alpha: 0 = +X, PI/2 = +Z. Forward = -alpha - PI/2
         const relativeAngle = worldAngle - (-cameraAlpha - Math.PI / 2);
+        const angleRad = relativeAngle - Math.PI / 2;
 
-        // Convert to degrees for SVG arc, offset so 0 = top of screen
-        const angleDeg = (relativeAngle * 180 / Math.PI) - 90;
+        // Render at low resolution, display scaled up with pixelated rendering
+        const pixelScale = 3;
+        const displaySize = 200;
+        const lowRes = Math.ceil(displaySize / pixelScale);
+        const cx = lowRes / 2;
+        const cy = lowRes / 2;
+        const r = 80 / pixelScale;
+        const strokeWidth = 10 / pixelScale;
+        const arcSpread = (50 * Math.PI) / 180; // 50 degrees in radians
 
-        // Create the SVG circle indicator
-        const size = 200;
-        const cx = size / 2;
-        const cy = size / 2;
-        const r = 80;
-        const strokeWidth = 10;
-        const arcSpread = 50; // degrees of the arc highlight
-
-        // Calculate arc start/end angles
-        const startAngle = angleDeg - arcSpread / 2;
-        const endAngle = angleDeg + arcSpread / 2;
-
-        // SVG arc helper
-        const polarToCartesian = (cxp: number, cyp: number, rp: number, deg: number) => {
-            const rad = (deg * Math.PI) / 180;
-            return { x: cxp + rp * Math.cos(rad), y: cyp + rp * Math.sin(rad) };
-        };
-        const start = polarToCartesian(cx, cy, r, endAngle);
-        const end = polarToCartesian(cx, cy, r, startAngle);
-        const largeArc = arcSpread > 180 ? 1 : 0;
-        const arcPath = `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
-
-        const indicator = document.createElement('div');
-        indicator.style.cssText = `
+        const canvas = document.createElement('canvas');
+        canvas.width = lowRes;
+        canvas.height = lowRes;
+        canvas.style.cssText = `
             position: fixed;
             top: 50%;
             left: 50%;
-            width: ${size}px;
-            height: ${size}px;
-            margin-left: -${cx}px;
-            margin-top: -${cy}px;
+            width: ${displaySize}px;
+            height: ${displaySize}px;
+            margin-left: -${displaySize / 2}px;
+            margin-top: -${displaySize / 2}px;
             pointer-events: none;
             z-index: 150;
+            image-rendering: pixelated;
         `;
-        indicator.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255, 30, 30, 0.08)" stroke-width="${strokeWidth}"/>
-            <path d="${arcPath}" fill="none" stroke="rgba(255, 20, 20, 0.85)" stroke-width="${strokeWidth}" stroke-linecap="round"
-                  style="filter: drop-shadow(0 0 8px rgba(255, 40, 40, 0.7)) drop-shadow(0 0 16px rgba(255, 0, 0, 0.4));"/>
-        </svg>`;
-        document.body.appendChild(indicator);
 
-        // Force layout then animate fade out
-        indicator.getBoundingClientRect();
-        indicator.style.transition = 'opacity 1.2s ease-out';
-        indicator.style.opacity = '0';
+        const ctx = canvas.getContext('2d')!;
 
-        // Remove from DOM
+        // Background circle (subtle)
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 30, 30, 0.08)';
+        ctx.lineWidth = strokeWidth;
+        ctx.stroke();
+
+        // Glow arc (wider, transparent — drawn first behind the main arc)
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, angleRad - arcSpread / 2, angleRad + arcSpread / 2);
+        ctx.strokeStyle = 'rgba(255, 40, 40, 0.3)';
+        ctx.lineWidth = strokeWidth * 3;
+        ctx.stroke();
+
+        // Main damage arc
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, angleRad - arcSpread / 2, angleRad + arcSpread / 2);
+        ctx.strokeStyle = 'rgba(255, 20, 20, 0.85)';
+        ctx.lineWidth = strokeWidth;
+        ctx.stroke();
+
+        document.body.appendChild(canvas);
+
+        // Animate fade out
+        canvas.getBoundingClientRect();
+        canvas.style.transition = 'opacity 1.2s ease-out';
+        canvas.style.opacity = '0';
+
         setTimeout(() => {
-            indicator.remove();
+            canvas.remove();
         }, 1300);
     }
 

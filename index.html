@@ -1416,6 +1416,16 @@
         </div>
     </div>
 
+    <!-- Hide welcome screen immediately on reload/navigation to prevent flash -->
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            if (sessionStorage.getItem('welcomeShown') || params.get('level') || params.get('class') || params.get('random')) {
+                document.write('<style>#welcome-screen{display:none!important}</style>');
+            }
+        })();
+    </script>
+
     <!-- Welcome Screen -->
     <div id="welcome-screen">
         <div class="welcome-background"></div>

@@ -116,7 +116,7 @@ Root motion filtering (full/horizontal/none) prevents character drift.
 
 - All paths use `import.meta.env.BASE_URL` for GitHub Pages (`/gamesonweb/`)
 - Mesh instancing for repeated objects (walls, props)
-- Light culling: max 8 active lights, dynamically managed based on GPU capability
+- Light culling: max 8 active lights, dynamically managed based on GPU capability. NEVER add new PointLights/SpotLights without accounting for this — it breaks the culling system and makes meshes disappear
 
 ### State Management
 

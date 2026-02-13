@@ -200,6 +200,7 @@ function hideWelcomeScreen(): void {
 function showWelcomeScreen(): void {
     const welcomeScreen = document.getElementById('welcome-screen');
     if (welcomeScreen) {
+        welcomeScreen.style.display = '';
         welcomeScreen.classList.remove('hidden');
     }
 }
