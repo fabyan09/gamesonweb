@@ -5,6 +5,9 @@ import { CharacterPreview, createCharacterPreviews } from './core/CharacterPrevi
 import { assetPreloader } from './core/AssetPreloader';
 import { AudioManager } from './core/AudioManager';
 import { GamepadManager } from './core/GamepadManager';
+import { AuthService } from './core/AuthService';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from './core/FirebaseConfig';
 
 const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
 
@@ -759,3 +762,254 @@ window.addEventListener('gamepaddisconnected', () => {
 
 // Initial gamepad status check
 updateGamepadConnectionStatus();
+
+// ========== Firebase Auth Integration ==========
+const authService = AuthService.getInstance();
+
+function updateAuthUI(user: import('firebase/auth').User | null): void {
+    const loggedOut = document.getElementById('auth-logged-out');
+    const loggedIn = document.getElementById('auth-logged-in');
+    const displayName = document.getElementById('auth-display-name');
+
+    if (user) {
+        if (loggedOut) loggedOut.style.display = 'none';
+        if (loggedIn) loggedIn.style.display = '';
+        if (displayName) displayName.textContent = user.displayName || 'Aventurier';
+    } else {
+        if (loggedOut) loggedOut.style.display = '';
+        if (loggedIn) loggedIn.style.display = 'none';
+    }
+}
+
+authService.onAuthChange(updateAuthUI);
+authService.ready.then(() => updateAuthUI(authService.user));
+
+function showAuthPanel(mode: 'login' | 'signup'): void {
+    const panel = document.getElementById('auth-panel');
+    const loginForm = document.getElementById('auth-login-form');
+    const signupForm = document.getElementById('auth-signup-form');
+    const title = document.getElementById('auth-panel-title');
+    const errorEl = document.getElementById('auth-error');
+
+    if (errorEl) errorEl.textContent = '';
+
+    if (mode === 'login') {
+        if (loginForm) loginForm.style.display = '';
+        if (signupForm) signupForm.style.display = 'none';
+        if (title) title.textContent = 'Connexion';
+    } else {
+        if (loginForm) loginForm.style.display = 'none';
+        if (signupForm) signupForm.style.display = '';
+        if (title) title.textContent = 'Inscription';
+    }
+
+    panel?.classList.add('visible');
+}
+
+function hideAuthPanel(): void {
+    document.getElementById('auth-panel')?.classList.remove('visible');
+}
+
+function showAuthError(msg: string): void {
+    const el = document.getElementById('auth-error');
+    if (el) el.textContent = msg;
+}
+
+function translateFirebaseError(code: string): string {
+    const map: Record<string, string> = {
+        'auth/email-already-in-use': 'Cet email est déjà utilisé.',
+        'auth/invalid-email': 'Adresse email invalide.',
+        'auth/weak-password': 'Le mot de passe doit contenir au moins 6 caractères.',
+        'auth/user-not-found': 'Aucun compte trouvé avec cet email.',
+        'auth/wrong-password': 'Mot de passe incorrect.',
+        'auth/invalid-credential': 'Identifiants invalides.',
+        'auth/too-many-requests': 'Trop de tentatives. Réessayez plus tard.',
+        'auth/popup-closed-by-user': 'Connexion Google annulée.',
+    };
+    return map[code] || 'Une erreur est survenue. Réessayez.';
+}
+
+// Auth panel buttons
+document.getElementById('btn-auth-login')?.addEventListener('click', () => showAuthPanel('login'));
+document.getElementById('btn-auth-signup')?.addEventListener('click', () => showAuthPanel('signup'));
+document.getElementById('btn-switch-signup')?.addEventListener('click', () => showAuthPanel('signup'));
+document.getElementById('btn-switch-login')?.addEventListener('click', () => showAuthPanel('login'));
+document.getElementById('auth-back')?.addEventListener('click', hideAuthPanel);
+
+// Login submit
+document.getElementById('btn-login-submit')?.addEventListener('click', async () => {
+    const email = (document.getElementById('login-email') as HTMLInputElement).value.trim();
+    const password = (document.getElementById('login-password') as HTMLInputElement).value;
+    if (!email || !password) { showAuthError('Veuillez remplir tous les champs.'); return; }
+    try {
+        await authService.login(email, password);
+        hideAuthPanel();
+    } catch (err: unknown) {
+        const code = (err as { code?: string }).code || '';
+        showAuthError(translateFirebaseError(code));
+    }
+});
+
+// Signup submit
+document.getElementById('btn-signup-submit')?.addEventListener('click', async () => {
+    const name = (document.getElementById('signup-name') as HTMLInputElement).value.trim();
+    const email = (document.getElementById('signup-email') as HTMLInputElement).value.trim();
+    const password = (document.getElementById('signup-password') as HTMLInputElement).value;
+    if (!name || !email || !password) { showAuthError('Veuillez remplir tous les champs.'); return; }
+    try {
+        await authService.signup(email, password, name);
+        hideAuthPanel();
+    } catch (err: unknown) {
+        const code = (err as { code?: string }).code || '';
+        showAuthError(translateFirebaseError(code));
+    }
+});
+
+// Google login (both forms)
+document.getElementById('btn-google-login')?.addEventListener('click', async () => {
+    try {
+        await authService.loginWithGoogle();
+        hideAuthPanel();
+    } catch (err: unknown) {
+        const code = (err as { code?: string }).code || '';
+        showAuthError(translateFirebaseError(code));
+    }
+});
+document.getElementById('btn-google-signup')?.addEventListener('click', async () => {
+    try {
+        await authService.loginWithGoogle();
+        hideAuthPanel();
+    } catch (err: unknown) {
+        const code = (err as { code?: string }).code || '';
+        showAuthError(translateFirebaseError(code));
+    }
+});
+
+// Logout
+document.getElementById('btn-logout')?.addEventListener('click', async () => {
+    await authService.logout();
+});
+
+// Profile panel
+document.getElementById('btn-profile')?.addEventListener('click', async () => {
+    const panel = document.getElementById('profile-panel');
+    panel?.classList.add('visible');
+
+    const stats = await authService.getStats();
+    if (!stats) return;
+
+    const set = (id: string, val: unknown) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(val ?? '0');
+    };
+
+    set('profile-name', stats['displayName']);
+    set('profile-email', stats['email']);
+    set('profile-kills', stats['totalKills']);
+    set('profile-deaths', stats['totalDeaths']);
+    set('profile-damage-dealt', stats['totalDamageDealt']);
+    set('profile-damage-taken', stats['totalDamageTaken']);
+    set('profile-levels', stats['totalLevelsCompleted']);
+    set('profile-potions', stats['totalPotionsUsed']);
+    set('profile-arrows', stats['totalArrowsShot']);
+    set('profile-spells', stats['totalSpellsCast']);
+    set('profile-chests', stats['totalChestsOpened']);
+
+    const killsByType = (stats['killsByType'] || {}) as Record<string, number>;
+    set('profile-kill-vampire', killsByType['vampire'] || 0);
+    set('profile-kill-parasite', killsByType['parasite'] || 0);
+    set('profile-kill-mutant', killsByType['mutant'] || 0);
+    set('profile-kill-skeletonzombie', killsByType['skeletonzombie'] || 0);
+    set('profile-kill-warrok', killsByType['warrok'] || 0);
+
+    const classUsage = (stats['classUsage'] || {}) as Record<string, number>;
+    set('profile-class-knight', classUsage['knight'] || 0);
+    set('profile-class-archer', classUsage['archer'] || 0);
+    set('profile-class-wizard', classUsage['wizard'] || 0);
+
+    const totalMs = (stats['totalPlaytimeMs'] as number) || 0;
+    const hours = Math.floor(totalMs / 3600000);
+    const mins = Math.floor((totalMs % 3600000) / 60000);
+    set('profile-playtime', `${hours}h ${mins}m`);
+});
+
+document.getElementById('profile-back')?.addEventListener('click', () => {
+    document.getElementById('profile-panel')?.classList.remove('visible');
+});
+
+// Leaderboard panel
+let currentLeaderboardTab = 'kills';
+
+async function loadLeaderboard(tab: string): Promise<void> {
+    currentLeaderboardTab = tab;
+    const body = document.getElementById('leaderboard-body');
+    const emptyMsg = document.getElementById('leaderboard-empty');
+    const header = document.getElementById('leaderboard-stat-header');
+    if (!body) return;
+
+    body.innerHTML = '';
+
+    const field = tab === 'kills' ? 'totalKills' : 'totalLevelsCompleted';
+    if (header) header.textContent = tab === 'kills' ? 'Éliminations' : 'Niveaux';
+
+    // Update active tab styling
+    document.querySelectorAll('.leaderboard-tab').forEach(t => {
+        t.classList.toggle('active', (t as HTMLElement).dataset.tab === tab);
+    });
+
+    try {
+        const q = query(collection(db, 'users'), orderBy(field, 'desc'), limit(20));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            if (emptyMsg) emptyMsg.style.display = '';
+            return;
+        }
+
+        if (emptyMsg) emptyMsg.style.display = 'none';
+
+        let rank = 1;
+        snap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="leaderboard-rank">${rank}</td>
+                <td>${data['displayName'] || 'Anonyme'}</td>
+                <td>${data[field] ?? 0}</td>
+            `;
+            body.appendChild(tr);
+            rank++;
+        });
+    } catch (err) {
+        console.warn('[Leaderboard] Failed to load:', err);
+        if (emptyMsg) {
+            emptyMsg.textContent = 'Impossible de charger le classement';
+            emptyMsg.style.display = '';
+        }
+    }
+}
+
+document.getElementById('btn-leaderboard')?.addEventListener('click', () => {
+    document.getElementById('leaderboard-panel')?.classList.add('visible');
+    loadLeaderboard(currentLeaderboardTab);
+});
+
+document.querySelectorAll('.leaderboard-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        const t = (tab as HTMLElement).dataset.tab;
+        if (t) loadLeaderboard(t);
+    });
+});
+
+document.getElementById('leaderboard-back')?.addEventListener('click', () => {
+    document.getElementById('leaderboard-panel')?.classList.remove('visible');
+});
+
+// Close auth/profile/leaderboard panels on Escape
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Escape') {
+        document.getElementById('auth-panel')?.classList.remove('visible');
+        document.getElementById('profile-panel')?.classList.remove('visible');
+        document.getElementById('leaderboard-panel')?.classList.remove('visible');
+    }
+});

@@ -1381,6 +1381,341 @@
         .gamepad-connection-status.connected {
             color: #00ff00;
         }
+
+        /* ========== AUTH AREA (in main menu) ========== */
+        .auth-area {
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .auth-area .auth-logged-out {
+            display: flex;
+            gap: 0.8rem;
+            justify-content: center;
+        }
+
+        .auth-area .auth-logged-in {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .auth-area .auth-welcome {
+            color: #d4c4a0;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+        }
+
+        .auth-area .auth-welcome strong {
+            color: #ffd700;
+        }
+
+        .auth-area .auth-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .auth-area .auth-link {
+            background: none;
+            border: none;
+            color: #b8960c;
+            font-family: 'Montaga', 'Georgia', serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-decoration: underline;
+            letter-spacing: 0.05em;
+            padding: 0;
+            transition: color 0.2s;
+        }
+
+        .auth-area .auth-link:hover {
+            color: #ffd700;
+        }
+
+        .auth-small-btn {
+            padding: 0.5rem 1.2rem;
+            font-size: 0.9rem;
+            font-family: 'Montaga', 'Georgia', serif;
+            background: linear-gradient(180deg, rgba(40, 30, 20, 0.9) 0%, rgba(20, 15, 10, 0.95) 100%);
+            color: #d4c4a0;
+            border: 1px solid #4a3a25;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 0.08em;
+            transition: all 0.3s ease;
+        }
+
+        .auth-small-btn:hover {
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+
+        /* ========== AUTH PANEL ========== */
+        #auth-panel, #profile-panel, #leaderboard-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 600;
+            font-family: 'Montaga', 'Georgia', serif;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out;
+        }
+
+        #auth-panel.visible, #profile-panel.visible, #leaderboard-panel.visible {
+            opacity: 1;
+            pointer-events: auto;
+            visibility: visible;
+        }
+
+        .auth-form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .auth-form-group label {
+            display: block;
+            color: #b8a070;
+            font-size: 0.9rem;
+            margin-bottom: 0.4rem;
+            letter-spacing: 0.08em;
+        }
+
+        .auth-form-group input {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            font-size: 1rem;
+            font-family: 'Montaga', 'Georgia', serif;
+            background: rgba(20, 15, 10, 0.9);
+            color: #d4c4a0;
+            border: 1px solid #4a3a25;
+            border-radius: 4px;
+            outline: none;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+
+        .auth-form-group input:focus {
+            border-color: #ffd700;
+        }
+
+        .auth-submit-btn {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: 1.1rem;
+            font-family: 'Montaga', 'Georgia', serif;
+            background: linear-gradient(180deg, #ffd700 0%, #cc9900 50%, #aa7700 100%);
+            color: #1a1000;
+            border: 2px solid #ffd700;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-top: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .auth-submit-btn:hover {
+            background: linear-gradient(180deg, #ffe44d 0%, #ddaa00 50%, #bb8800 100%);
+            transform: translateY(-2px);
+        }
+
+        .auth-google-btn {
+            width: 100%;
+            padding: 0.7rem;
+            font-size: 0.95rem;
+            font-family: 'Montaga', 'Georgia', serif;
+            background: linear-gradient(180deg, rgba(60, 45, 30, 0.9) 0%, rgba(30, 22, 15, 0.95) 100%);
+            color: #d4c4a0;
+            border: 1px solid #4a3a25;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 0.08em;
+            margin-top: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .auth-google-btn:hover {
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+
+        .auth-switch {
+            text-align: center;
+            margin-top: 1.2rem;
+            color: #8b7355;
+            font-size: 0.85rem;
+        }
+
+        .auth-switch button {
+            background: none;
+            border: none;
+            color: #ffd700;
+            font-family: 'Montaga', 'Georgia', serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 0;
+        }
+
+        .auth-error {
+            color: #ff4444;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 0.8rem;
+            min-height: 1.2em;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            margin: 1rem 0;
+            color: #4a3a25;
+            font-size: 0.8rem;
+        }
+
+        .auth-divider::before, .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #4a3a25;
+        }
+
+        .auth-divider::before { margin-right: 0.8rem; }
+        .auth-divider::after { margin-left: 0.8rem; }
+
+        /* ========== PROFILE PANEL ========== */
+        .profile-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .profile-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(74, 58, 37, 0.4);
+        }
+
+        .profile-stat-label {
+            color: #b8a070;
+            font-size: 0.9rem;
+        }
+
+        .profile-stat-value {
+            color: #ffd700;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .profile-section-title {
+            color: #ffd700;
+            font-size: 1.1rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+            letter-spacing: 0.1em;
+        }
+
+        /* ========== LEADERBOARD PANEL ========== */
+        .leaderboard-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #4a3a25;
+        }
+
+        .leaderboard-tab {
+            flex: 1;
+            padding: 0.7rem 1rem;
+            font-family: 'Montaga', 'Georgia', serif;
+            font-size: 0.9rem;
+            background: none;
+            color: #8b7355;
+            border: none;
+            cursor: pointer;
+            letter-spacing: 0.08em;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .leaderboard-tab.active {
+            color: #ffd700;
+            border-bottom-color: #ffd700;
+        }
+
+        .leaderboard-tab:hover {
+            color: #d4c4a0;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .leaderboard-table th {
+            color: #b8a070;
+            font-size: 0.8rem;
+            text-align: left;
+            padding: 0.5rem 0.3rem;
+            border-bottom: 1px solid #4a3a25;
+            letter-spacing: 0.08em;
+        }
+
+        .leaderboard-table td {
+            color: #d4c4a0;
+            font-size: 0.9rem;
+            padding: 0.6rem 0.3rem;
+            border-bottom: 1px solid rgba(74, 58, 37, 0.3);
+        }
+
+        .leaderboard-table tr:first-child td { color: #ffd700; }
+        .leaderboard-table tr:nth-child(2) td { color: #c0c0c0; }
+        .leaderboard-table tr:nth-child(3) td { color: #cd7f32; }
+
+        .leaderboard-rank {
+            width: 2rem;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .leaderboard-empty {
+            color: #8b7355;
+            text-align: center;
+            padding: 2rem 0;
+            font-style: italic;
+        }
+
+        .panel-back-btn {
+            display: block;
+            margin: 1.5rem auto 0;
+            padding: 0.6rem 2rem;
+            font-size: 0.95rem;
+            font-family: 'Montaga', 'Georgia', serif;
+            background: linear-gradient(180deg, rgba(40, 30, 20, 0.9) 0%, rgba(20, 15, 10, 0.95) 100%);
+            color: #d4c4a0;
+            border: 1px solid #4a3a25;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 0.1em;
+            transition: all 0.3s ease;
+        }
+
+        .panel-back-btn:hover {
+            border-color: #ffd700;
+            color: #ffd700;
+        }
     </style>
 </head>
 <body>
@@ -1456,6 +1791,20 @@
                 <button class="menu-btn" id="btn-random">Niveau Aléatoire</button>
                 <button class="menu-btn" id="btn-rules">Règles & Histoire</button>
                 <button class="menu-btn" id="btn-settings">Paramètres</button>
+                <button class="menu-btn" id="btn-leaderboard">Classement</button>
+            </div>
+            <div class="auth-area" id="auth-area">
+                <div class="auth-logged-out" id="auth-logged-out">
+                    <button class="auth-small-btn" id="btn-auth-login">Connexion</button>
+                    <button class="auth-small-btn" id="btn-auth-signup">Inscription</button>
+                </div>
+                <div class="auth-logged-in" id="auth-logged-in" style="display:none;">
+                    <span class="auth-welcome">Bienvenue, <strong id="auth-display-name"></strong></span>
+                    <div class="auth-links">
+                        <button class="auth-link" id="btn-profile">Mon Profil</button>
+                        <button class="auth-link" id="btn-logout">Déconnexion</button>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="menu-footer">Games On Web 2026</div>
@@ -1804,6 +2153,194 @@
                 <p class="loading-text">Chargement<span class="loading-dots"></span></p>
                 <p class="loading-tip">Utilisez le bouclier pour bloquer les attaques ennemies</p>
             </div>
+        </div>
+    </div>
+
+    <!-- Auth Panel -->
+    <div id="auth-panel">
+        <div class="panel-container" style="max-width:400px;">
+            <h2 class="panel-title" id="auth-panel-title">Connexion</h2>
+
+            <!-- Login form -->
+            <div id="auth-login-form">
+                <div class="auth-form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" placeholder="votre@email.com" autocomplete="email">
+                </div>
+                <div class="auth-form-group">
+                    <label for="login-password">Mot de passe</label>
+                    <input type="password" id="login-password" placeholder="Mot de passe" autocomplete="current-password">
+                </div>
+                <button class="auth-submit-btn" id="btn-login-submit">Se connecter</button>
+                <div class="auth-divider">ou</div>
+                <button class="auth-google-btn" id="btn-google-login">Continuer avec Google</button>
+                <div class="auth-switch">
+                    Pas de compte ? <button id="btn-switch-signup">Créer un compte</button>
+                </div>
+            </div>
+
+            <!-- Signup form -->
+            <div id="auth-signup-form" style="display:none;">
+                <div class="auth-form-group">
+                    <label for="signup-name">Nom d'aventurier</label>
+                    <input type="text" id="signup-name" placeholder="Votre pseudo" autocomplete="username">
+                </div>
+                <div class="auth-form-group">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" placeholder="votre@email.com" autocomplete="email">
+                </div>
+                <div class="auth-form-group">
+                    <label for="signup-password">Mot de passe</label>
+                    <input type="password" id="signup-password" placeholder="6 caractères minimum" autocomplete="new-password">
+                </div>
+                <button class="auth-submit-btn" id="btn-signup-submit">Créer le compte</button>
+                <div class="auth-divider">ou</div>
+                <button class="auth-google-btn" id="btn-google-signup">Continuer avec Google</button>
+                <div class="auth-switch">
+                    Déjà inscrit ? <button id="btn-switch-login">Se connecter</button>
+                </div>
+            </div>
+
+            <div class="auth-error" id="auth-error"></div>
+            <button class="panel-back-btn" id="auth-back">Retour</button>
+        </div>
+    </div>
+
+    <!-- Profile Panel -->
+    <div id="profile-panel">
+        <div class="panel-container" style="max-width:450px;">
+            <h2 class="panel-title">Mon Profil</h2>
+            <div id="profile-content">
+                <div class="profile-stats">
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Nom</span>
+                        <span class="profile-stat-value" id="profile-name">-</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Email</span>
+                        <span class="profile-stat-value" id="profile-email">-</span>
+                    </div>
+                </div>
+
+                <h3 class="profile-section-title">Combat</h3>
+                <div class="profile-stats">
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Éliminations totales</span>
+                        <span class="profile-stat-value" id="profile-kills">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Morts</span>
+                        <span class="profile-stat-value" id="profile-deaths">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Dégâts infligés</span>
+                        <span class="profile-stat-value" id="profile-damage-dealt">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Dégâts subis</span>
+                        <span class="profile-stat-value" id="profile-damage-taken">0</span>
+                    </div>
+                </div>
+
+                <h3 class="profile-section-title">Progression</h3>
+                <div class="profile-stats">
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Niveaux complétés</span>
+                        <span class="profile-stat-value" id="profile-levels">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Potions utilisées</span>
+                        <span class="profile-stat-value" id="profile-potions">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Flèches tirées</span>
+                        <span class="profile-stat-value" id="profile-arrows">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Sorts lancés</span>
+                        <span class="profile-stat-value" id="profile-spells">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Coffres ouverts</span>
+                        <span class="profile-stat-value" id="profile-chests">0</span>
+                    </div>
+                </div>
+
+                <h3 class="profile-section-title">Éliminations par type</h3>
+                <div class="profile-stats">
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Vampires</span>
+                        <span class="profile-stat-value" id="profile-kill-vampire">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Parasites</span>
+                        <span class="profile-stat-value" id="profile-kill-parasite">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Mutants</span>
+                        <span class="profile-stat-value" id="profile-kill-mutant">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Squelettes</span>
+                        <span class="profile-stat-value" id="profile-kill-skeletonzombie">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Warroks</span>
+                        <span class="profile-stat-value" id="profile-kill-warrok">0</span>
+                    </div>
+                </div>
+
+                <h3 class="profile-section-title">Classes jouées</h3>
+                <div class="profile-stats">
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Chevalier</span>
+                        <span class="profile-stat-value" id="profile-class-knight">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Archer</span>
+                        <span class="profile-stat-value" id="profile-class-archer">0</span>
+                    </div>
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Sorcier</span>
+                        <span class="profile-stat-value" id="profile-class-wizard">0</span>
+                    </div>
+                </div>
+
+                <h3 class="profile-section-title">Temps de jeu</h3>
+                <div class="profile-stats">
+                    <div class="profile-stat-row">
+                        <span class="profile-stat-label">Temps total</span>
+                        <span class="profile-stat-value" id="profile-playtime">0h 0m</span>
+                    </div>
+                </div>
+            </div>
+            <button class="panel-back-btn" id="profile-back">Retour</button>
+        </div>
+    </div>
+
+    <!-- Leaderboard Panel -->
+    <div id="leaderboard-panel">
+        <div class="panel-container" style="max-width:500px;">
+            <h2 class="panel-title">Classement</h2>
+            <div class="leaderboard-tabs">
+                <button class="leaderboard-tab active" data-tab="kills">Éliminations</button>
+                <button class="leaderboard-tab" data-tab="levels">Niveaux</button>
+            </div>
+            <div id="leaderboard-content">
+                <table class="leaderboard-table" id="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th class="leaderboard-rank">#</th>
+                            <th>Joueur</th>
+                            <th id="leaderboard-stat-header">Éliminations</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body">
+                    </tbody>
+                </table>
+                <div class="leaderboard-empty" id="leaderboard-empty" style="display:none;">Aucun joueur classé pour le moment</div>
+            </div>
+            <button class="panel-back-btn" id="leaderboard-back">Retour</button>
         </div>
     </div>
 

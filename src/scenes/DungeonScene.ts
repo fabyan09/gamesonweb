@@ -34,6 +34,7 @@ import { GamepadManager, GamepadButton } from '../core/GamepadManager';
 import { PixelFilter } from '../core/PixelFilter';
 import { HealingEffect } from '../core/HealingEffect';
 import { HealthVignette } from '../core/HealthVignette';
+import { StatsService } from '../core/StatsService';
 
 // List of available levels
 const LEVELS = [
@@ -79,6 +80,7 @@ export class DungeonScene {
     private pixelFilter: PixelFilter | null = null;
     private healingEffect: HealingEffect | null = null;
     private healthVignette: HealthVignette | null = null;
+    private statsService: StatsService;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
@@ -90,6 +92,7 @@ export class DungeonScene {
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
         this.gamepadManager = GamepadManager.getInstance();
+        this.statsService = StatsService.getInstance();
 
         this.setupScene();
         this.setupPauseMenu();
@@ -175,6 +178,9 @@ export class DungeonScene {
 
         // Set current level index (clamped to valid range)
         this.currentLevelIndex = Math.max(0, Math.min(levelIndex, LEVELS.length - 1));
+
+        // Start stats session
+        this.statsService.startSession(this.characterClass, this.currentLevelIndex);
 
         // Lighting
         this.setupLighting();
@@ -437,6 +443,9 @@ export class DungeonScene {
     async initRandomLevel(): Promise<void> {
         // Reset audio state for new level (fixes sounds not playing after level transitions)
         this.audioManager.resetForNewLevel();
+
+        // Start stats session for random level
+        this.statsService.startSession(this.characterClass, -1);
 
         // Lighting
         this.setupLighting();
@@ -725,6 +734,7 @@ export class DungeonScene {
                 // Player is on a spike trap!
                 this.lastTrapDamageTime = now;
                 this.playerHealth -= trap.damage;
+                this.statsService.recordDamageTaken(trap.damage);
                 console.log(`[DungeonScene] Player stepped on spike trap! -${trap.damage} HP (${this.playerHealth} remaining)`);
                 this.updateHealthUI();
                 this.camera?.shake(0.1, 150);
@@ -788,6 +798,7 @@ export class DungeonScene {
 
             // Handle enemy death
             enemy.onDeath(() => {
+                this.statsService.recordKill(enemy.typeName);
                 this.checkLevelComplete();
             });
 
@@ -809,6 +820,7 @@ export class DungeonScene {
 
                     if (reducedDamage > 0) {
                         this.playerHealth -= reducedDamage;
+                        this.statsService.recordDamageTaken(reducedDamage);
                         this.updateHealthUI();
                         this.camera?.shake(0.08, 120);
                         this.showDamageIndicator(enemy.position);
@@ -821,6 +833,7 @@ export class DungeonScene {
                 }
 
                 this.playerHealth -= damage;
+                this.statsService.recordDamageTaken(damage);
                 console.log(`[DungeonScene] Player took ${damage} damage, health: ${this.playerHealth}`);
                 this.updateHealthUI();
                 this.camera?.shake(0.15, 200);
@@ -867,6 +880,7 @@ export class DungeonScene {
     private handlePlayerAttack(position: Vector3, range: number): void {
         // For archer, use trajectory-based hit detection with wall collision
         if (this.characterClass === 'archer' && this.player) {
+            this.statsService.recordArrowShot();
             const archer = this.player as ArcherController;
             const trajectory = archer.getArrowTrajectory();
 
@@ -894,12 +908,14 @@ export class DungeonScene {
 
                     // isRanged = true for arrows - triggers enraged state
                     enemy.takeDamage(25, true);
+                    this.statsService.recordDamageDealt(25);
                     archer.markProjectileHit(); // Stop the arrow projectile
                     console.log(`[DungeonScene] Arrow hit ${enemy.typeName}!`);
                     break; // Arrow only hits first enemy in path
                 }
             }
         } else if (this.characterClass === 'wizard' && this.player) {
+            this.statsService.recordSpellCast();
             // For wizard, use trajectory-based hit detection similar to archer
             const wizard = this.player as WizardController;
             const trajectory = wizard.getMagicTrajectory();
@@ -928,6 +944,7 @@ export class DungeonScene {
 
                     // isRanged = true for magic - triggers enraged state
                     enemy.takeDamage(20, true); // Wizard deals 20 damage
+                    this.statsService.recordDamageDealt(20);
                     wizard.markProjectileHit(); // Stop the magic projectile
                     console.log(`[DungeonScene] Magic hit ${enemy.typeName}!`);
                     break; // Magic only hits first enemy in path
@@ -952,6 +969,7 @@ export class DungeonScene {
                     if (this.hasLineOfSight(playerCenter, enemyCenter)) {
                         // isRanged = false for melee - no enraged state
                         enemy.takeDamage(25, false);
+                        this.statsService.recordDamageDealt(25);
                     }
                 }
             }
@@ -993,6 +1011,7 @@ export class DungeonScene {
 
     private showVictoryMessage(): void {
         console.log('[DungeonScene] Level Complete!');
+        this.statsService.flushOnLevelComplete();
 
         // Play win sound
         this.audioManager.playWinSound();
@@ -1276,6 +1295,7 @@ export class DungeonScene {
         this.isPlayerDead = true;
 
         console.log('[DungeonScene] Player died!');
+        this.statsService.flushOnDeath();
 
         // Play death sound
         this.audioManager.playDeathSound();
@@ -2303,6 +2323,7 @@ export class DungeonScene {
             this.playerHealth = Math.min(100, this.playerHealth + healAmount);
             this.updateHealthUI();
             this.audioManager.playPotionDrinkSound();
+            this.statsService.recordPotionUsed();
             // Play healing visual effect
             this.healingEffect?.play();
             console.log(`[DungeonScene] Used ${potion} potion, healed ${healAmount}, health: ${this.playerHealth}`);
@@ -2348,6 +2369,7 @@ export class DungeonScene {
                 // Try to open chest if nearby (priority over pickup)
                 else if (this.nearbyChest && this.chestSystem) {
                     this.chestSystem.tryOpenChest();
+                    this.statsService.recordChestOpened();
                 } else if (this.chestSystem?.hasNearbyItem()) {
                     // Try to pick up item
                     this.chestSystem.tryPickupItem();
@@ -2573,6 +2595,7 @@ export class DungeonScene {
         // Try to open chest if nearby
         else if (this.nearbyChest && this.chestSystem) {
             this.chestSystem.tryOpenChest();
+            this.statsService.recordChestOpened();
         } else if (this.chestSystem?.hasNearbyItem()) {
             this.chestSystem.tryPickupItem();
         }
