@@ -188,30 +188,57 @@ Le mode "Niveau Aléatoire" utilise l'algorithme **Binary Space Partitioning** p
 
 ```
 src/
-├── core/                    # Logique de jeu principale
-│   ├── Game.ts              # Moteur Babylon.js, boucle de rendu
-│   ├── PlayerController.ts  # Classe Chevalier
-│   ├── ArcherController.ts  # Classe Archer
-│   ├── Enemy.ts             # IA des ennemis
-│   ├── EnemyTypes.ts        # Configuration des ennemis
-│   ├── ThirdPersonCamera.ts # Caméra TPS avec pointer lock
-│   ├── LevelLoader.ts       # Chargement et construction des niveaux
-│   ├── BSPDungeonGenerator.ts # Génération procédurale
-│   ├── ChestSystem.ts       # Coffres et objets ramassables
-│   ├── DoorSystem.ts        # Portes interactives
-│   ├── PlayerInventory.ts   # Gestion de l'inventaire
-│   ├── AudioManager.ts      # Audio HTML5 avec pools de sons
-│   ├── GameSettings.ts      # Paramètres (localStorage)
-│   ├── GamepadManager.ts    # Support manette
-│   └── AssetLoader.ts       # Chargement des assets GLB
+├── main.ts                    # Point d'entrée, menus
+│
+├── core/                      # Moteur, boucle de jeu, settings, caméra
+│   ├── Game.ts                # Moteur Babylon.js, boucle de rendu
+│   ├── GameSettings.ts        # Paramètres (localStorage)
+│   ├── ThirdPersonCamera.ts   # Caméra TPS avec pointer lock
+│   ├── FPSCamera.ts           # Caméra première personne
+│   └── GamepadManager.ts      # Support manette
 │
 ├── scenes/
-│   └── DungeonScene.ts      # Scène principale du jeu (~1800 lignes)
+│   └── DungeonScene.ts        # Scène principale du jeu (~1800 lignes)
 │
-├── utils/
-│   └── MeshPlacer.ts        # Instanciation optimisée des meshes
+├── entities/                  # Entités du jeu (joueurs + ennemis)
+│   ├── CharacterClass.ts      # Interface abstraite des personnages
+│   ├── PlayerController.ts    # Classe Chevalier
+│   ├── ArcherController.ts    # Classe Archer
+│   ├── WizardController.ts    # Classe Sorcier
+│   ├── CharacterPreview.ts    # Aperçu personnage (sélection)
+│   ├── Enemy.ts               # IA des ennemis
+│   └── EnemyTypes.ts          # Configuration des ennemis
 │
-└── main.ts                  # Point d'entrée, menus
+├── level/                     # Données et génération de niveaux
+│   ├── LevelData.ts           # Format JSON des niveaux
+│   ├── LevelLoader.ts         # Chargement et construction des niveaux
+│   └── BSPDungeonGenerator.ts # Génération procédurale (BSP)
+│
+├── systems/                   # Systèmes de jeu (mécaniques)
+│   ├── AudioManager.ts        # Audio HTML5 avec pools de sons
+│   ├── ChestSystem.ts         # Coffres et objets ramassables
+│   ├── DoorSystem.ts          # Portes interactives
+│   └── PlayerInventory.ts     # Gestion de l'inventaire
+│
+├── effects/                   # Effets visuels et post-processing
+│   ├── HealingEffect.ts       # Effet visuel de soin
+│   ├── HealthVignette.ts      # Vignette écran (vie basse)
+│   └── PixelFilter.ts         # Filtre post-processing pixel art
+│
+├── assets/                    # Chargement de ressources
+│   ├── AssetLoader.ts         # Chargement des assets GLB
+│   └── AssetPreloader.ts      # Préchargement en arrière-plan
+│
+├── services/                  # Firebase et services externes
+│   ├── FirebaseConfig.ts      # Configuration Firebase
+│   ├── AuthService.ts         # Authentification
+│   └── StatsService.ts        # Suivi des statistiques joueur
+│
+├── ui/
+│   └── ASCIIText.ts           # Composants UI
+│
+└── utils/
+    └── MeshPlacer.ts          # Instanciation optimisée des meshes
 ```
 
 ### Optimisations Performances

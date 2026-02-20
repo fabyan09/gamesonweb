@@ -11,7 +11,7 @@ import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture
 import { Rectangle } from '@babylonjs/gui/2D/controls/rectangle';
 import '@babylonjs/loaders/glTF';
 import { EnemyTypeName, EnemyTypeConfig, getEnemyTypeConfig } from './EnemyTypes';
-import { AudioManager } from './AudioManager';
+import { AudioManager } from '../systems/AudioManager';
 
 export interface EnemyConfig {
     position: Vector3;

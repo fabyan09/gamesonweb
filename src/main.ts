@@ -1,13 +1,13 @@
 import { Game } from './core/Game';
 import { GameSettings, KeyBindings } from './core/GameSettings';
-import { CharacterClassName } from './core/CharacterClass';
-import { CharacterPreview, createCharacterPreviews } from './core/CharacterPreview';
-import { assetPreloader } from './core/AssetPreloader';
-import { AudioManager } from './core/AudioManager';
+import { CharacterClassName } from './entities/CharacterClass';
+import { CharacterPreview, createCharacterPreviews } from './entities/CharacterPreview';
+import { assetPreloader } from './assets/AssetPreloader';
+import { AudioManager } from './systems/AudioManager';
 import { GamepadManager } from './core/GamepadManager';
-import { AuthService } from './core/AuthService';
+import { AuthService } from './services/AuthService';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { db } from './core/FirebaseConfig';
+import { db } from './services/FirebaseConfig';
 
 const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
 

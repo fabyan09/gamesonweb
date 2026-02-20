@@ -11,7 +11,7 @@ import { Engine } from '@babylonjs/core/Engines/engine';
 // Import for occlusion queries
 import '@babylonjs/core/Culling/Octrees/octreeSceneComponent';
 import { MeshPlacer } from '../utils/MeshPlacer';
-import { LoadedAssets } from './AssetLoader';
+import { LoadedAssets } from '../assets/AssetLoader';
 import { LevelData, WallSegment, GridPlacement, PropPlacement, LightData } from './LevelData';
 
 // Padding added to colliders to prevent clipping

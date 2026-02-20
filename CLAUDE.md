@@ -29,26 +29,114 @@ Welcome Screen → Main Menu → Level/Character Select → Game
 - `src/core/Game.ts` - Babylon.js engine setup, render loop, scene delegation
 - `src/scenes/DungeonScene.ts` - Main game scene (~1700 lines): level loading, player/enemy spawning, combat, UI updates, audio, victory/death handling
 
-### Core Classes (`src/core/`)
+### Source Structure
+
+```
+src/
+├── main.ts                  # Bootstrap, menu navigation
+├── core/                    # Engine, game loop, settings, camera, input
+│   ├── Game.ts
+│   ├── GameSettings.ts
+│   ├── ThirdPersonCamera.ts
+│   ├── FPSCamera.ts
+│   └── GamepadManager.ts
+├── scenes/                  # Game scenes
+│   └── DungeonScene.ts
+├── entities/                # Game entities (players + enemies)
+│   ├── CharacterClass.ts
+│   ├── PlayerController.ts
+│   ├── ArcherController.ts
+│   ├── WizardController.ts
+│   ├── CharacterPreview.ts
+│   ├── Enemy.ts
+│   └── EnemyTypes.ts
+├── level/                   # Level data, loading, and generation
+│   ├── LevelData.ts
+│   ├── LevelLoader.ts
+│   └── BSPDungeonGenerator.ts
+├── systems/                 # Game mechanics
+│   ├── AudioManager.ts
+│   ├── ChestSystem.ts
+│   ├── DoorSystem.ts
+│   └── PlayerInventory.ts
+├── effects/                 # Visual effects and post-processing
+│   ├── HealingEffect.ts
+│   ├── HealthVignette.ts
+│   └── PixelFilter.ts
+├── assets/                  # Asset loading and preloading
+│   ├── AssetLoader.ts
+│   └── AssetPreloader.ts
+├── services/                # Firebase and external services
+│   ├── FirebaseConfig.ts
+│   ├── AuthService.ts
+│   └── StatsService.ts
+├── ui/                      # UI components
+│   └── ASCIIText.ts
+└── utils/                   # Utilities
+    └── MeshPlacer.ts
+```
+
+### Core (`src/core/`)
 
 | File | Purpose |
 |------|---------|
 | `Game.ts` | Engine initialization, render loop, level dispatch |
+| `GameSettings.ts` | LocalStorage settings: keybindings, volume, sensitivity, crouch mode |
+| `ThirdPersonCamera.ts` | Over-the-shoulder ArcRotateCamera with pointer lock, collision |
+| `FPSCamera.ts` | First-person camera mode |
+| `GamepadManager.ts` | Gamepad input handling |
+
+### Entities (`src/entities/`)
+
+| File | Purpose |
+|------|---------|
+| `CharacterClass.ts` | Abstract interface for character controllers |
 | `PlayerController.ts` | Knight class: sword/shield combat, blocking (70% reduction), multiple attack animations, crouch system |
 | `ArcherController.ts` | Archer class: arrow projectiles, trajectory hit detection, aiming, dodge, reduced defense (50%) |
-| `CharacterClass.ts` | Abstract interface for character controllers |
+| `WizardController.ts` | Wizard class: fireball projectiles, magical attacks |
+| `CharacterPreview.ts` | Character preview rendering for selection screen |
 | `Enemy.ts` | Enemy AI: idle/chase/attack/dead states, pathfinding, enrage system, health bars |
 | `EnemyTypes.ts` | Enemy config database (Vampire, Parasite, Mutant, SkeletonZombie, Warrok) |
-| `ThirdPersonCamera.ts` | Over-the-shoulder ArcRotateCamera with pointer lock, collision |
-| `GameSettings.ts` | LocalStorage settings: keybindings, volume, sensitivity, crouch mode |
+
+### Level (`src/level/`)
+
+| File | Purpose |
+|------|---------|
 | `LevelData.ts` | JSON level format definition |
 | `LevelLoader.ts` | Level instantiation, mesh instancing, collision generation, light management |
 | `BSPDungeonGenerator.ts` | Procedural level generation using Binary Space Partitioning |
-| `PlayerInventory.ts` | Potion (4 max) and arrow (10 max) management, state persistence |
-| `ChestSystem.ts` | Chest/tomb interaction, item drops with bob animation, auto-pickup |
+
+### Systems (`src/systems/`)
+
+| File | Purpose |
+|------|---------|
 | `AudioManager.ts` | HTML5 audio: music, SFX pools, spatial audio for braziers |
+| `ChestSystem.ts` | Chest/tomb interaction, item drops with bob animation, auto-pickup |
+| `DoorSystem.ts` | Door mechanics, exit door unlocking |
+| `PlayerInventory.ts` | Potion (4 max) and arrow (10 max) management, state persistence |
+
+### Effects (`src/effects/`)
+
+| File | Purpose |
+|------|---------|
+| `HealingEffect.ts` | Healing visual effect |
+| `HealthVignette.ts` | Low-health screen vignette |
+| `PixelFilter.ts` | Pixel art post-processing filter |
+
+### Assets (`src/assets/`)
+
+| File | Purpose |
+|------|---------|
 | `AssetLoader.ts` | GLB loading with mesh caching |
 | `AssetPreloader.ts` | Background preloading using NullEngine |
+
+### Services (`src/services/`)
+
+| File | Purpose |
+|------|---------|
+| `FirebaseConfig.ts` | Firebase project configuration |
+| `AuthService.ts` | Firebase authentication |
+| `StatsService.ts` | Player stats tracking |
 
 ### Utilities (`src/utils/`)
 
@@ -186,19 +274,21 @@ public/assets/
 
 | Feature | Files |
 |---------|-------|
-| Combat | `PlayerController.ts`, `ArcherController.ts`, `Enemy.ts` |
-| Levels | `LevelData.ts`, `LevelLoader.ts`, `BSPDungeonGenerator.ts` |
-| Items | `PlayerInventory.ts`, `ChestSystem.ts` |
-| Audio | `AudioManager.ts` |
-| Input | `GameSettings.ts`, `ThirdPersonCamera.ts` |
-| UI | `index.html`, `main.ts`, `DungeonScene.ts` |
+| Combat | `entities/PlayerController.ts`, `entities/ArcherController.ts`, `entities/WizardController.ts`, `entities/Enemy.ts` |
+| Levels | `level/LevelData.ts`, `level/LevelLoader.ts`, `level/BSPDungeonGenerator.ts` |
+| Items | `systems/PlayerInventory.ts`, `systems/ChestSystem.ts` |
+| Audio | `systems/AudioManager.ts` |
+| Input | `core/GameSettings.ts`, `core/ThirdPersonCamera.ts`, `core/GamepadManager.ts` |
+| Effects | `effects/HealingEffect.ts`, `effects/HealthVignette.ts`, `effects/PixelFilter.ts` |
+| Services | `services/FirebaseConfig.ts`, `services/AuthService.ts`, `services/StatsService.ts` |
+| UI | `index.html`, `main.ts`, `scenes/DungeonScene.ts` |
 
 ## Common Tasks
 
 ### Adding a new enemy type
 
 1. Add GLB to `public/assets/Creature Pack/`
-2. Add config in `EnemyTypes.ts`
+2. Add config in `src/entities/EnemyTypes.ts`
 3. Reference in level JSON
 
 ### Adding a new level
@@ -210,13 +300,14 @@ public/assets/
 ### Adding a new sound effect
 
 1. Add audio file to `public/assets/SFX/`
-2. Add to `AudioManager.ts` in appropriate pool
+2. Add to `src/systems/AudioManager.ts` in appropriate pool
 3. Call `audioManager.play[Sound]()` where needed
 
 ### Modifying player stats
 
-- Knight: `PlayerController.ts` (walkSpeed, runSpeed, jumpForce, attackRange)
-- Archer: `ArcherController.ts` (same properties + arrowDamage)
+- Knight: `src/entities/PlayerController.ts` (walkSpeed, runSpeed, jumpForce, attackRange)
+- Archer: `src/entities/ArcherController.ts` (same properties + arrowDamage)
+- Wizard: `src/entities/WizardController.ts` (same properties + fireballDamage)
 
 ## Tech Stack
 

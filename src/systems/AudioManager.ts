@@ -1,6 +1,6 @@
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Scene } from '@babylonjs/core/scene';
-import { GameSettings } from './GameSettings';
+import { GameSettings } from '../core/GameSettings';
 
 /**
  * Audio Manager - handles all game audio using HTML5 Audio

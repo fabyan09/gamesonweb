@@ -12,7 +12,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/loaders/glTF';
 
 import { CharacterClassName } from './CharacterClass';
-import { PixelFilter } from './PixelFilter';
+import { PixelFilter } from '../effects/PixelFilter';
 
 const ROOT_MOTION_NODES = ['Armature', 'Hips', 'mixamorig:Hips'];
 

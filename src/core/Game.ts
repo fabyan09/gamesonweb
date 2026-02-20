@@ -1,7 +1,7 @@
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { DungeonScene } from '../scenes/DungeonScene';
 import { GameSettings } from './GameSettings';
-import { CharacterClassName } from './CharacterClass';
+import { CharacterClassName } from '../entities/CharacterClass';
 
 export class Game {
     private engine: Engine;

@@ -4,7 +4,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh';
-import { LoadedAssets } from '../core/AssetLoader';
+import { LoadedAssets } from '../assets/AssetLoader';
 
 export interface PlacementOptions {
     position: { x: number; y: number; z: number };

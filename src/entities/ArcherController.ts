@@ -11,12 +11,12 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Ray } from '@babylonjs/core/Culling/ray';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import '@babylonjs/loaders/glTF';
-import { ThirdPersonCamera } from './ThirdPersonCamera';
-import { GameSettings } from './GameSettings';
+import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
+import { GameSettings } from '../core/GameSettings';
 import { CharacterController } from './CharacterClass';
-import { PlayerInventory } from './PlayerInventory';
-import { AudioManager } from './AudioManager';
-import { GamepadManager, GamepadButton } from './GamepadManager';
+import { PlayerInventory } from '../systems/PlayerInventory';
+import { AudioManager } from '../systems/AudioManager';
+import { GamepadManager, GamepadButton } from '../core/GamepadManager';
 
 export interface ArcherConfig {
     position?: Vector3;

@@ -8,10 +8,10 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/loaders/glTF';
-import { ThirdPersonCamera } from './ThirdPersonCamera';
-import { GameSettings } from './GameSettings';
-import { AudioManager } from './AudioManager';
-import { GamepadManager, GamepadButton } from './GamepadManager';
+import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
+import { GameSettings } from '../core/GameSettings';
+import { AudioManager } from '../systems/AudioManager';
+import { GamepadManager, GamepadButton } from '../core/GamepadManager';
 
 export interface PlayerConfig {
     position?: Vector3;

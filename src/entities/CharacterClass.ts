@@ -1,6 +1,6 @@
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
-import { ThirdPersonCamera } from './ThirdPersonCamera';
+import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 
 export type CharacterClassName = 'knight' | 'archer' | 'wizard';
 

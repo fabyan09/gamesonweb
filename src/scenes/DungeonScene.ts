@@ -15,26 +15,26 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import '@babylonjs/core/Collisions/collisionCoordinator';
 import '@babylonjs/core/Culling/ray';
 
-import { AssetLoader } from '../core/AssetLoader';
+import { AssetLoader } from '../assets/AssetLoader';
 import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
-import { PlayerController } from '../core/PlayerController';
-import { ArcherController } from '../core/ArcherController';
-import { WizardController } from '../core/WizardController';
-import { CharacterClassName, CharacterController } from '../core/CharacterClass';
-import { LevelLoader, TrapData } from '../core/LevelLoader';
-import { LevelData } from '../core/LevelData';
-import { Enemy } from '../core/Enemy';
+import { PlayerController } from '../entities/PlayerController';
+import { ArcherController } from '../entities/ArcherController';
+import { WizardController } from '../entities/WizardController';
+import { CharacterClassName, CharacterController } from '../entities/CharacterClass';
+import { LevelLoader, TrapData } from '../level/LevelLoader';
+import { LevelData } from '../level/LevelData';
+import { Enemy } from '../entities/Enemy';
 import { GameSettings, KeyBindings } from '../core/GameSettings';
-import { BSPDungeonGenerator } from '../core/BSPDungeonGenerator';
-import { AudioManager } from '../core/AudioManager';
-import { PlayerInventory, PotionType } from '../core/PlayerInventory';
-import { ChestSystem } from '../core/ChestSystem';
-import { DoorSystem, InteractiveDoor } from '../core/DoorSystem';
+import { BSPDungeonGenerator } from '../level/BSPDungeonGenerator';
+import { AudioManager } from '../systems/AudioManager';
+import { PlayerInventory, PotionType } from '../systems/PlayerInventory';
+import { ChestSystem } from '../systems/ChestSystem';
+import { DoorSystem, InteractiveDoor } from '../systems/DoorSystem';
 import { GamepadManager, GamepadButton } from '../core/GamepadManager';
-import { PixelFilter } from '../core/PixelFilter';
-import { HealingEffect } from '../core/HealingEffect';
-import { HealthVignette } from '../core/HealthVignette';
-import { StatsService } from '../core/StatsService';
+import { PixelFilter } from '../effects/PixelFilter';
+import { HealingEffect } from '../effects/HealingEffect';
+import { HealthVignette } from '../effects/HealthVignette';
+import { StatsService } from '../services/StatsService';
 
 // List of available levels
 const LEVELS = [

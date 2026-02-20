@@ -13,8 +13,8 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { AudioManager } from './AudioManager';
-import { InteractiveDoorData, ExitDoorData } from './LevelData';
-import { LoadedAssets } from './AssetLoader';
+import { InteractiveDoorData, ExitDoorData } from '../level/LevelData';
+import { LoadedAssets } from '../assets/AssetLoader';
 
 export interface InteractiveDoor {
     frameNode: TransformNode | null;

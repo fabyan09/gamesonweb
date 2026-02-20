@@ -13,11 +13,11 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import '@babylonjs/loaders/glTF';
-import { ThirdPersonCamera } from './ThirdPersonCamera';
-import { GameSettings } from './GameSettings';
+import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
+import { GameSettings } from '../core/GameSettings';
 import { CharacterController } from './CharacterClass';
-import { AudioManager } from './AudioManager';
-import { GamepadManager, GamepadButton } from './GamepadManager';
+import { AudioManager } from '../systems/AudioManager';
+import { GamepadManager, GamepadButton } from '../core/GamepadManager';
 
 export interface WizardConfig {
     position?: Vector3;
