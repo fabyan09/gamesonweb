@@ -1605,39 +1605,233 @@
         .auth-divider::after { margin-left: 0.8rem; }
 
         /* ========== PROFILE PANEL ========== */
-        .profile-stats {
+        .profile-panel-container {
+            max-width: 1100px !important;
+            width: 94% !important;
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+        }
+
+        .profile-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a3a25, #2a1a0a);
+            border: 2px solid #ffd700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            color: #ffd700;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .profile-header-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .profile-header-name {
+            color: #ffd700;
+            font-size: 1.3rem;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+        }
+
+        .profile-header-email {
+            color: #b8a070;
+            font-size: 0.85rem;
+            margin-top: 0.15rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .profile-header-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .profile-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .profile-kpi-card {
+            background: rgba(42, 26, 10, 0.6);
+            border: 1px solid rgba(255, 215, 0, 0.12);
+            border-radius: 10px;
+            padding: 0.9rem 0.6rem;
+            text-align: center;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .profile-kpi-card:hover {
+            border-color: rgba(255, 215, 0, 0.35);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.08);
+        }
+
+        .profile-kpi-icon {
+            font-size: 1.4rem;
+            margin-bottom: 0.3rem;
+            color: #ffd700;
+        }
+
+        .profile-kpi-value {
+            color: #ffd700;
+            font-size: 1.5rem;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+
+        .profile-kpi-label {
+            color: #b8a070;
+            font-size: 0.75rem;
+            margin-top: 0.2rem;
+            letter-spacing: 0.05em;
+        }
+
+        .profile-charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .profile-chart-card {
+            background: rgba(42, 26, 10, 0.5);
+            border: 1px solid rgba(255, 215, 0, 0.1);
+            border-radius: 10px;
+            padding: 1.2rem;
+        }
+
+        .profile-chart-title {
+            color: #ffd700;
+            font-size: 0.95rem;
+            font-weight: bold;
+            letter-spacing: 0.08em;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        /* Radar chart */
+        .profile-radar-wrap {
+            display: flex;
+            justify-content: center;
+        }
+
+        .profile-radar-wrap svg {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* Radial chart */
+        .profile-radial-wrap {
             display: flex;
             flex-direction: column;
-            gap: 0.6rem;
-        }
-
-        .profile-stat-row {
-            display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid rgba(74, 58, 37, 0.4);
+            gap: 1rem;
         }
 
-        .profile-stat-label {
-            color: #b8a070;
-            font-size: 0.9rem;
+        .profile-radial-wrap svg {
+            width: 100%;
+            max-width: 260px;
         }
 
-        .profile-stat-value {
+        .profile-donut-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem 1rem;
+            justify-content: center;
+        }
+
+        .profile-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.78rem;
+            color: #d4c4a0;
+        }
+
+        .profile-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* Bar charts */
+        .profile-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.7rem;
+        }
+
+        .profile-bar-label {
+            color: #d4c4a0;
+            font-size: 0.85rem;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .profile-bar-track {
+            flex: 1;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .profile-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .profile-bar-value {
             color: #ffd700;
-            font-size: 1rem;
+            font-size: 0.85rem;
             font-weight: bold;
+            min-width: 32px;
         }
 
-        .profile-section-title {
-            color: #ffd700;
-            font-size: 1.1rem;
-            margin-top: 1.5rem;
-            margin-bottom: 0.8rem;
-            padding-bottom: 0.4rem;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
-            letter-spacing: 0.1em;
+        .profile-panel-buttons {
+            display: flex;
+            gap: 0.8rem;
+            margin-top: 1.2rem;
+            justify-content: center;
+        }
+
+        @media (max-width: 900px) {
+            .profile-charts-row {
+                grid-template-columns: 1fr;
+            }
+            .profile-kpi-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 550px) {
+            .profile-kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .profile-bar-label {
+                min-width: 60px;
+                font-size: 0.78rem;
+            }
         }
 
         /* ========== LEADERBOARD PANEL ========== */
@@ -2199,115 +2393,79 @@
 
     <!-- Profile Panel -->
     <div id="profile-panel">
-        <div class="panel-container" style="max-width:450px;">
+        <div class="panel-container profile-panel-container">
             <h2 class="panel-title">Mon Profil</h2>
             <div id="profile-content">
-                <div class="profile-stats">
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Nom</span>
-                        <span class="profile-stat-value" id="profile-name">-</span>
+                <!-- Header -->
+                <div class="profile-header">
+                    <div class="profile-avatar" id="profile-avatar">?</div>
+                    <div class="profile-header-info">
+                        <div class="profile-header-name" id="profile-name">-</div>
+                        <div class="profile-header-email" id="profile-email">-</div>
                     </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Email</span>
-                        <span class="profile-stat-value" id="profile-email">-</span>
-                    </div>
-                </div>
-
-                <h3 class="profile-section-title">Combat</h3>
-                <div class="profile-stats">
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Éliminations totales</span>
-                        <span class="profile-stat-value" id="profile-kills">0</span>
-                    </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Morts</span>
-                        <span class="profile-stat-value" id="profile-deaths">0</span>
-                    </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Dégâts infligés</span>
-                        <span class="profile-stat-value" id="profile-damage-dealt">0</span>
-                    </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Dégâts subis</span>
-                        <span class="profile-stat-value" id="profile-damage-taken">0</span>
+                    <div class="profile-header-actions">
+                        <button class="panel-back-btn" id="profile-back">Retour</button>
+                        <button class="profile-logout-btn" id="btn-profile-logout">Deconnexion</button>
                     </div>
                 </div>
 
-                <h3 class="profile-section-title">Progression</h3>
-                <div class="profile-stats">
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Niveaux complétés</span>
-                        <span class="profile-stat-value" id="profile-levels">0</span>
+                <!-- KPI Grid -->
+                <div class="profile-kpi-grid">
+                    <div class="profile-kpi-card">
+                        <div class="profile-kpi-icon">&#9876;</div>
+                        <div class="profile-kpi-value" id="profile-kills">0</div>
+                        <div class="profile-kpi-label">Kills</div>
                     </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Potions utilisées</span>
-                        <span class="profile-stat-value" id="profile-potions">0</span>
+                    <div class="profile-kpi-card">
+                        <div class="profile-kpi-icon">&#9760;</div>
+                        <div class="profile-kpi-value" id="profile-deaths">0</div>
+                        <div class="profile-kpi-label">Morts</div>
                     </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Flèches tirées</span>
-                        <span class="profile-stat-value" id="profile-arrows">0</span>
+                    <div class="profile-kpi-card">
+                        <div class="profile-kpi-icon">&#9813;</div>
+                        <div class="profile-kpi-value" id="profile-levels">0</div>
+                        <div class="profile-kpi-label">Niveaux</div>
                     </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Sorts lancés</span>
-                        <span class="profile-stat-value" id="profile-spells">0</span>
+                    <div class="profile-kpi-card">
+                        <div class="profile-kpi-icon">&#x271D;</div>
+                        <div class="profile-kpi-value" id="profile-chests">0</div>
+                        <div class="profile-kpi-label">Coffres</div>
                     </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Coffres ouverts</span>
-                        <span class="profile-stat-value" id="profile-chests">0</span>
-                    </div>
-                </div>
-
-                <h3 class="profile-section-title">Éliminations par type</h3>
-                <div class="profile-stats">
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Vampires</span>
-                        <span class="profile-stat-value" id="profile-kill-vampire">0</span>
-                    </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Parasites</span>
-                        <span class="profile-stat-value" id="profile-kill-parasite">0</span>
-                    </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Mutants</span>
-                        <span class="profile-stat-value" id="profile-kill-mutant">0</span>
-                    </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Squelettes</span>
-                        <span class="profile-stat-value" id="profile-kill-skeletonzombie">0</span>
-                    </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Warroks</span>
-                        <span class="profile-stat-value" id="profile-kill-warrok">0</span>
+                    <div class="profile-kpi-card">
+                        <div class="profile-kpi-icon">&#9202;</div>
+                        <div class="profile-kpi-value" id="profile-playtime">0h</div>
+                        <div class="profile-kpi-label">Temps</div>
                     </div>
                 </div>
 
-                <h3 class="profile-section-title">Classes jouées</h3>
-                <div class="profile-stats">
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Chevalier</span>
-                        <span class="profile-stat-value" id="profile-class-knight">0</span>
+                <!-- Charts Row 1: Radar + Radial -->
+                <div class="profile-charts-row">
+                    <div class="profile-chart-card">
+                        <div class="profile-chart-title">Combat Overview</div>
+                        <div class="profile-radar-wrap">
+                            <svg id="radar-chart" viewBox="0 0 300 300"></svg>
+                        </div>
                     </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Archer</span>
-                        <span class="profile-stat-value" id="profile-class-archer">0</span>
-                    </div>
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Sorcier</span>
-                        <span class="profile-stat-value" id="profile-class-wizard">0</span>
+                    <div class="profile-chart-card">
+                        <div class="profile-chart-title">Eliminations par type</div>
+                        <div class="profile-radial-wrap">
+                            <svg id="radial-chart" viewBox="0 0 260 260"></svg>
+                            <div class="profile-donut-legend" id="radial-legend"></div>
+                        </div>
                     </div>
                 </div>
 
-                <h3 class="profile-section-title">Temps de jeu</h3>
-                <div class="profile-stats">
-                    <div class="profile-stat-row">
-                        <span class="profile-stat-label">Temps total</span>
-                        <span class="profile-stat-value" id="profile-playtime">0h 0m</span>
+                <!-- Charts Row 2: Classes + Progression -->
+                <div class="profile-charts-row">
+                    <div class="profile-chart-card">
+                        <div class="profile-chart-title">Classes jouees</div>
+                        <div id="class-bars"></div>
+                    </div>
+                    <div class="profile-chart-card">
+                        <div class="profile-chart-title">Progression</div>
+                        <div id="progression-bars"></div>
                     </div>
                 </div>
-            </div>
-            <div class="profile-panel-buttons">
-                <button class="panel-back-btn" id="profile-back">Retour</button>
-                <button class="profile-logout-btn" id="btn-profile-logout">Déconnexion</button>
             </div>
         </div>
     </div>

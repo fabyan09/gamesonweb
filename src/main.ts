@@ -827,6 +827,270 @@ document.getElementById('btn-google-signup')?.addEventListener('click', async ()
     }
 });
 
+// ─── Profile chart helpers ───
+
+function renderRadarChart(svg: SVGElement, data: { label: string; value: number }[]) {
+    const NS = 'http://www.w3.org/2000/svg';
+    svg.innerHTML = '';
+    const cx = 150, cy = 150, R = 100;
+    const n = data.length;
+    const maxVal = Math.max(...data.map(d => d.value), 1);
+
+    // Glow filter
+    const defs = document.createElementNS(NS, 'defs');
+    const filter = document.createElementNS(NS, 'filter');
+    filter.setAttribute('id', 'radar-glow');
+    filter.setAttribute('x', '-50%');
+    filter.setAttribute('y', '-50%');
+    filter.setAttribute('width', '200%');
+    filter.setAttribute('height', '200%');
+    const blur = document.createElementNS(NS, 'feGaussianBlur');
+    blur.setAttribute('stdDeviation', '6');
+    blur.setAttribute('result', 'blur');
+    filter.appendChild(blur);
+    const comp = document.createElementNS(NS, 'feComposite');
+    comp.setAttribute('in', 'SourceGraphic');
+    comp.setAttribute('in2', 'blur');
+    comp.setAttribute('operator', 'over');
+    filter.appendChild(comp);
+    defs.appendChild(filter);
+    svg.appendChild(defs);
+
+    // Grid levels (dashed)
+    for (const frac of [0.33, 0.66, 1]) {
+        const r = R * frac;
+        const pts = Array.from({ length: n }, (_, i) => {
+            const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+            return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
+        }).join(' ');
+        const poly = document.createElementNS(NS, 'polygon');
+        poly.setAttribute('points', pts);
+        poly.setAttribute('fill', 'none');
+        poly.setAttribute('stroke', 'rgba(255,215,0,0.12)');
+        poly.setAttribute('stroke-width', '1');
+        poly.setAttribute('stroke-dasharray', '3 3');
+        svg.appendChild(poly);
+    }
+
+    // Axis lines (dashed)
+    for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+        const line = document.createElementNS(NS, 'line');
+        line.setAttribute('x1', String(cx));
+        line.setAttribute('y1', String(cy));
+        line.setAttribute('x2', String(cx + R * Math.cos(angle)));
+        line.setAttribute('y2', String(cy + R * Math.sin(angle)));
+        line.setAttribute('stroke', 'rgba(255,215,0,0.08)');
+        line.setAttribute('stroke-width', '1');
+        line.setAttribute('stroke-dasharray', '3 3');
+        svg.appendChild(line);
+    }
+
+    // Data polygon — stroke only with glow
+    const dataPts = data.map((d, i) => {
+        const ratio = Math.max(d.value / maxVal, 0.05);
+        const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+        return `${cx + R * ratio * Math.cos(angle)},${cy + R * ratio * Math.sin(angle)}`;
+    }).join(' ');
+    const dataPoly = document.createElementNS(NS, 'polygon');
+    dataPoly.setAttribute('points', dataPts);
+    dataPoly.setAttribute('fill', 'none');
+    dataPoly.setAttribute('stroke', '#ffd700');
+    dataPoly.setAttribute('stroke-width', '2.5');
+    dataPoly.setAttribute('stroke-linejoin', 'round');
+    dataPoly.setAttribute('filter', 'url(#radar-glow)');
+    svg.appendChild(dataPoly);
+
+    // Data points with glow
+    data.forEach((d, i) => {
+        const ratio = Math.max(d.value / maxVal, 0.05);
+        const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+        const px = cx + R * ratio * Math.cos(angle);
+        const py = cy + R * ratio * Math.sin(angle);
+        const circle = document.createElementNS(NS, 'circle');
+        circle.setAttribute('cx', String(px));
+        circle.setAttribute('cy', String(py));
+        circle.setAttribute('r', '4');
+        circle.setAttribute('fill', '#ffd700');
+        circle.setAttribute('filter', 'url(#radar-glow)');
+        svg.appendChild(circle);
+    });
+
+    // Labels
+    data.forEach((d, i) => {
+        const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+        const lx = cx + (R + 24) * Math.cos(angle);
+        const ly = cy + (R + 24) * Math.sin(angle);
+        const text = document.createElementNS(NS, 'text');
+        text.setAttribute('x', String(lx));
+        text.setAttribute('y', String(ly));
+        text.setAttribute('fill', '#d4c4a0');
+        text.setAttribute('font-size', '10');
+        text.setAttribute('font-family', 'inherit');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'middle');
+        text.textContent = `${d.label} (${d.value})`;
+        svg.appendChild(text);
+    });
+}
+
+function renderRadialChart(
+    svg: SVGElement,
+    legendEl: HTMLElement,
+    items: { label: string; value: number; color: string }[]
+) {
+    const NS = 'http://www.w3.org/2000/svg';
+    svg.innerHTML = '';
+    const cx = 130, cy = 130;
+    const strokeW = 14;
+    const gap = 6;
+    const total = items.reduce((s, k) => s + k.value, 0);
+
+    // Defs: one glow filter per item
+    const defs = document.createElementNS(NS, 'defs');
+    items.forEach((item, i) => {
+        const filter = document.createElementNS(NS, 'filter');
+        filter.setAttribute('id', `radial-glow-${i}`);
+        filter.setAttribute('x', '-50%');
+        filter.setAttribute('y', '-50%');
+        filter.setAttribute('width', '200%');
+        filter.setAttribute('height', '200%');
+        const blur = document.createElementNS(NS, 'feGaussianBlur');
+        blur.setAttribute('stdDeviation', '4');
+        blur.setAttribute('result', 'blur');
+        filter.appendChild(blur);
+        const flood = document.createElementNS(NS, 'feFlood');
+        flood.setAttribute('flood-color', item.color);
+        flood.setAttribute('flood-opacity', '0.6');
+        flood.setAttribute('result', 'color');
+        filter.appendChild(flood);
+        const compIn = document.createElementNS(NS, 'feComposite');
+        compIn.setAttribute('in', 'color');
+        compIn.setAttribute('in2', 'blur');
+        compIn.setAttribute('operator', 'in');
+        compIn.setAttribute('result', 'glow');
+        filter.appendChild(compIn);
+        const merge = document.createElementNS(NS, 'feMerge');
+        const m1 = document.createElementNS(NS, 'feMergeNode');
+        m1.setAttribute('in', 'glow');
+        merge.appendChild(m1);
+        const m2 = document.createElementNS(NS, 'feMergeNode');
+        m2.setAttribute('in', 'SourceGraphic');
+        merge.appendChild(m2);
+        filter.appendChild(merge);
+        defs.appendChild(filter);
+    });
+    svg.appendChild(defs);
+
+    const maxVal = Math.max(...items.map(i => i.value), 1);
+
+    // Draw arcs from outermost to innermost
+    items.forEach((item, i) => {
+        const r = cx - 20 - i * (strokeW + gap);
+        if (r <= 0) return;
+        const circumference = 2 * Math.PI * r;
+        const ratio = item.value / maxVal;
+        const arcLen = Math.max(ratio * circumference, circumference * 0.02);
+
+        // Track (dim background)
+        const track = document.createElementNS(NS, 'circle');
+        track.setAttribute('cx', String(cx));
+        track.setAttribute('cy', String(cy));
+        track.setAttribute('r', String(r));
+        track.setAttribute('fill', 'none');
+        track.setAttribute('stroke', 'rgba(255,255,255,0.04)');
+        track.setAttribute('stroke-width', String(strokeW));
+        svg.appendChild(track);
+
+        // Arc
+        const arc = document.createElementNS(NS, 'circle');
+        arc.setAttribute('cx', String(cx));
+        arc.setAttribute('cy', String(cy));
+        arc.setAttribute('r', String(r));
+        arc.setAttribute('fill', 'none');
+        arc.setAttribute('stroke', item.color);
+        arc.setAttribute('stroke-width', String(strokeW));
+        arc.setAttribute('stroke-linecap', 'round');
+        arc.setAttribute('stroke-dasharray', `${arcLen} ${circumference}`);
+        arc.setAttribute('stroke-dashoffset', String(circumference * 0.25));
+        arc.setAttribute('filter', `url(#radial-glow-${i})`);
+        arc.setAttribute('opacity', '0.9');
+        svg.appendChild(arc);
+    });
+
+    // Center total
+    const totalText = document.createElementNS(NS, 'text');
+    totalText.setAttribute('x', String(cx));
+    totalText.setAttribute('y', String(cy - 6));
+    totalText.setAttribute('fill', '#ffd700');
+    totalText.setAttribute('font-size', '22');
+    totalText.setAttribute('font-weight', 'bold');
+    totalText.setAttribute('text-anchor', 'middle');
+    totalText.setAttribute('dominant-baseline', 'middle');
+    totalText.textContent = String(total);
+    svg.appendChild(totalText);
+
+    const labelText = document.createElementNS(NS, 'text');
+    labelText.setAttribute('x', String(cx));
+    labelText.setAttribute('y', String(cy + 14));
+    labelText.setAttribute('fill', '#b8a070');
+    labelText.setAttribute('font-size', '10');
+    labelText.setAttribute('text-anchor', 'middle');
+    labelText.setAttribute('dominant-baseline', 'middle');
+    labelText.textContent = 'total';
+    svg.appendChild(labelText);
+
+    // Legend
+    if (total === 0) {
+        legendEl.innerHTML = '<span class="profile-legend-item" style="color:#b8a070;">Aucune donnee</span>';
+        return;
+    }
+    legendEl.innerHTML = items
+        .filter(k => k.value > 0)
+        .map(k => `<span class="profile-legend-item"><span class="profile-legend-dot" style="background:${k.color}"></span>${k.label} ${k.value}</span>`)
+        .join('');
+}
+
+function renderBarChart(containerId: string, items: { label: string; value: number; color: string }[]) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const maxVal = Math.max(...items.map(i => i.value), 1);
+
+    items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'profile-bar-row';
+
+        const label = document.createElement('span');
+        label.className = 'profile-bar-label';
+        label.textContent = item.label;
+
+        const track = document.createElement('div');
+        track.className = 'profile-bar-track';
+
+        const fill = document.createElement('div');
+        fill.className = 'profile-bar-fill';
+        fill.style.background = `linear-gradient(90deg, ${item.color}, ${item.color}cc)`;
+        track.appendChild(fill);
+
+        const val = document.createElement('span');
+        val.className = 'profile-bar-value';
+        val.textContent = String(item.value);
+
+        row.appendChild(label);
+        row.appendChild(track);
+        row.appendChild(val);
+        container.appendChild(row);
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                fill.style.width = `${(item.value / maxVal) * 100}%`;
+            });
+        });
+    });
+}
+
 // Profile panel (icon-based in top-right corner)
 document.getElementById('btn-profile')?.addEventListener('click', async () => {
     const panel = document.getElementById('profile-panel');
@@ -840,34 +1104,72 @@ document.getElementById('btn-profile')?.addEventListener('click', async () => {
         if (el) el.textContent = String(val ?? '0');
     };
 
-    set('profile-name', stats['displayName']);
+    // Header
+    const displayName = String(stats['displayName'] || '-');
+    set('profile-name', displayName);
     set('profile-email', stats['email']);
-    set('profile-kills', stats['totalKills']);
-    set('profile-deaths', stats['totalDeaths']);
-    set('profile-damage-dealt', stats['totalDamageDealt']);
-    set('profile-damage-taken', stats['totalDamageTaken']);
-    set('profile-levels', stats['totalLevelsCompleted']);
-    set('profile-potions', stats['totalPotionsUsed']);
-    set('profile-arrows', stats['totalArrowsShot']);
-    set('profile-spells', stats['totalSpellsCast']);
-    set('profile-chests', stats['totalChestsOpened']);
+    const avatarEl = document.getElementById('profile-avatar');
+    if (avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
 
-    const killsByType = (stats['killsByType'] || {}) as Record<string, number>;
-    set('profile-kill-vampire', killsByType['vampire'] || 0);
-    set('profile-kill-parasite', killsByType['parasite'] || 0);
-    set('profile-kill-mutant', killsByType['mutant'] || 0);
-    set('profile-kill-skeletonzombie', killsByType['skeletonzombie'] || 0);
-    set('profile-kill-warrok', killsByType['warrok'] || 0);
-
-    const classUsage = (stats['classUsage'] || {}) as Record<string, number>;
-    set('profile-class-knight', classUsage['knight'] || 0);
-    set('profile-class-archer', classUsage['archer'] || 0);
-    set('profile-class-wizard', classUsage['wizard'] || 0);
-
+    // KPI cards
+    const totalKills = (stats['totalKills'] as number) || 0;
+    const totalDeaths = (stats['totalDeaths'] as number) || 0;
+    const totalLevels = (stats['totalLevelsCompleted'] as number) || 0;
+    const totalChests = (stats['totalChestsOpened'] as number) || 0;
     const totalMs = (stats['totalPlaytimeMs'] as number) || 0;
     const hours = Math.floor(totalMs / 3600000);
     const mins = Math.floor((totalMs % 3600000) / 60000);
-    set('profile-playtime', `${hours}h ${mins}m`);
+
+    set('profile-kills', totalKills);
+    set('profile-deaths', totalDeaths);
+    set('profile-levels', totalLevels);
+    set('profile-chests', totalChests);
+    set('profile-playtime', hours > 0 ? `${hours}h${mins > 0 ? mins + 'm' : ''}` : `${mins}m`);
+
+    // Radar chart
+    const dmgDealt = (stats['totalDamageDealt'] as number) || 0;
+    const dmgTaken = (stats['totalDamageTaken'] as number) || 0;
+    const radarSvg = document.getElementById('radar-chart');
+    if (radarSvg) {
+        renderRadarChart(radarSvg as unknown as SVGElement, [
+            { label: 'Kills', value: totalKills },
+            { label: 'Morts', value: totalDeaths },
+            { label: 'Deg. inflig.', value: dmgDealt },
+            { label: 'Deg. subis', value: dmgTaken },
+        ]);
+    }
+
+    // Radial chart
+    const killsByType = (stats['killsByType'] || {}) as Record<string, number>;
+    const radialSvg = document.getElementById('radial-chart');
+    const legendEl = document.getElementById('radial-legend');
+    if (radialSvg && legendEl) {
+        renderRadialChart(radialSvg as unknown as SVGElement, legendEl, [
+            { label: 'Vampire', value: killsByType['vampire'] || 0, color: '#e74c3c' },
+            { label: 'Parasite', value: killsByType['parasite'] || 0, color: '#9b59b6' },
+            { label: 'Mutant', value: killsByType['mutant'] || 0, color: '#1abc9c' },
+            { label: 'Zombie squelette', value: killsByType['skeletonzombie'] || 0, color: '#95a5a6' },
+            { label: 'Warrok', value: killsByType['warrok'] || 0, color: '#e67e22' },
+        ]);
+    }
+
+    // Class bars
+    const classUsage = (stats['classUsage'] || {}) as Record<string, number>;
+    renderBarChart('class-bars', [
+        { label: 'Chevalier', value: classUsage['knight'] || 0, color: '#3498db' },
+        { label: 'Archer', value: classUsage['archer'] || 0, color: '#2ecc71' },
+        { label: 'Sorcier', value: classUsage['wizard'] || 0, color: '#9b59b6' },
+    ]);
+
+    // Progression bars
+    const potions = (stats['totalPotionsUsed'] as number) || 0;
+    const arrows = (stats['totalArrowsShot'] as number) || 0;
+    const spells = (stats['totalSpellsCast'] as number) || 0;
+    renderBarChart('progression-bars', [
+        { label: 'Potions', value: potions, color: '#e74c3c' },
+        { label: 'Fleches', value: arrows, color: '#2ecc71' },
+        { label: 'Sorts', value: spells, color: '#9b59b6' },
+    ]);
 });
 
 document.getElementById('profile-back')?.addEventListener('click', () => {
