@@ -35,6 +35,7 @@ import { PixelFilter } from '../effects/PixelFilter';
 import { HealingEffect } from '../effects/HealingEffect';
 import { HealthVignette } from '../effects/HealthVignette';
 import { StatsService } from '../services/StatsService';
+import { DungeonCompanion } from '../companion/DungeonCompanion';
 
 // List of available levels
 const LEVELS = [
@@ -80,6 +81,7 @@ export class DungeonScene {
     private healingEffect: HealingEffect | null = null;
     private healthVignette: HealthVignette | null = null;
     private statsService: StatsService;
+    private companion: DungeonCompanion | null = null;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
         this.canvas = canvas;
@@ -398,6 +400,28 @@ export class DungeonScene {
         this.healthVignette.applyToCamera(this.camera.getCamera());
         this.healthVignette.updateHealth(this.playerHealth);
 
+        // Initialize companion (Spirit of the Dungeon)
+        this.companion = new DungeonCompanion(this.scene);
+        if (this.player.rootMesh) {
+            this.companion.setPlayerTarget(this.player.rootMesh);
+        }
+        this.companion.updateContext({
+            playerHealth: this.playerHealth,
+            maxHealth: 100,
+            enemiesAlive: this.enemies.filter(e => !e.isDead).length,
+            enemiesTotal: this.enemies.length,
+            potionCount: this.playerInventory?.getPotionCount() ?? 0,
+            arrowCount: this.playerInventory?.getArrowCount() ?? 0,
+            isArcher: this.characterClass === 'archer',
+            isWizard: this.characterClass === 'wizard',
+            characterClass: this.characterClass,
+            levelIndex: this.currentLevelIndex,
+            isPaused: false,
+            isPlayerDead: false,
+            isLevelComplete: false,
+        });
+        this.companion.trigger('level_start');
+
         // Setup player attack callback
         this.player.onAttackHit((position, range) => {
             this.handlePlayerAttack(position, range);
@@ -429,8 +453,17 @@ export class DungeonScene {
                     `+Potion ${tierNames[potionType]} (+${healAmounts[potionType]} HP)`,
                     colors[potionType]
                 );
+                this.companion?.trigger('item_pickup_potion');
             } else if (type === 'arrows' && arrowCount) {
                 this.showPickupNotification(`+${arrowCount} Flèches`, '#ffd700');
+                this.companion?.trigger('item_pickup_arrows');
+            }
+            // Check inventory triggers after pickup
+            if (this.playerInventory) {
+                this.companion?.checkInventoryTriggers(
+                    this.playerInventory.getPotionCount(),
+                    this.playerInventory.getArrowCount()
+                );
             }
         });
 
@@ -465,6 +498,7 @@ export class DungeonScene {
                 this.checkTrapDamage();
                 this.chestSystem?.update();
                 this.doorSystem?.update();
+                this.updateCompanionChecks();
             }
         });
 
@@ -490,6 +524,67 @@ export class DungeonScene {
         if (invUI) invUI.style.visibility = 'visible';
     }
 
+    // Companion proximity checks (called each frame from render loop)
+    private lastCompanionCheck: number = 0;
+    private companionCheckInterval: number = 2000; // Check every 2s
+    private lastEnemySpottedCount: number = 0;
+
+    private updateCompanionChecks(): void {
+        if (!this.companion || !this.player?.rootMesh || this.isPlayerDead || this.isLevelComplete) return;
+
+        const now = Date.now();
+        if (now - this.lastCompanionCheck < this.companionCheckInterval) return;
+        this.lastCompanionCheck = now;
+
+        const playerPos = this.player.rootMesh.position;
+
+        // Check for nearby enemies (enemy_spotted, all_enemies_near)
+        let nearbyCount = 0;
+        let chasingCount = 0;
+        for (const enemy of this.enemies) {
+            if (enemy.isDead) continue;
+            const dist = Vector3.Distance(playerPos, enemy.position);
+            if (dist < 12) {
+                nearbyCount++;
+                if (enemy.currentState === 'chasing' || enemy.currentState === 'attacking') {
+                    chasingCount++;
+                }
+            }
+        }
+
+        // Trigger enemy_spotted when new enemies enter range
+        if (nearbyCount > this.lastEnemySpottedCount && nearbyCount > 0) {
+            // Check for boss
+            const nearbyBoss = this.enemies.find(e =>
+                !e.isDead && e.enemyType === 'warrok' &&
+                Vector3.Distance(playerPos, e.position) < 14
+            );
+            if (nearbyBoss) {
+                this.companion.trigger('boss_spotted');
+            } else if (chasingCount > 0) {
+                this.companion.trigger('enemy_spotted');
+            }
+        }
+        this.lastEnemySpottedCount = nearbyCount;
+
+        // All enemies near (3+ enemies within 8 units)
+        if (chasingCount >= 3) {
+            this.companion.trigger('all_enemies_near');
+        }
+
+        // Update companion context
+        this.companion.updateContext({
+            playerHealth: this.playerHealth,
+            enemiesAlive: this.enemies.filter(e => !e.isDead).length,
+            isPaused: this.isPaused,
+        });
+
+        // Crouch detection
+        if (this.player.crouching) {
+            this.companion.trigger('player_crouch');
+        }
+    }
+
     private checkTrapDamage(): void {
         if (!this.player?.rootMesh || this.isPlayerDead || this.isLevelComplete || this.spikeTraps.length === 0) return;
 
@@ -511,6 +606,8 @@ export class DungeonScene {
                 console.log(`[DungeonScene] Player stepped on spike trap! -${trap.damage} HP (${this.playerHealth} remaining)`);
                 this.updateHealthUI();
                 this.camera?.shake(0.1, 150);
+                this.companion?.trigger('trap_damage');
+                this.companion?.checkHealthTriggers(this.playerHealth);
 
                 // Play pain sound (female voice for archer, male for knight/wizard)
                 if (this.characterClass === 'archer') {
@@ -572,6 +669,17 @@ export class DungeonScene {
             // Handle enemy death
             enemy.onDeath(() => {
                 this.statsService.recordKill(enemy.typeName);
+                // Companion: track kill and trigger appropriate dialogue
+                const isBoss = enemy.enemyType === 'warrok';
+                if (isBoss) {
+                    this.companion?.trigger('boss_killed');
+                } else {
+                    this.companion?.trigger('enemy_killed');
+                }
+                this.companion?.recordKill();
+                this.companion?.updateContext({
+                    enemiesAlive: this.enemies.filter(e => !e.isDead).length
+                });
                 this.checkLevelComplete();
             });
 
@@ -590,6 +698,7 @@ export class DungeonScene {
                     console.log(`[DungeonScene] Player blocked! Reduced ${damage} to ${reducedDamage} damage (${blockReduction * 100}% reduction)`);
                     // Play shield block sound
                     this.audioManager.playShieldBlockSound();
+                    this.companion?.trigger('player_block');
 
                     if (reducedDamage > 0) {
                         this.playerHealth -= reducedDamage;
@@ -597,6 +706,7 @@ export class DungeonScene {
                         this.updateHealthUI();
                         this.camera?.shake(0.08, 120);
                         this.showDamageIndicator(enemy.position);
+                        this.companion?.checkHealthTriggers(this.playerHealth);
 
                         if (this.playerHealth <= 0) {
                             this.handlePlayerDeath();
@@ -611,6 +721,8 @@ export class DungeonScene {
                 this.updateHealthUI();
                 this.camera?.shake(0.15, 200);
                 this.showDamageIndicator(enemy.position);
+                this.companion?.trigger('player_hit');
+                this.companion?.checkHealthTriggers(this.playerHealth);
 
                 // Play pain sound (female voice for archer, male for knight/wizard)
                 if (this.characterClass === 'archer') {
@@ -651,9 +763,12 @@ export class DungeonScene {
     }
 
     private handlePlayerAttack(position: Vector3, range: number): void {
+        this.companion?.notifyPlayerAction();
+
         // For archer, use trajectory-based hit detection with wall collision
         if (this.characterClass === 'archer' && this.player) {
             this.statsService.recordArrowShot();
+            this.companion?.trigger('arrow_shot');
             const archer = this.player as ArcherController;
             const trajectory = archer.getArrowTrajectory();
 
@@ -681,6 +796,7 @@ export class DungeonScene {
 
                     // isRanged = true for arrows - triggers enraged state
                     enemy.takeDamage(25, true);
+                    this.companion?.trigger('enemy_enraged');
                     this.statsService.recordDamageDealt(25);
                     archer.markProjectileHit(); // Stop the arrow projectile
                     console.log(`[DungeonScene] Arrow hit ${enemy.typeName}!`);
@@ -689,6 +805,7 @@ export class DungeonScene {
             }
         } else if (this.characterClass === 'wizard' && this.player) {
             this.statsService.recordSpellCast();
+            this.companion?.trigger('spell_cast');
             // For wizard, use trajectory-based hit detection similar to archer
             const wizard = this.player as WizardController;
             const trajectory = wizard.getMagicTrajectory();
@@ -717,6 +834,7 @@ export class DungeonScene {
 
                     // isRanged = true for magic - triggers enraged state
                     enemy.takeDamage(20, true); // Wizard deals 20 damage
+                    this.companion?.trigger('enemy_enraged');
                     this.statsService.recordDamageDealt(20);
                     wizard.markProjectileHit(); // Stop the magic projectile
                     console.log(`[DungeonScene] Magic hit ${enemy.typeName}!`);
@@ -773,6 +891,7 @@ export class DungeonScene {
             // If there's an exit door, unseal it instead of immediately showing victory
             if (this.doorSystem?.hasExitDoor()) {
                 this.doorSystem.unsealExitDoor();
+                this.companion?.trigger('exit_unsealed');
                 console.log('[DungeonScene] All enemies defeated - exit door unsealed!');
             } else {
                 // No exit door - show victory immediately (original behavior)
@@ -785,6 +904,9 @@ export class DungeonScene {
     private showVictoryMessage(): void {
         console.log('[DungeonScene] Level Complete!');
         this.statsService.flushOnLevelComplete();
+        // Hide companion UI - victory overlay covers it anyway
+        this.companion?.setVisible(false);
+        this.companion?.updateContext({ isLevelComplete: true });
 
         // Play win sound
         this.audioManager.playWinSound();
@@ -1053,6 +1175,9 @@ export class DungeonScene {
 
         console.log('[DungeonScene] Player died!');
         this.statsService.flushOnDeath();
+        // Hide companion UI - death overlay covers it anyway
+        this.companion?.setVisible(false);
+        this.companion?.updateContext({ isPlayerDead: true });
 
         // Play death sound
         this.audioManager.playDeathSound();
@@ -1083,6 +1208,9 @@ export class DungeonScene {
             this.player.dispose();
             this.player = null;
         }
+
+        // Hide companion on death (keep it for the death message display)
+        this.companion?.setVisible(false);
 
         // Release pointer lock so user can click buttons
         document.exitPointerLock();
@@ -1460,6 +1588,7 @@ export class DungeonScene {
         this.isPaused = true;
         this.scene.metadata = this.scene.metadata || {};
         this.scene.metadata.isPaused = true;
+        this.companion?.updateContext({ isPaused: true });
 
         // Store which animations were playing (with their loop state) and pause them
         this.pausedAnimations.clear();
@@ -1485,6 +1614,7 @@ export class DungeonScene {
         if (this.scene.metadata) {
             this.scene.metadata.isPaused = false;
         }
+        this.companion?.updateContext({ isPaused: false });
 
         // Resume only the animations that were playing before pause
         for (const [animGroup, wasLooping] of this.pausedAnimations) {
@@ -2083,6 +2213,15 @@ export class DungeonScene {
             this.statsService.recordPotionUsed();
             // Play healing visual effect
             this.healingEffect?.play();
+            this.companion?.trigger('potion_used');
+            this.companion?.checkHealthTriggers(this.playerHealth);
+            // Check if out of potions after using
+            if (this.playerInventory) {
+                this.companion?.checkInventoryTriggers(
+                    this.playerInventory.getPotionCount(),
+                    this.playerInventory.getArrowCount()
+                );
+            }
             console.log(`[DungeonScene] Used ${potion} potion, healed ${healAmount}, health: ${this.playerHealth}`);
         }
     }
@@ -2121,12 +2260,14 @@ export class DungeonScene {
                     // Delay door opening slightly for animation sync
                     setTimeout(() => {
                         this.doorSystem?.tryOpenDoor();
+                        this.companion?.trigger('door_open');
                     }, 200);
                 }
                 // Try to open chest if nearby (priority over pickup)
                 else if (this.nearbyChest && this.chestSystem) {
                     this.chestSystem.tryOpenChest();
                     this.statsService.recordChestOpened();
+                    this.companion?.trigger('chest_open');
                 } else if (this.chestSystem?.hasNearbyItem()) {
                     // Try to pick up item
                     this.chestSystem.tryPickupItem();
@@ -2347,12 +2488,14 @@ export class DungeonScene {
             }
             setTimeout(() => {
                 this.doorSystem?.tryOpenDoor();
+                this.companion?.trigger('door_open');
             }, 200);
         }
         // Try to open chest if nearby
         else if (this.nearbyChest && this.chestSystem) {
             this.chestSystem.tryOpenChest();
             this.statsService.recordChestOpened();
+            this.companion?.trigger('chest_open');
         } else if (this.chestSystem?.hasNearbyItem()) {
             this.chestSystem.tryPickupItem();
         }
