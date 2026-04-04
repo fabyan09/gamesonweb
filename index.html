@@ -123,8 +123,18 @@
             color: #ffd700;
             letter-spacing: 0.3em;
             text-shadow: 0 0 30px rgba(255, 215, 0, 0.5), 0 0 60px rgba(255, 140, 0, 0.3);
-            margin-bottom: 3rem;
+            margin-bottom: 0.8rem;
             animation: titlePulse 2s ease-in-out infinite;
+        }
+
+        .loading-spirit-text {
+            font-size: 0.9rem;
+            color: #6a9fff;
+            font-style: italic;
+            margin-bottom: 2rem;
+            opacity: 0.6;
+            letter-spacing: 0.05em;
+            text-shadow: 0 0 8px rgba(80, 140, 255, 0.3);
         }
 
         @keyframes titlePulse {
@@ -460,8 +470,24 @@
             font-size: 1.2rem;
             color: #8b7355;
             letter-spacing: 0.3em;
-            margin-bottom: 4rem;
+            margin-bottom: 0.8rem;
             font-style: italic;
+        }
+
+        .menu-spirit-whisper {
+            font-size: 0.85rem;
+            color: #5a8abf;
+            letter-spacing: 0.1em;
+            margin-bottom: 3rem;
+            font-style: italic;
+            opacity: 0;
+            animation: spiritWhisper 4s ease-in-out 1.5s infinite;
+            text-shadow: 0 0 10px rgba(80, 140, 255, 0.3);
+        }
+
+        @keyframes spiritWhisper {
+            0%, 100% { opacity: 0; }
+            20%, 80% { opacity: 0.7; }
         }
 
         @keyframes menuTitleGlow {
@@ -939,6 +965,23 @@
             color: #ff6666;
         }
 
+        .pause-spirit-quote {
+            margin: 0 auto 1.5rem;
+            max-width: 320px;
+            color: #6a9fff;
+            font-size: 0.85rem;
+            font-style: italic;
+            line-height: 1.5;
+            text-align: center;
+            opacity: 0.7;
+            text-shadow: 0 0 8px rgba(80, 140, 255, 0.2);
+        }
+        .pause-spirit-quote::before {
+            content: '"';
+        }
+        .pause-spirit-quote::after {
+            content: '"';
+        }
         .pause-hint {
             margin-top: 2rem;
             color: #706040;
@@ -1949,6 +1992,7 @@
     <div id="pause-menu">
         <div class="pause-container">
             <h1 class="pause-title">PAUSE</h1>
+            <p class="pause-spirit-quote" id="pause-spirit-quote"></p>
             <div class="pause-buttons">
                 <button class="pause-btn resume" id="pause-resume">Reprendre</button>
                 <button class="pause-btn" id="pause-settings">Paramètres</button>
@@ -1978,7 +2022,7 @@
             <div class="welcome-lore">
                 <p>Dans les profondeurs oubliées du royaume, les <span class="lore-highlight">Cryptes de l'Oubli</span> attendent depuis des siècles leur prochain visiteur. Des murmures anciens racontent que nul n'en est jamais revenu...</p>
                 <p>Pourtant, les ténèbres qui s'y terrent menacent désormais de s'étendre au monde des vivants. <span class="lore-highlight">Un héros doit descendre</span> dans l'abîme pour affronter les horreurs qui y demeurent.</p>
-                <p>Serez-vous celui qui brisera la malédiction ?</p>
+                <p>Mais prenez garde : les murs eux-mêmes sont vivants. Une <span class="lore-highlight">conscience ancienne</span> habite chaque pierre, chaque ombre. Le donjon pense, observe, et murmure... Il vous attend.</p>
             </div>
             <button class="welcome-btn" id="btn-enter">Entrer dans les Cryptes</button>
         </div>
@@ -1992,6 +2036,7 @@
         <div class="menu-content">
             <h1 class="menu-title">OBLIVION'S CRYPT</h1>
             <p class="menu-subtitle">Les Cryptes de l'Oubli</p>
+            <p class="menu-spirit-whisper">Le donjon est vivant. Il vous attend.</p>
             <div class="menu-buttons">
                 <button class="menu-btn primary" id="btn-play">Jouer</button>
                 <button class="menu-btn" id="btn-rules">Règles & Histoire</button>
@@ -2163,8 +2208,9 @@
 
             <div class="lore-section">
                 <p>Il y a des siècles, le Roi Maudit Aldric scella son âme dans les profondeurs des Cryptes de l'Oubli, emportant avec lui des légions de créatures corrompues par sa magie noire.</p>
-                <p>Nul n'en est jamais revenu vivant... jusqu'à aujourd'hui.</p>
-                <p>Vous êtes le dernier Paladin de l'Ordre de l'Aube Dorée. Armé de votre épée bénie et de votre bouclier ancestral, vous devez purifier ces terres maudites et mettre fin au règne des ténèbres.</p>
+                <p>Mais la magie noire d'Aldric eut un effet imprévu. Au fil des siècles, les cryptes elles-mêmes ont développé une <strong style="color: #6af;">conscience propre</strong> — une intelligence née de la souffrance des âmes piégées entre les pierres. Cette entité, que l'on appelle <strong style="color: #6af;">l'Esprit du Donjon</strong>, pense, observe, et se souvient de chaque aventurier qui a foulé ses couloirs.</p>
+                <p>L'Esprit n'est ni votre allié, ni votre ennemi. Il est fasciné par les mortels qui osent le traverser. Il vous murmurera des avertissements, des moqueries, parfois même des conseils... mais ne vous y trompez pas : le donjon joue son propre jeu.</p>
+                <p>Vous êtes le dernier Paladin de l'Ordre de l'Aube Dorée. Vous devez purifier ces terres maudites et mettre fin au règne des ténèbres — sous le regard attentif de l'Esprit qui habite chaque mur.</p>
             </div>
 
             <div class="rules-section">
@@ -2334,6 +2380,7 @@
         <div id="loading">
             <div class="loading-content">
                 <h1 class="loading-title">OBLIVION'S CRYPT</h1>
+                <p class="loading-spirit-text">L'Esprit du Donjon prépare votre accueil...</p>
                 <div class="loading-spinner"></div>
                 <p class="loading-text">Chargement<span class="loading-dots"></span></p>
                 <p class="loading-tip">Utilisez le bouclier pour bloquer les attaques ennemies</p>

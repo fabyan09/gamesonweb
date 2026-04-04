@@ -45,6 +45,17 @@ const LOADING_TIPS: string[] = [
     'Les cryptes changent de forme pour piéger les intrus...',
     'Chaque coffre pourrait contenir la clé de votre survie',
     'Les ténèbres murmurent votre nom... ne les écoutez pas',
+    // L'Esprit du Donjon — lore
+    'Les murs ont des yeux. Et une conscience. L\'Esprit du Donjon observe...',
+    'La magie d\'Aldric a donné naissance à une intelligence dans la pierre',
+    'L\'Esprit du Donjon se souvient de chaque aventurier tombé entre ses murs',
+    'Ni allié, ni ennemi — l\'Esprit du Donjon joue son propre jeu',
+    'La conscience du donjon est née de la souffrance de mille âmes piégées',
+    'L\'Esprit murmure aux murs. Les murs murmurent aux créatures.',
+    'Le donjon pense. Le donjon observe. Le donjon attend.',
+    'L\'Esprit vous parlera. Ses conseils sont précieux... et ses moqueries, fréquentes.',
+    'Certains disent que l\'Esprit du Donjon était autrefois humain. D\'autres disent qu\'il est bien pire.',
+    'La conscience des cryptes grandit à chaque âme qu\'elle absorbe...',
 ];
 
 let tipRotationInterval: ReturnType<typeof setInterval> | null = null;

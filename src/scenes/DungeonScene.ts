@@ -1605,6 +1605,29 @@ export class DungeonScene {
         // Play loading sound (looping) during pause
         this.audioManager.playLoadingSound();
 
+        // Set random Spirit of the Dungeon quote on pause
+        const spiritQuotes = [
+            "Le temps s'arrête pour toi, mais pas pour mes créatures...",
+            "Tu reprends ton souffle ? Profite. Mes murs ont de la patience.",
+            "Même les héros ont besoin de repos. Les lâches aussi.",
+            "Je pourrais réarranger les couloirs pendant ta pause... mais ce serait trop facile.",
+            "Tes battements de cœur résonnent dans mes pierres.",
+            "Tu hésites. C'est humain. C'est fragile.",
+            "Le silence du donjon est un mensonge. J'écoute toujours.",
+            "Pendant que tu te reposes, mes créatures s'organisent.",
+            "Chaque seconde de pause est un cadeau que je t'offre.",
+            "Les murs se souviennent de ceux qui n'ont jamais repris la marche.",
+            "Je suis né de la souffrance d'un millier d'âmes. Et toi, tu fais une pause.",
+            "La peur et la prudence se ressemblent. Laquelle te guide ?",
+            "Reviens vite. L'ennui me rend... créatif.",
+            "Tu crois que le danger s'arrête quand tu fermes les yeux ?",
+            "Les ombres dansent quand personne ne regarde.",
+        ];
+        const quoteEl = document.getElementById('pause-spirit-quote');
+        if (quoteEl) {
+            quoteEl.textContent = spiritQuotes[Math.floor(Math.random() * spiritQuotes.length)];
+        }
+
         document.getElementById('pause-menu')?.classList.add('visible');
         document.exitPointerLock();
     }
