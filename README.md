@@ -1,6 +1,6 @@
 # 🏰 Oblivion's Crypt
 
-> **Games On Web 2026** - Un jeu d'action-aventure 3D immersif développé avec Babylon.js
+> **Games On Web 2026 — Thème : IA** - Un jeu d'action-aventure 3D immersif développé avec Babylon.js
 
 [![Babylon.js](https://img.shields.io/badge/Babylon.js-8.41.2-red?style=for-the-badge&logo=babylon.js)](https://www.babylonjs.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -12,11 +12,14 @@
 
 Plongez dans les profondeurs des Cryptes de l'Oubli, peuplées de créatures terrifiantes. Choisissez votre classe de personnage, explorez des niveaux générés procéduralement, combattez des ennemis redoutables et découvrez les secrets cachés dans les tombeaux ancestraux.
 
+Mais vous n'êtes pas seul. **L'Esprit du Donjon** — une conscience ancienne née de la magie noire du Roi Maudit Aldric — habite chaque pierre, chaque ombre. Cette intelligence artificielle observe vos moindres mouvements, commente vos actions en temps réel, vous avertit des dangers... ou se moque de vos échecs. Ni allié, ni ennemi : le donjon joue son propre jeu.
+
 ### ✨ Caractéristiques Principales
 
 | Fonctionnalité | Description |
 |----------------|-------------|
-| 🗡️ **2 Classes Jouables** | Chevalier (combat rapproché) et Archer (combat à distance) |
+| 🗡️ **3 Classes Jouables** | Chevalier (mêlée), Archer (distance) et Sorcier (magie) |
+| 🧠 **Compagnon IA** | L'Esprit du Donjon — IA consciente qui observe et parle au joueur en temps réel (600+ dialogues, 30 types de triggers) |
 | 👹 **5 Types d'Ennemis** | Vampire, Parasite, Mutant, Skeleton Zombie, Warrok (Boss) |
 | 🏗️ **Génération Procédurale** | Cryptes uniques à chaque partie (algorithme BSP) |
 | 🎒 **Système d'Inventaire** | Potions de soin et flèches à collecter |
@@ -144,6 +147,47 @@ Les ennemis suivent une machine à états :
 
 ---
 
+## 🧠 L'Esprit du Donjon — Compagnon IA
+
+Le coeur du thème **IA** du concours Games On Web 2026. Le donjon lui-même est une entité consciente qui interagit avec le joueur.
+
+### Concept Narratif
+
+La magie noire du Roi Maudit Aldric a eu un effet imprévu : au fil des siècles, les cryptes ont développé une **conscience propre** — une intelligence née de la souffrance des âmes piégées entre les pierres. L'Esprit du Donjon pense, observe, se souvient de chaque aventurier, et parle au joueur tout au long de la partie.
+
+**Personnalité :** Ambigu, sarcastique, fasciné par le joueur. Parfois aide, parfois se moque. Ni allié, ni ennemi.
+
+### Système Technique
+
+| Composant | Description |
+|-----------|-------------|
+| **CompanionDialogues** | 600+ lignes de dialogue, 20+ variations par trigger, 30 types d'events |
+| **CompanionAI** | Cerveau IA avec cooldowns, queue de messages prioritaire, détection d'inactivité, tracking de multi-kills, surveillance HP/inventaire |
+| **CompanionEntity** | Orbe spectrale 3D (particules additives), orbite autour du joueur avec lerp et bobbing |
+| **CompanionUI** | Overlay 2D fixe en haut d'écran (style sous-titre), effet de typing avec curseur |
+
+### Triggers de Dialogue
+
+L'Esprit réagit en temps réel a 30 types d'events de jeu :
+
+- **Combat :** ennemi repéré, combat lancé, ennemi tué, boss repéré/tué, enrage, multi-kill, encerclement
+- **Santé :** dégâts reçus, vie basse, vie critique, bloc réussi, mort, potion utilisée, vie pleine
+- **Exploration :** entrée de salle, coffre ouvert, porte ouverte, sortie déscellée, piège, accroupi
+- **Inventaire :** potion ramassée, flèches ramassées, plus de potions, plus de flèches
+- **Progression :** début de niveau, victoire, inactivité du joueur
+
+### Lore Intégré
+
+L'Esprit est référencé dans toute l'interface du jeu :
+- **Ecran d'accueil** — introduction de la conscience ancienne
+- **Menu principal** — texte animé *"Le donjon est vivant. Il vous attend."*
+- **Ecran de chargement** — *"L'Esprit du Donjon prépare votre accueil..."*
+- **Tips de chargement** — 10 phrases lore dédiées à l'Esprit
+- **Panneau Règles & Histoire** — backstory complète de l'origine de l'Esprit
+- **Menu pause** — citation aléatoire de l'Esprit (15 phrases)
+
+---
+
 ## 🗺️ Système de Niveaux
 
 ### Niveaux Prédéfinis
@@ -213,6 +257,13 @@ src/
 │   ├── LevelData.ts           # Format JSON des niveaux
 │   ├── LevelLoader.ts         # Chargement et construction des niveaux
 │   └── BSPDungeonGenerator.ts # Génération procédurale (BSP)
+│
+├── companion/                 # Compagnon IA (Esprit du Donjon)
+│   ├── CompanionDialogues.ts  # 600+ dialogues, 30 types de triggers
+│   ├── CompanionAI.ts         # Cerveau IA, cooldowns, priorités
+│   ├── CompanionEntity.ts     # Orbe spectrale 3D (particules)
+│   ├── CompanionUI.ts         # Overlay 2D (sous-titres, typing)
+│   └── DungeonCompanion.ts    # Facade (interface pour DungeonScene)
 │
 ├── systems/                   # Systèmes de jeu (mécaniques)
 │   ├── AudioManager.ts        # Audio HTML5 avec pools de sons

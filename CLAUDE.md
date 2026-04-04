@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Oblivion's Crypt** - A full-featured 3D dungeon crawler game built with **Babylon.js** for the Games On Web 2026 competition. Features two playable character classes (Knight and Archer), procedural dungeon generation, enemy AI, combat system, inventory management, and audio design.
+**Oblivion's Crypt** - A full-featured 3D dungeon crawler game built with **Babylon.js** for the Games On Web 2026 competition (theme: AI). Features three playable character classes (Knight, Archer, Wizard), procedural dungeon generation, enemy AI, combat system, inventory management, audio design, and a **companion AI system** — the Spirit of the Dungeon, a conscious entity that observes and speaks to the player in real time.
 
 ## Commands
 
@@ -70,6 +70,12 @@ src/
 │   ├── FirebaseConfig.ts
 │   ├── AuthService.ts
 │   └── StatsService.ts
+├── companion/               # AI companion system (Spirit of the Dungeon)
+│   ├── CompanionDialogues.ts
+│   ├── CompanionAI.ts
+│   ├── CompanionEntity.ts
+│   ├── CompanionUI.ts
+│   └── DungeonCompanion.ts
 ├── ui/                      # UI components
 │   └── ASCIIText.ts
 └── utils/                   # Utilities
@@ -122,6 +128,20 @@ src/
 | `HealingEffect.ts` | Healing visual effect |
 | `HealthVignette.ts` | Low-health screen vignette |
 | `PixelFilter.ts` | Pixel art post-processing filter |
+
+### Companion (`src/companion/`)
+
+| File | Purpose |
+|------|---------|
+| `CompanionDialogues.ts` | 600+ dialogue lines across 30 trigger types (20+ per trigger). Personality: ambiguous, sarcastic, fascinated |
+| `CompanionAI.ts` | Brain logic: cooldowns per trigger, message queue with priority, idle detection, multi-kill tracking, HP/inventory monitoring |
+| `CompanionEntity.ts` | 3D spectral orb: dual particle systems (core + aura) with additive blending, orbits player with lerp + bobbing. NO PointLight (would break light culling) |
+| `CompanionUI.ts` | Fixed 2D HTML overlay at top of screen (subtitle-style). Typing effect with cursor, auto-dismiss, CSS fade animations |
+| `DungeonCompanion.ts` | Facade class connecting Entity + UI + AI. Single interface used by DungeonScene |
+
+**Trigger types**: level_start, room_enter, enemy_spotted, combat_start, enemy_killed, boss_spotted, boss_killed, player_hit, player_low_hp, player_critical_hp, player_block, player_death, chest_open, item_pickup_potion, item_pickup_arrows, potion_used, door_open, exit_unsealed, victory, idle, trap_damage, enemy_enraged, player_crouch, arrow_shot, spell_cast, all_enemies_near, player_full_hp, no_potions, no_arrows, multiple_kills
+
+**Lore integration**: Welcome screen, main menu whisper, loading screen, loading tips, rules panel backstory, pause menu random quotes
 
 ### Assets (`src/assets/`)
 
@@ -257,9 +277,10 @@ public/assets/
 5. Rules & lore panel
 6. Settings panel (audio, sensitivity, bindings)
 7. Controls customization
-8. Pause menu
+8. Pause menu (with Spirit of the Dungeon random quote)
 9. HUD: health bar, inventory, interaction prompt, FPS counter, crosshair
 10. Victory/defeat overlays
+11. Companion dialogue overlay (fixed 2D subtitle at top of screen)
 
 ## Performance Optimizations
 
@@ -280,6 +301,7 @@ public/assets/
 | Audio | `systems/AudioManager.ts` |
 | Input | `core/GameSettings.ts`, `core/ThirdPersonCamera.ts`, `core/GamepadManager.ts` |
 | Effects | `effects/HealingEffect.ts`, `effects/HealthVignette.ts`, `effects/PixelFilter.ts` |
+| Companion AI | `companion/DungeonCompanion.ts`, `companion/CompanionAI.ts`, `companion/CompanionDialogues.ts`, `companion/CompanionEntity.ts`, `companion/CompanionUI.ts` |
 | Services | `services/FirebaseConfig.ts`, `services/AuthService.ts`, `services/StatsService.ts` |
 | UI | `index.html`, `main.ts`, `scenes/DungeonScene.ts` |
 
@@ -302,6 +324,23 @@ public/assets/
 1. Add audio file to `public/assets/SFX/`
 2. Add to `src/systems/AudioManager.ts` in appropriate pool
 3. Call `audioManager.play[Sound]()` where needed
+
+### Modifying companion dialogues
+
+1. Add/edit lines in `src/companion/CompanionDialogues.ts` under the relevant trigger type
+2. Each trigger must have at least 20 dialogue variations
+3. Use `priority: 1` for important messages that should interrupt the queue
+4. Cooldowns per trigger are configured in `src/companion/CompanionAI.ts` → `setupCooldowns()`
+5. To add a new trigger type: add to `TriggerType` union, add dialogues array, add cooldown, add priority, hook in `DungeonScene.ts`
+
+### Adding companion lore to UI
+
+- Welcome screen lore: `index.html` → `#welcome-screen .welcome-lore`
+- Rules panel lore: `index.html` → `#rules-panel .lore-section`
+- Loading tips: `src/main.ts` → `LOADING_TIPS` array
+- Pause quotes: `src/scenes/DungeonScene.ts` → `pauseGame()` → `spiritQuotes` array
+- Main menu whisper: `index.html` → `.menu-spirit-whisper`
+- Loading screen subtitle: `index.html` → `.loading-spirit-text`
 
 ### Modifying player stats
 

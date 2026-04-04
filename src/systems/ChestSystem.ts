@@ -6,13 +6,15 @@
 
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Animation } from '@babylonjs/core/Animations/animation';
+import { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { PlayerInventory, PotionType } from './PlayerInventory';
 import { AudioManager } from './AudioManager';
 
@@ -58,6 +60,12 @@ export class ChestSystem {
     // Dropped items on the ground
     private droppedItems: DroppedItem[] = [];
     private bobTime: number = 0;
+
+    // Items currently being animated toward the player (not interactable)
+    private pickupAnimatingItems: Set<DroppedItem> = new Set();
+
+    // Shared particle texture for pickup sparkles
+    private pickupSparkleTexture: Texture | null = null;
 
     // UI callbacks
     private onChestNearbyCallback: ((nearby: boolean, chest: ChestData | null) => void) | null = null;
@@ -294,11 +302,12 @@ export class ChestSystem {
             this.onChestNearbyCallback(nearestChest !== null, nearestChest);
         }
 
-        // Check for nearby items
+        // Check for nearby items (skip items being picked up)
         let nearestItem: DroppedItem | null = null;
         let nearestItemDistance = this.itemPickupRange;
 
         for (const item of this.droppedItems) {
+            if (this.pickupAnimatingItems.has(item)) continue;
             const distance = Vector3.Distance(playerPos, item.position);
             if (distance < nearestItemDistance) {
                 nearestItemDistance = distance;
@@ -310,9 +319,10 @@ export class ChestSystem {
             this.onItemNearbyCallback(nearestItem !== null, nearestItem);
         }
 
-        // Animate dropped items (bobbing effect)
+        // Animate dropped items (bobbing effect) — skip items being picked up
         this.bobTime += 0.05;
         for (const item of this.droppedItems) {
+            if (this.pickupAnimatingItems.has(item)) continue;
             const bobHeight = Math.sin(this.bobTime + item.bobOffset) * 0.1;
             item.mesh.position.y = item.position.y + 0.5 + bobHeight;
             item.mesh.rotation.y += 0.02; // Rotate slowly
@@ -368,13 +378,14 @@ export class ChestSystem {
 
         const playerPos = this.playerTarget.position;
 
-        // Find nearest item
+        // Find nearest item (exclude items already being animated)
         let nearestItem: DroppedItem | null = null;
         let nearestIndex = -1;
         let nearestDistance = this.itemPickupRange;
 
         for (let i = 0; i < this.droppedItems.length; i++) {
             const item = this.droppedItems[i];
+            if (this.pickupAnimatingItems.has(item)) continue;
             const distance = Vector3.Distance(playerPos, item.position);
             if (distance < nearestDistance) {
                 nearestDistance = distance;
@@ -387,25 +398,141 @@ export class ChestSystem {
             return false;
         }
 
-        // Pick up the item
+        // Pick up the item (add to inventory immediately, animate visually)
         if (nearestItem.type === 'potion' && nearestItem.potionType) {
             if (this.playerInventory.addPotion(nearestItem.potionType)) {
-                this.removeItem(nearestIndex);
-                this.audioManager.playPotionPickupSound(); // bottle.wav
+                this.audioManager.playPotionPickupSound();
                 this.onItemPickupCallback?.('potion', nearestItem.potionType);
+                this.animatePickup(nearestItem, nearestIndex);
                 return true;
             }
         } else if (nearestItem.type === 'arrows' && nearestItem.arrowCount) {
             const added = this.playerInventory.addArrows(nearestItem.arrowCount);
             if (added > 0) {
-                this.removeItem(nearestIndex);
-                this.audioManager.playArrowPickupSound(); // wood.wav
+                this.audioManager.playArrowPickupSound();
                 this.onItemPickupCallback?.('arrows', undefined, nearestItem.arrowCount);
+                this.animatePickup(nearestItem, nearestIndex);
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Animate item flying toward the player, then dispose
+     */
+    private animatePickup(item: DroppedItem, index: number): void {
+        this.pickupAnimatingItems.add(item);
+
+        const mesh = item.mesh;
+        const startPos = mesh.position.clone();
+        const totalFrames = 20; // ~0.33s at 60fps
+        let frame = 0;
+
+        // Spawn sparkle particles at item position
+        this.spawnPickupParticles(startPos, item.type === 'potion' ? item.potionType : undefined);
+
+        const observer = this.scene.onBeforeRenderObservable.add(() => {
+            if (!this.playerTarget) return;
+            frame++;
+            const t = Math.min(frame / totalFrames, 1);
+
+            // Ease-in curve (accelerates toward player)
+            const ease = t * t;
+
+            // Lerp toward player chest height
+            const targetPos = this.playerTarget.position.clone();
+            targetPos.y += 1.0;
+
+            mesh.position = Vector3.Lerp(startPos, targetPos, ease);
+
+            // Shrink as it approaches
+            const scale = 1 - ease * 0.7;
+            mesh.scaling.setAll(scale);
+
+            // Spin faster as it approaches
+            mesh.rotation.y += 0.1 + ease * 0.4;
+
+            if (t >= 1) {
+                // Animation done — clean up
+                this.scene.onBeforeRenderObservable.remove(observer);
+                this.pickupAnimatingItems.delete(item);
+                const idx = this.droppedItems.indexOf(item);
+                if (idx !== -1) {
+                    this.droppedItems.splice(idx, 1);
+                }
+                mesh.dispose();
+            }
+        });
+    }
+
+    /**
+     * Spawn sparkle particles at pickup location
+     */
+    private spawnPickupParticles(position: Vector3, potionType?: PotionType): void {
+        // Create texture lazily
+        if (!this.pickupSparkleTexture) {
+            const size = 32;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d')!;
+            const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.4, 'rgba(255,255,200,0.6)');
+            gradient.addColorStop(1, 'rgba(255,200,100,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            this.pickupSparkleTexture = new Texture(canvas.toDataURL(), this.scene, false, false);
+        }
+
+        // Color based on item type
+        let color1: Color4;
+        let color2: Color4;
+        if (potionType) {
+            const colors: Record<PotionType, [Color4, Color4]> = {
+                'p1': [new Color4(1, 0.6, 0.1, 1), new Color4(1, 0.3, 0, 0)],
+                'p2': [new Color4(0.2, 0.6, 1, 1), new Color4(0, 0.3, 1, 0)],
+                'p3': [new Color4(0.2, 1, 0.3, 1), new Color4(0, 0.8, 0.1, 0)],
+                'p4': [new Color4(1, 0.2, 0.4, 1), new Color4(1, 0, 0.2, 0)],
+            };
+            [color1, color2] = colors[potionType];
+        } else {
+            // Arrows — golden sparkle
+            color1 = new Color4(1, 0.85, 0.3, 1);
+            color2 = new Color4(0.8, 0.6, 0, 0);
+        }
+
+        const emitter = MeshBuilder.CreateBox('pickupEmitter', { size: 0.01 }, this.scene);
+        emitter.position = position.clone();
+        emitter.position.y += 0.5;
+        emitter.isVisible = false;
+
+        const ps = new ParticleSystem('pickupSparkles', 30, this.scene);
+        ps.particleTexture = this.pickupSparkleTexture;
+        ps.emitter = emitter;
+        ps.minEmitBox = new Vector3(-0.2, -0.1, -0.2);
+        ps.maxEmitBox = new Vector3(0.2, 0.1, 0.2);
+        ps.minSize = 0.06;
+        ps.maxSize = 0.15;
+        ps.minLifeTime = 0.3;
+        ps.maxLifeTime = 0.6;
+        ps.emitRate = 30;
+        ps.color1 = color1;
+        ps.color2 = color1;
+        ps.colorDead = color2;
+        ps.direction1 = new Vector3(-0.5, 1, -0.5);
+        ps.direction2 = new Vector3(0.5, 2, 0.5);
+        ps.minEmitPower = 0.5;
+        ps.maxEmitPower = 1.5;
+        ps.gravity = new Vector3(0, -1, 0);
+        ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+        ps.billboardMode = ParticleSystem.BILLBOARDMODE_ALL;
+
+        ps.start();
+        setTimeout(() => ps.stop(), 200);
+        setTimeout(() => { ps.dispose(); emitter.dispose(); }, 1000);
     }
 
     /**
@@ -710,6 +837,7 @@ export class ChestSystem {
         const playerPos = this.playerTarget.position;
 
         for (const item of this.droppedItems) {
+            if (this.pickupAnimatingItems.has(item)) continue;
             if (Vector3.Distance(playerPos, item.position) < this.itemPickupRange) {
                 return true;
             }
@@ -723,6 +851,9 @@ export class ChestSystem {
         this.arrowTemplate?.dispose();
         this.droppedItems.forEach(item => item.mesh.dispose());
         this.droppedItems = [];
+        this.pickupAnimatingItems.clear();
+        this.pickupSparkleTexture?.dispose();
+        this.pickupSparkleTexture = null;
         this.chests = [];
     }
 }
