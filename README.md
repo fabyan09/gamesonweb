@@ -196,6 +196,25 @@ Les niveaux sont définis en JSON dans `/public/levels/` :
 - `level1.json` - Tutoriel et introduction
 - `level2.json` - Difficulté intermédiaire
 
+
+## 🩸 Stamina (nouveau)
+
+Un système de stamina a été ajouté pour limiter certaines actions physiques et encourager la gestion des ressources en combat.
+
+- Valeurs par défaut: `max = 100`, `regen = 8/s`.
+- Drain: course (15/s), blocage (10/s).
+- Coûts: attaque Chevalier = 20, tir Archer = 12, sort Sorcier = 25.
+
+Comportement: si la stamina est insuffisante l'action correspondante est bloquée; la stamina se régénère automatiquement lorsque le joueur ne court pas et ne bloque pas.
+
+Fichiers principaux:
+- `src/entities/PlayerController.ts` (Chevalier)
+- `src/entities/ArcherController.ts` (Archère)
+- `src/entities/WizardController.ts` (Sorcier)
+- `src/scenes/DungeonScene.ts` (barre de stamina UI)
+
+Ces valeurs sont codées en dur pour l'instant — je peux les exposer via `GameSettings` si tu veux pouvoir les régler depuis l'UI.
+
 ### Génération Procédurale (BSP)
 
 Le mode "Niveau Aléatoire" utilise l'algorithme **Binary Space Partitioning** pour créer des cryptes uniques :

@@ -24,6 +24,9 @@ export interface CharacterController {
 
     // First-person camera support
     getHeadWorldPosition(): Vector3 | null;
+    // Stamina support (0..max)
+    getStamina?(): number;
+    getMaxStamina?(): number;
 }
 
 export interface CharacterClassInfo {

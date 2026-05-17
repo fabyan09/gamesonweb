@@ -190,6 +190,25 @@ src/
 - Damage sources: Enemy attacks, spike traps (1s cooldown)
 - Victory: Defeat all enemies in level
 
+### Stamina (nouveau)
+
+- Système de stamina ajouté pour limiter actions physiques (course, blocage, attaques, tirs, sorts).
+- Valeurs par défaut: `max = 100`, `regen = 8/s`, `run drain = 15/s`, `block drain = 10/s`.
+- Coûts par action (par défaut): Knight attack = 20, Archer shot = 12, Wizard cast = 25.
+- Comportement: si la stamina est insuffisante, l'action (attaque/tir/sort) est bloquée; la course et le blocage drainent la stamina en continu; la stamina se régénère automatiquement lorsque le joueur n'effectue pas d'actions consommatrices.
+- UI: une barre de stamina a été ajoutée au-dessus de la barre de vie (DOM simple mise à jour par frame dans `DungeonScene`).
+
+Fichiers modifiés pour la feature:
+- `src/entities/PlayerController.ts` — implémentation principale pour le `knight` (drain/run/block/attaque, getters).
+- `src/entities/ArcherController.ts` — consommation sur tir, drain/regen.
+- `src/entities/WizardController.ts` — consommation sur cast, drain/regen.
+- `src/entities/CharacterClass.ts` — ajout d'accesseurs optionnels `getStamina()` / `getMaxStamina()` pour l'interface.
+- `src/scenes/DungeonScene.ts` — création et mise à jour de la barre de stamina (`updateStaminaUI()` + hook `onBeforeRenderObservable`).
+
+Notes:
+- Valeurs et coûts sont actuellement codés en dur; je peux les exposer dans `GameSettings` si tu veux permettre du tuning via l'UI.
+- UX possible à ajouter: son d'alerte quand épuisé, clignotement/texte "Épuisé", changements de couleurs, et animations pour l'épuisement.
+
 ### Inventory
 
 - 4 potion slots (keys 1-4 to use)

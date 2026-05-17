@@ -120,6 +120,14 @@ export class ArcherController implements CharacterController {
     private transformNodes: Map<string, TransformNode> = new Map();
     private settings: GameSettings;
 
+    // Stamina system
+    private stamina: number = 100;
+    private readonly maxStamina: number = 100;
+    private readonly staminaRegenRate: number = 8; // per second
+    private readonly runStaminaDrain: number = 15; // per second while running
+    private readonly blockStaminaDrain: number = 10; // per second while blocking
+    private readonly shootStaminaCost: number = 12; // per shot
+
     // Mesh Y offset
     private readonly standingMeshY = -0.08;
     private readonly standingEllipsoid = new Vector3(0.4, 0.9, 0.4);
@@ -146,6 +154,7 @@ export class ArcherController implements CharacterController {
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
         this.gamepadManager = GamepadManager.getInstance();
+        this.stamina = this.maxStamina;
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -568,6 +577,12 @@ export class ArcherController implements CharacterController {
     private shootArrow(): void {
         if (!this.isAiming || this.isShooting) return;
 
+        // Require stamina to shoot
+        if (this.stamina < this.shootStaminaCost) {
+            console.warn('[ArcherController] Not enough stamina to shoot');
+            return;
+        }
+
         // Consume an arrow from inventory
         if (this.inventory) {
             if (!this.inventory.useArrow()) {
@@ -582,6 +597,9 @@ export class ArcherController implements CharacterController {
         this.isShooting = true;
         this.hideCrosshair();
         this.playAnimation('aimRecoil', false);
+
+        // Consume stamina for the shot
+        this.stamina = Math.max(0, this.stamina - this.shootStaminaCost);
 
         // Play arrow shoot sound
         this.audioManager.playArrowShootSound();
@@ -890,7 +908,23 @@ export class ArcherController implements CharacterController {
         // Update gamepad input
         this.updateFromGamepad();
 
+        // Stamina per-frame updates
+        const delta = this.scene.getEngine().getDeltaTime() / 1000;
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
+        if (this.keys.run && isMoving && !this.isCrouching && this.stamina > 0) {
+            const drain = this.runStaminaDrain * delta;
+            this.stamina = Math.max(0, this.stamina - drain);
+            if (this.stamina <= 0) this.keys.run = false;
+        }
+        if (this.isBlocking && this.stamina > 0) {
+            const drain = this.blockStaminaDrain * delta;
+            this.stamina = Math.max(0, this.stamina - drain);
+            if (this.stamina <= 0) this.triggerBlock();
+        }
+        if ((!this.keys.run || !isMoving) && !this.isBlocking) {
+            this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * delta);
+        }
+
         const speed = this.keys.run ? this.config.runSpeed : this.config.walkSpeed;
 
         // Get camera angle for movement
@@ -991,6 +1025,15 @@ export class ArcherController implements CharacterController {
                 }
             }
         }
+    }
+
+    // Stamina accessors
+    getStamina(): number {
+        return Math.round(this.stamina);
+    }
+
+    getMaxStamina(): number {
+        return this.maxStamina;
     }
 
     get position(): Vector3 {

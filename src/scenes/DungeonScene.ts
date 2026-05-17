@@ -381,6 +381,9 @@ export class DungeonScene {
         }
         this.player.setCamera(this.camera);
 
+        // Update stamina UI each frame
+        this.scene.onBeforeRenderObservable.add(() => this.updateStaminaUI());
+
         // Apply pixel filter for retro look
         if (this.pixelFilter) {
             this.pixelFilter.dispose();
@@ -1167,6 +1170,54 @@ export class DungeonScene {
 
         // Update health vignette effect
         this.healthVignette?.updateHealth(this.playerHealth);
+    }
+
+    private updateStaminaUI(): void {
+        let staminaBar = document.getElementById('stamina-bar');
+        if (!staminaBar) {
+            staminaBar = document.createElement('div');
+            staminaBar.id = 'stamina-bar';
+            staminaBar.innerHTML = `
+                <div class="stamina-fill"></div>
+                <span class="stamina-text"></span>
+            `;
+            staminaBar.style.cssText = `
+                position: fixed;
+                bottom: 54px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 300px;
+                height: 10px;
+                background: #0d1a1a;
+                border: 2px solid #173033;
+                border-radius: 4px;
+                overflow: visible;
+                box-shadow: 0 0 8px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.02);
+            `;
+
+            const style = document.createElement('style');
+            style.textContent = `
+                #stamina-bar .stamina-fill {
+                    height: 100%;
+                    background: linear-gradient(to right, #00b4d8, #0077b6);
+                    transition: width 0.15s linear;
+                    border-radius: 2px;
+                }
+                #stamina-bar .stamina-text { display: none; }
+            `;
+            document.head.appendChild(style);
+            document.body.appendChild(staminaBar);
+        }
+
+        const fill = staminaBar.querySelector('.stamina-fill') as HTMLElement;
+        let percent = 100;
+        if (this.player && (this.player as any).getStamina && (this.player as any).getMaxStamina) {
+            const current = (this.player as any).getStamina();
+            const max = (this.player as any).getMaxStamina();
+            percent = Math.max(0, Math.min(100, Math.round((current / max) * 100)));
+        }
+
+        fill.style.width = `${percent}%`;
     }
 
     private async handlePlayerDeath(): Promise<void> {

@@ -125,6 +125,14 @@ export class PlayerController {
     private targetMeshY = -0.08;  // Target Y position for smooth crouch transition
     private readonly crouchTransitionSpeed = 0.09;  // How fast to interpolate (0-1 per frame)
 
+    // Stamina system
+    private stamina: number = 100;
+    private readonly maxStamina: number = 100;
+    private readonly staminaRegenRate: number = 8; // per second
+    private readonly runStaminaDrain: number = 15; // per second while running
+    private readonly blockStaminaDrain: number = 10; // per second while blocking
+    private readonly attackStaminaCost: number = 20; // per attack
+
     // Attack callback
     private attackHitCallback: ((position: Vector3, range: number) => void) | null = null;
     private readonly attackRange = 2.5;
@@ -134,6 +142,7 @@ export class PlayerController {
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
         this.gamepadManager = GamepadManager.getInstance();
+        this.stamina = this.maxStamina;
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -492,6 +501,15 @@ export class PlayerController {
     private triggerAttack(): void {
         if (this.isAttacking || !this.rootNode) return;
 
+        // Require stamina for a full attack
+        if (this.stamina < this.attackStaminaCost) {
+            console.warn('[PlayerController] Not enough stamina to attack');
+            return;
+        }
+
+        // Consume stamina immediately
+        this.stamina = Math.max(0, this.stamina - this.attackStaminaCost);
+
         this.isAttacking = true;
 
         // Play sword swing sound
@@ -796,6 +814,31 @@ export class PlayerController {
         // Update gamepad input
         this.updateFromGamepad();
 
+        // Stamina update (per-second rates using engine delta)
+        const delta = this.scene.getEngine().getDeltaTime() / 1000; // seconds
+        const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
+        // Drain for running
+        if (this.keys.run && isMoving && !this.isCrouching && this.stamina > 0) {
+            const drain = this.runStaminaDrain * delta;
+            this.stamina = Math.max(0, this.stamina - drain);
+            if (this.stamina <= 0) {
+                this.keys.run = false; // force stop running
+            }
+        }
+        // Drain for blocking
+        if (this.isBlocking && this.stamina > 0) {
+            const drain = this.blockStaminaDrain * delta;
+            this.stamina = Math.max(0, this.stamina - drain);
+            if (this.stamina <= 0) {
+                // force stop blocking if depleted
+                this.triggerBlock(false);
+            }
+        }
+        // Regen when not performing stamina-consuming actions
+        if ((!this.keys.run || !isMoving) && !this.isBlocking) {
+            this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * delta);
+        }
+
         // Smooth crouch transition - interpolate mesh Y position
         if (this.mesh) {
             const currentY = this.mesh.position.y;
@@ -823,7 +866,6 @@ export class PlayerController {
             }
         }
 
-        const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
         // Crouch speed is much slower (30% of walk speed)
         const speed = this.isCrouching
             ? this.config.walkSpeed * 0.3
@@ -885,6 +927,15 @@ export class PlayerController {
                 }
             }
         }
+    }
+
+    // Stamina accessors
+    getStamina(): number {
+        return Math.round(this.stamina);
+    }
+
+    getMaxStamina(): number {
+        return this.maxStamina;
     }
 
     get position(): Vector3 {

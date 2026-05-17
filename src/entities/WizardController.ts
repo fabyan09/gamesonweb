@@ -188,6 +188,14 @@ export class WizardController implements CharacterController {
     private transformNodes: Map<string, TransformNode> = new Map();
     private settings: GameSettings;
 
+    // Stamina system
+    private stamina: number = 100;
+    private readonly maxStamina: number = 100;
+    private readonly staminaRegenRate: number = 8; // per second
+    private readonly runStaminaDrain: number = 15; // per second while running
+    private readonly blockStaminaDrain: number = 10; // per second while blocking
+    private readonly castStaminaCost: number = 25; // per cast
+
     // Mesh Y offset
     private readonly standingMeshY = -0.06;
     private readonly crouchMeshOffset = -0.45;  // Additional offset when crouching
@@ -223,6 +231,7 @@ export class WizardController implements CharacterController {
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
         this.gamepadManager = GamepadManager.getInstance();
+        this.stamina = this.maxStamina;
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -702,6 +711,15 @@ export class WizardController implements CharacterController {
     private castMagic(): void {
         if (this.isCasting || this.isBlocking || !this.canAttack) return;
 
+        // Require stamina to cast
+        if (this.stamina < this.castStaminaCost) {
+            console.warn('[WizardController] Not enough stamina to cast');
+            return;
+        }
+
+        // Consume stamina immediately
+        this.stamina = Math.max(0, this.stamina - this.castStaminaCost);
+
         this.isCasting = true;
         this.canAttack = false;
         this.showCrosshair(true);
@@ -1010,7 +1028,23 @@ export class WizardController implements CharacterController {
         // Update gamepad input
         this.updateFromGamepad();
 
+        // Stamina updates
+        const delta = this.scene.getEngine().getDeltaTime() / 1000;
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
+        if (this.keys.run && isMoving && !this.isCrouching && this.stamina > 0) {
+            const drain = this.runStaminaDrain * delta;
+            this.stamina = Math.max(0, this.stamina - drain);
+            if (this.stamina <= 0) this.keys.run = false;
+        }
+        if (this.isBlocking && this.stamina > 0) {
+            const drain = this.blockStaminaDrain * delta;
+            this.stamina = Math.max(0, this.stamina - drain);
+            if (this.stamina <= 0) this.endBlock();
+        }
+        if ((!this.keys.run || !isMoving) && !this.isBlocking) {
+            this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * delta);
+        }
+
         // Crouch speed is much slower (60% of walk speed)
         const speed = this.isCrouching
             ? this.config.walkSpeed * 0.6
@@ -1161,6 +1195,15 @@ export class WizardController implements CharacterController {
 
     get isPlayerDead(): boolean {
         return this.isDead;
+    }
+
+    // Stamina accessors
+    getStamina(): number {
+        return Math.round(this.stamina);
+    }
+
+    getMaxStamina(): number {
+        return this.maxStamina;
     }
 
     get crouching(): boolean {
