@@ -1,6 +1,7 @@
 import { doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { db } from './FirebaseConfig';
 import { AuthService } from './AuthService';
+import { LevelSessionSummary } from './ProgressionService';
 
 type EnemyType = 'vampire' | 'parasite' | 'mutant' | 'skeletonzombie' | 'warrok';
 
@@ -75,6 +76,20 @@ export class StatsService {
 
     recordChestOpened(): void {
         this.sessionChestsOpened++;
+    }
+
+    getSessionSummary(): LevelSessionSummary {
+        return {
+            levelIndex: this.currentLevel,
+            kills: this.sessionKills,
+            damageDealt: this.sessionDamageDealt,
+            damageTaken: this.sessionDamageTaken,
+            potionsUsed: this.sessionPotionsUsed,
+            arrowsShot: this.sessionArrowsShot,
+            spellsCast: this.sessionSpellsCast,
+            chestsOpened: this.sessionChestsOpened,
+            playtimeMs: Date.now() - this.sessionStartTime
+        };
     }
 
     /** Flush stats to Firestore on level complete */

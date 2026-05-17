@@ -12,6 +12,7 @@ import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 import { GameSettings } from '../core/GameSettings';
 import { AudioManager } from '../systems/AudioManager';
 import { GamepadManager, GamepadButton } from '../core/GamepadManager';
+import { PlayerProgressionModifiers } from './CharacterClass';
 
 export interface PlayerConfig {
     position?: Vector3;
@@ -127,11 +128,16 @@ export class PlayerController {
 
     // Stamina system
     private stamina: number = 100;
-    private readonly maxStamina: number = 100;
-    private readonly staminaRegenRate: number = 8; // per second
-    private readonly runStaminaDrain: number = 15; // per second while running
-    private readonly blockStaminaDrain: number = 10; // per second while blocking
-    private readonly attackStaminaCost: number = 20; // per attack
+    private readonly baseMaxStamina: number = 100;
+    private readonly baseStaminaRegenRate: number = 8; // per second
+    private readonly baseRunStaminaDrain: number = 15; // per second while running
+    private readonly baseBlockStaminaDrain: number = 10; // per second while blocking
+    private readonly baseAttackStaminaCost: number = 20; // per attack
+    private movementMultiplier: number = 1;
+    private maxStaminaBonus: number = 0;
+    private staminaRegenBonus: number = 0;
+    private staminaDrainMultiplier: number = 1;
+    private attackCostMultiplier: number = 1;
 
     // Attack callback
     private attackHitCallback: ((position: Vector3, range: number) => void) | null = null;
@@ -142,7 +148,7 @@ export class PlayerController {
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
         this.gamepadManager = GamepadManager.getInstance();
-        this.stamina = this.maxStamina;
+        this.stamina = this.baseMaxStamina;
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -502,13 +508,13 @@ export class PlayerController {
         if (this.isAttacking || !this.rootNode) return;
 
         // Require stamina for a full attack
-        if (this.stamina < this.attackStaminaCost) {
+        if (this.stamina < this.getAttackStaminaCost()) {
             console.warn('[PlayerController] Not enough stamina to attack');
             return;
         }
 
         // Consume stamina immediately
-        this.stamina = Math.max(0, this.stamina - this.attackStaminaCost);
+        this.stamina = Math.max(0, this.stamina - this.getAttackStaminaCost());
 
         this.isAttacking = true;
 
@@ -819,7 +825,7 @@ export class PlayerController {
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
         // Drain for running
         if (this.keys.run && isMoving && !this.isCrouching && this.stamina > 0) {
-            const drain = this.runStaminaDrain * delta;
+            const drain = this.getRunStaminaDrain() * delta;
             this.stamina = Math.max(0, this.stamina - drain);
             if (this.stamina <= 0) {
                 this.keys.run = false; // force stop running
@@ -827,7 +833,7 @@ export class PlayerController {
         }
         // Drain for blocking
         if (this.isBlocking && this.stamina > 0) {
-            const drain = this.blockStaminaDrain * delta;
+            const drain = this.getBlockStaminaDrain() * delta;
             this.stamina = Math.max(0, this.stamina - drain);
             if (this.stamina <= 0) {
                 // force stop blocking if depleted
@@ -836,7 +842,7 @@ export class PlayerController {
         }
         // Regen when not performing stamina-consuming actions
         if ((!this.keys.run || !isMoving) && !this.isBlocking) {
-            this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * delta);
+            this.stamina = Math.min(this.getMaxStamina(), this.stamina + this.getStaminaRegenRate() * delta);
         }
 
         // Smooth crouch transition - interpolate mesh Y position
@@ -867,9 +873,9 @@ export class PlayerController {
         }
 
         // Crouch speed is much slower (30% of walk speed)
-        const speed = this.isCrouching
+        const speed = (this.isCrouching
             ? this.config.walkSpeed * 0.3
-            : (this.keys.run ? this.config.runSpeed : this.config.walkSpeed);
+            : (this.keys.run ? this.config.runSpeed : this.config.walkSpeed)) * this.movementMultiplier;
 
         // Get camera angle for movement
         const cameraAngle = this.camera ? -this.camera.alpha - Math.PI / 2 : 0;
@@ -935,7 +941,37 @@ export class PlayerController {
     }
 
     getMaxStamina(): number {
-        return this.maxStamina;
+        return this.baseMaxStamina + this.maxStaminaBonus;
+    }
+
+    applyProgressionModifiers(modifiers: PlayerProgressionModifiers): void {
+        const previousMaxStamina = this.getMaxStamina();
+        this.movementMultiplier = modifiers.movementMultiplier;
+        this.maxStaminaBonus = modifiers.maxStaminaBonus;
+        this.staminaRegenBonus = modifiers.staminaRegenBonus;
+        this.staminaDrainMultiplier = modifiers.staminaDrainMultiplier;
+        this.attackCostMultiplier = modifiers.attackCostMultiplier;
+
+        const newMaxStamina = this.getMaxStamina();
+        if (newMaxStamina !== previousMaxStamina) {
+            this.stamina = Math.min(newMaxStamina, this.stamina + Math.max(0, newMaxStamina - previousMaxStamina));
+        }
+    }
+
+    private getStaminaRegenRate(): number {
+        return this.baseStaminaRegenRate + this.staminaRegenBonus;
+    }
+
+    private getRunStaminaDrain(): number {
+        return this.baseRunStaminaDrain * this.staminaDrainMultiplier;
+    }
+
+    private getBlockStaminaDrain(): number {
+        return this.baseBlockStaminaDrain * this.staminaDrainMultiplier;
+    }
+
+    private getAttackStaminaCost(): number {
+        return this.baseAttackStaminaCost * this.attackCostMultiplier;
     }
 
     get position(): Vector3 {

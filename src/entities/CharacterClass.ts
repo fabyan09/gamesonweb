@@ -4,6 +4,18 @@ import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 
 export type CharacterClassName = 'knight' | 'archer' | 'wizard';
 
+export interface PlayerProgressionModifiers {
+    movementMultiplier: number;
+    maxHealthBonus: number;
+    maxStaminaBonus: number;
+    staminaRegenBonus: number;
+    staminaDrainMultiplier: number;
+    attackCostMultiplier: number;
+    damageTakenMultiplier: number;
+    attackDamageBonus: number;
+    attackRangeMultiplier: number;
+}
+
 export interface CharacterController {
     // Properties
     readonly position: Vector3;
@@ -24,6 +36,7 @@ export interface CharacterController {
 
     // First-person camera support
     getHeadWorldPosition(): Vector3 | null;
+    applyProgressionModifiers?(modifiers: PlayerProgressionModifiers): void;
     // Stamina support (0..max)
     getStamina?(): number;
     getMaxStamina?(): number;

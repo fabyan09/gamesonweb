@@ -6,6 +6,7 @@ import { assetPreloader } from './assets/AssetPreloader';
 import { AudioManager } from './systems/AudioManager';
 import { GamepadManager } from './core/GamepadManager';
 import { AuthService } from './services/AuthService';
+import { ProgressionService } from './services/ProgressionService';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from './services/FirebaseConfig';
 
@@ -96,6 +97,7 @@ audioManager.loadMenuSounds();
 
 // Initialize settings
 const settings = GameSettings.getInstance();
+const progressionService = ProgressionService.getInstance();
 
 // State variables (declared early to avoid temporal dead zone)
 let pendingLevel: number = 1;
@@ -1107,8 +1109,27 @@ document.getElementById('btn-profile')?.addEventListener('click', async () => {
     const panel = document.getElementById('profile-panel');
     panel?.classList.add('visible');
 
-    const stats = await authService.getStats();
-    if (!stats) return;
+    const remoteStats = await authService.getStats();
+    const guestProfile = progressionService.getProfile();
+    const stats = remoteStats || {
+        displayName: 'Invité',
+        email: 'Mode invité (local)',
+        accountLevel: guestProfile.accountLevel,
+        accountXp: guestProfile.accountXp,
+        nextLevelXp: guestProfile.nextLevelXp,
+        totalKills: 0,
+        totalDeaths: 0,
+        totalLevelsCompleted: 0,
+        totalChestsOpened: 0,
+        totalPlaytimeMs: 0,
+        totalDamageDealt: 0,
+        totalDamageTaken: 0,
+        killsByType: {},
+        classUsage: {},
+        totalPotionsUsed: 0,
+        totalArrowsShot: 0,
+        totalSpellsCast: 0
+    };
 
     const set = (id: string, val: unknown) => {
         const el = document.getElementById(id);
@@ -1121,6 +1142,12 @@ document.getElementById('btn-profile')?.addEventListener('click', async () => {
     set('profile-email', stats['email']);
     const avatarEl = document.getElementById('profile-avatar');
     if (avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
+
+    const accountLevel = (stats['accountLevel'] as number) || 1;
+    const accountXp = (stats['accountXp'] as number) || 0;
+    const nextLevelXp = (stats['nextLevelXp'] as number) || 120;
+    set('profile-account-level', accountLevel);
+    set('profile-account-xp', `${accountXp}/${nextLevelXp}`);
 
     // KPI cards
     const totalKills = (stats['totalKills'] as number) || 0;
@@ -1205,8 +1232,16 @@ async function loadLeaderboard(tab: string): Promise<void> {
 
     body.innerHTML = '';
 
-    const field = tab === 'kills' ? 'totalKills' : 'totalLevelsCompleted';
-    if (header) header.textContent = tab === 'kills' ? 'Éliminations' : 'Niveaux';
+    let field = 'totalKills';
+    let headerLabel = 'Éliminations';
+    if (tab === 'level') {
+        field = 'accountLevel';
+        headerLabel = 'Niveau compte';
+    } else if (tab === 'xp') {
+        field = 'totalXp';
+        headerLabel = 'XP total';
+    }
+    if (header) header.textContent = headerLabel;
 
     // Update active tab styling
     document.querySelectorAll('.leaderboard-tab').forEach(t => {

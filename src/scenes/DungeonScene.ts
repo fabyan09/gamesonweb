@@ -35,6 +35,7 @@ import { PixelFilter } from '../effects/PixelFilter';
 import { HealingEffect } from '../effects/HealingEffect';
 import { HealthVignette } from '../effects/HealthVignette';
 import { StatsService } from '../services/StatsService';
+import { ProgressionService, UpgradeChoice } from '../services/ProgressionService';
 import { DungeonCompanion } from '../companion/DungeonCompanion';
 
 // List of available levels
@@ -54,6 +55,7 @@ export class DungeonScene {
     private currentLevelIndex: number = 0;
     private enemies: Enemy[] = [];
     private playerHealth: number = 100;
+    private playerMaxHealth: number = 100;
     private isLevelComplete: boolean = false;
     private isPlayerDead: boolean = false;
     private isPaused: boolean = false;
@@ -81,6 +83,7 @@ export class DungeonScene {
     private healingEffect: HealingEffect | null = null;
     private healthVignette: HealthVignette | null = null;
     private statsService: StatsService;
+    private progressionService: ProgressionService;
     private companion: DungeonCompanion | null = null;
 
     constructor(engine: Engine, canvas: HTMLCanvasElement, characterClass: CharacterClassName = 'knight') {
@@ -94,6 +97,7 @@ export class DungeonScene {
         this.audioManager = AudioManager.getInstance();
         this.gamepadManager = GamepadManager.getInstance();
         this.statsService = StatsService.getInstance();
+        this.progressionService = ProgressionService.getInstance();
 
         this.setupScene();
         this.setupPauseMenu();
@@ -182,6 +186,8 @@ export class DungeonScene {
 
         // Start stats session
         this.statsService.startSession(this.characterClass, this.currentLevelIndex);
+        await this.progressionService.loadProfileFromAccount();
+        this.playerMaxHealth = this.progressionService.getCurrentMaxHealth();
 
         // Lighting
         this.setupLighting();
@@ -275,7 +281,7 @@ export class DungeonScene {
         }
         if (savedState && savedState.characterClass === this.characterClass) {
             // Restore health FIRST before any UI updates
-            this.playerHealth = savedState.health;
+            this.playerHealth = Math.min(savedState.health, this.playerMaxHealth);
             console.log(`[DungeonScene] Set playerHealth to ${this.playerHealth}`);
 
             // Then restore inventory
@@ -328,6 +334,10 @@ export class DungeonScene {
             const playerBasePath = `${import.meta.env.BASE_URL}assets/Sword and Shield Pack/`;
             await this.player.load(playerBasePath);
         }
+
+        this.progressionService.applyProfileModifiersTo(this.player);
+        this.playerMaxHealth = this.progressionService.getCurrentMaxHealth();
+        this.playerHealth = Math.min(this.playerHealth, this.playerMaxHealth);
 
         // Apply spawn rotation to player mesh
         if (this.player.rootMesh) {
@@ -401,7 +411,7 @@ export class DungeonScene {
         // Initialize health vignette effect
         this.healthVignette = new HealthVignette(this.scene);
         this.healthVignette.applyToCamera(this.camera.getCamera());
-        this.healthVignette.updateHealth(this.playerHealth);
+        this.healthVignette.updateHealth(this.playerHealth, this.playerMaxHealth);
 
         // Initialize companion (Spirit of the Dungeon)
         this.companion = new DungeonCompanion(this.scene);
@@ -410,7 +420,7 @@ export class DungeonScene {
         }
         this.companion.updateContext({
             playerHealth: this.playerHealth,
-            maxHealth: 100,
+            maxHealth: this.playerMaxHealth,
             enemiesAlive: this.enemies.filter(e => !e.isDead).length,
             enemiesTotal: this.enemies.length,
             potionCount: this.playerInventory?.getPotionCount() ?? 0,
@@ -604,9 +614,10 @@ export class DungeonScene {
             if (distance < trap.radius) {
                 // Player is on a spike trap!
                 this.lastTrapDamageTime = now;
-                this.playerHealth -= trap.damage;
-                this.statsService.recordDamageTaken(trap.damage);
-                console.log(`[DungeonScene] Player stepped on spike trap! -${trap.damage} HP (${this.playerHealth} remaining)`);
+                const actualDamage = Math.ceil(trap.damage * this.progressionService.getDamageTakenMultiplier());
+                this.playerHealth -= actualDamage;
+                this.statsService.recordDamageTaken(actualDamage);
+                console.log(`[DungeonScene] Player stepped on spike trap! -${actualDamage} HP (${this.playerHealth} remaining)`);
                 this.updateHealthUI();
                 this.camera?.shake(0.1, 150);
                 this.companion?.trigger('trap_damage');
@@ -697,7 +708,7 @@ export class DungeonScene {
                     let blockReduction = 0.7; // Knight default
                     if (this.characterClass === 'archer') blockReduction = 0.5;
                     else if (this.characterClass === 'wizard') blockReduction = 0.4;
-                    const reducedDamage = Math.ceil(damage * (1 - blockReduction));
+                    const reducedDamage = Math.ceil(damage * (1 - blockReduction) * this.progressionService.getDamageTakenMultiplier());
                     console.log(`[DungeonScene] Player blocked! Reduced ${damage} to ${reducedDamage} damage (${blockReduction * 100}% reduction)`);
                     // Play shield block sound
                     this.audioManager.playShieldBlockSound();
@@ -718,9 +729,10 @@ export class DungeonScene {
                     return;
                 }
 
-                this.playerHealth -= damage;
-                this.statsService.recordDamageTaken(damage);
-                console.log(`[DungeonScene] Player took ${damage} damage, health: ${this.playerHealth}`);
+                const actualDamage = Math.ceil(damage * this.progressionService.getDamageTakenMultiplier());
+                this.playerHealth -= actualDamage;
+                this.statsService.recordDamageTaken(actualDamage);
+                console.log(`[DungeonScene] Player took ${actualDamage} damage, health: ${this.playerHealth}`);
                 this.updateHealthUI();
                 this.camera?.shake(0.15, 200);
                 this.showDamageIndicator(enemy.position);
@@ -767,6 +779,7 @@ export class DungeonScene {
 
     private handlePlayerAttack(position: Vector3, range: number): void {
         this.companion?.notifyPlayerAction();
+        const rangeMultiplier = this.progressionService.getAttackRangeMultiplier();
 
         // For archer, use trajectory-based hit detection with wall collision
         if (this.characterClass === 'archer' && this.player) {
@@ -787,7 +800,7 @@ export class DungeonScene {
                 const enemyCenter = enemy.position.clone();
                 enemyCenter.y += 1.0; // Aim at chest height
 
-                if (archer.isPointOnArrowTrajectory(enemyCenter, 1.2)) {
+                if (archer.isPointOnArrowTrajectory(enemyCenter, 1.2 * rangeMultiplier)) {
                     // Check if wall is hit before the enemy
                     const enemyDistance = Vector3.Distance(trajectory.origin, enemyCenter);
                     if (wallHitDistance !== null && wallHitDistance < enemyDistance) {
@@ -800,7 +813,8 @@ export class DungeonScene {
                     // isRanged = true for arrows - triggers enraged state
                     enemy.takeDamage(25, true);
                     this.companion?.trigger('enemy_enraged');
-                    this.statsService.recordDamageDealt(25);
+                    const damage = this.progressionService.getAttackDamage(this.characterClass);
+                    this.statsService.recordDamageDealt(damage);
                     archer.markProjectileHit(); // Stop the arrow projectile
                     console.log(`[DungeonScene] Arrow hit ${enemy.typeName}!`);
                     break; // Arrow only hits first enemy in path
@@ -825,7 +839,7 @@ export class DungeonScene {
                 const enemyCenter = enemy.position.clone();
                 enemyCenter.y += 1.0; // Aim at chest height
 
-                if (wizard.isPointOnMagicTrajectory(enemyCenter, 1.5)) {
+                if (wizard.isPointOnMagicTrajectory(enemyCenter, 1.5 * rangeMultiplier)) {
                     // Check if wall is hit before the enemy
                     const enemyDistance = Vector3.Distance(trajectory.origin, enemyCenter);
                     if (wallHitDistance !== null && wallHitDistance < enemyDistance) {
@@ -836,9 +850,10 @@ export class DungeonScene {
                     }
 
                     // isRanged = true for magic - triggers enraged state
-                    enemy.takeDamage(20, true); // Wizard deals 20 damage
+                    const damage = this.progressionService.getAttackDamage(this.characterClass);
+                    enemy.takeDamage(damage, true);
                     this.companion?.trigger('enemy_enraged');
-                    this.statsService.recordDamageDealt(20);
+                    this.statsService.recordDamageDealt(damage);
                     wizard.markProjectileHit(); // Stop the magic projectile
                     console.log(`[DungeonScene] Magic hit ${enemy.typeName}!`);
                     break; // Magic only hits first enemy in path
@@ -848,12 +863,13 @@ export class DungeonScene {
             // For knight, use distance-based hit detection with line-of-sight check
             const playerPos = this.player?.rootMesh?.position;
             if (!playerPos) return;
+            const attackRange = range * rangeMultiplier;
 
             for (const enemy of this.enemies) {
                 if (enemy.isDead) continue;
 
                 const distance = Vector3.Distance(position, enemy.position);
-                if (distance <= range) {
+                if (distance <= attackRange) {
                     // Check line of sight from player to enemy
                     const enemyCenter = enemy.position.clone();
                     enemyCenter.y += 1.0; // Chest height
@@ -862,8 +878,9 @@ export class DungeonScene {
 
                     if (this.hasLineOfSight(playerCenter, enemyCenter)) {
                         // isRanged = false for melee - no enraged state
-                        enemy.takeDamage(25, false);
-                        this.statsService.recordDamageDealt(25);
+                        const damage = this.progressionService.getAttackDamage(this.characterClass);
+                        enemy.takeDamage(damage, false);
+                        this.statsService.recordDamageDealt(damage);
                     }
                 }
             }
@@ -904,9 +921,9 @@ export class DungeonScene {
         }
     }
 
-    private showVictoryMessage(): void {
+    private async showVictoryMessage(): Promise<void> {
         console.log('[DungeonScene] Level Complete!');
-        this.statsService.flushOnLevelComplete();
+        void this.statsService.flushOnLevelComplete();
         // Hide companion UI - victory overlay covers it anyway
         this.companion?.setVisible(false);
         this.companion?.updateContext({ isLevelComplete: true });
@@ -917,21 +934,24 @@ export class DungeonScene {
         // Release pointer lock so user can click buttons
         document.exitPointerLock();
 
-        // Convert to 1-indexed for user-friendly URLs
+        const summary = this.statsService.getSessionSummary();
+        const progressionResult = await this.progressionService.awardLevelCompletion(summary);
         const nextLevelNumber = this.currentLevelIndex + 2;
         const isLastHandmade = this.currentLevelIndex === LEVELS.length - 1;
 
-        // Transition message when moving from handmade to procedural levels
         let transitionHtml = '';
         if (isLastHandmade) {
             transitionHtml = `<p class="transition-msg">Attention, les prochaines cryptes sont de véritables labyrinthes générés par la malédiction... Chaque crypte sera unique et plus dangereuse.</p>`;
         }
 
-        const buttonsHtml = `
-            ${transitionHtml}
-            <button id="next-level-btn">Niveau Suivant</button>
-            <button id="menu-btn" class="secondary">Menu Principal</button>
-        `;
+        const upgradeButtonsHtml = progressionResult.leveledUp
+            ? `<div class="upgrade-grid">${progressionResult.choices.map(choice => `
+                <button class="upgrade-choice" data-upgrade="${choice.id}">
+                    <span class="upgrade-icon icon-${choice.icon}"></span>
+                    <span class="upgrade-title">${choice.title}</span>
+                </button>
+            `).join('')}</div>`
+            : '';
 
         const overlay = document.createElement('div');
         overlay.id = 'victory-overlay';
@@ -942,7 +962,17 @@ export class DungeonScene {
                 <div class="victory-divider"></div>
                 <p class="level-name">${this.currentLevel?.name || 'Unknown'}</p>
                 <p class="sub">Tous les ennemis ont été vaincus</p>
-                ${buttonsHtml}
+                <p class="progress-line">Compte niveau ${progressionResult.profile.accountLevel} • ${progressionResult.gainedXp} XP gagnés • ${progressionResult.profile.accountXp}/${progressionResult.profile.nextLevelXp} XP</p>
+                ${progressionResult.leveledUp ? `
+                    <div class="upgrade-section">
+                        <h2>Choisissez une amélioration</h2>
+                        ${upgradeButtonsHtml}
+                    </div>
+                ` : transitionHtml}
+                <div class="victory-actions">
+                    <button id="next-level-btn" ${progressionResult.leveledUp ? 'disabled' : ''}>${progressionResult.leveledUp ? 'Valider et continuer' : 'Niveau Suivant'}</button>
+                    <button id="menu-btn" class="secondary">Menu Principal</button>
+                </div>
             </div>
         `;
 
@@ -960,6 +990,7 @@ export class DungeonScene {
                 align-items: center;
                 z-index: 1000;
                 animation: victoryFadeIn 0.8s ease-out forwards;
+                overflow-y: auto;
             }
             @keyframes victoryFadeIn {
                 from { opacity: 0; }
@@ -990,6 +1021,8 @@ export class DungeonScene {
                 font-family: 'Montaga', 'Georgia', serif;
                 position: relative;
                 z-index: 1;
+                width: min(760px, calc(100vw - 40px));
+                padding: 2rem 1.5rem;
             }
             .victory-content h1 {
                 font-size: 5rem;
@@ -1022,30 +1055,123 @@ export class DungeonScene {
                 opacity: 0;
                 animation: victoryText 0.8s ease-out 0.6s forwards;
             }
-            .victory-content .sub {
+            .victory-content .sub,
+            .victory-content .progress-line {
                 font-size: 1rem;
                 color: #888;
                 margin-top: 0.5rem;
                 opacity: 0;
                 animation: victoryText 0.8s ease-out 0.7s forwards;
             }
+            .victory-content .progress-line {
+                color: #d4c4a0;
+                margin-top: 1rem;
+            }
             @keyframes victoryText {
                 from { transform: translateY(20px); opacity: 0; }
                 to { transform: translateY(0); opacity: 1; }
             }
-            .victory-content .transition-msg {
-                font-size: 1rem;
-                color: #ff8c00;
-                margin: 1.5rem auto 0;
-                max-width: 400px;
-                line-height: 1.6;
-                font-style: italic;
-                text-align: center;
+            .upgrade-section {
+                margin-top: 1.5rem;
                 opacity: 0;
                 animation: victoryText 0.8s ease-out 0.8s forwards;
             }
+            .upgrade-section h2 {
+                font-size: 1.3rem;
+                color: #ffd700;
+                margin-bottom: 1rem;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+            }
+            .upgrade-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 1rem;
+            }
+            .upgrade-grid.selection-made {
+                grid-template-columns: minmax(240px, 320px);
+                justify-content: center;
+            }
+            .upgrade-choice {
+                padding: 1.1rem 1rem;
+                min-height: 120px;
+                text-align: center;
+                background: linear-gradient(180deg, #2a2214 0%, #121008 100%);
+                color: #fff7e2;
+                border: 1px solid #7a5d1f;
+                border-radius: 12px;
+                cursor: pointer;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+                transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            }
+            .upgrade-choice.selected {
+                border-color: #fff4b0;
+                background: linear-gradient(180deg, #4a3410 0%, #1c1308 100%);
+                box-shadow: 0 0 0 1px rgba(255, 244, 176, 0.4), 0 14px 32px rgba(0, 0, 0, 0.5), 0 0 28px rgba(255, 215, 0, 0.18);
+                transform: scale(1.04);
+            }
+            .upgrade-choice:hover:not(:disabled) {
+                transform: translateY(-3px);
+                border-color: #ffd45c;
+                background: linear-gradient(180deg, #3a2f18 0%, #18130a 100%);
+                box-shadow: 0 12px 26px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 212, 92, 0.35);
+            }
+            .upgrade-grid.selection-made .upgrade-choice:not(.selected) {
+                opacity: 0;
+                transform: scale(0.85);
+                max-height: 0;
+                min-height: 0;
+                padding-top: 0;
+                padding-bottom: 0;
+                margin: 0;
+                border-width: 0;
+                overflow: hidden;
+                pointer-events: none;
+            }
+            .upgrade-choice:disabled {
+                opacity: 0.55;
+                cursor: default;
+            }
+            .upgrade-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 52px;
+                height: 52px;
+                margin: 0 auto 0.8rem;
+                border-radius: 50%;
+                background: radial-gradient(circle at 30% 30%, rgba(255, 225, 132, 0.35), rgba(255, 197, 66, 0.08) 65%, rgba(255, 197, 66, 0.02) 100%);
+                border: 1px solid rgba(255, 215, 0, 0.35);
+                box-shadow: inset 0 0 16px rgba(255, 215, 0, 0.12);
+                position: relative;
+            }
+            .upgrade-icon::before {
+                font-size: 1.35rem;
+                color: #ffe28a;
+                line-height: 1;
+            }
+            .icon-sword::before { content: '⚔'; }
+            .icon-heart::before { content: '♥'; }
+            .icon-shield::before { content: '⛨'; }
+            .icon-boot::before { content: '⟰'; }
+            .icon-armor::before { content: '✦'; }
+            .icon-target::before { content: '◎'; }
+            .icon-spark::before { content: '✧'; }
+            .upgrade-title {
+                display: block;
+                color: #fff0b2;
+                font-size: 1.25rem;
+                font-weight: 700;
+                letter-spacing: 0.03em;
+            }
+            .victory-actions {
+                display: flex;
+                gap: 1rem;
+                justify-content: center;
+                flex-wrap: wrap;
+                margin-top: 2rem;
+            }
             .victory-content button {
-                margin-top: 2.5rem;
                 padding: 1rem 2.5rem;
                 font-size: 1.2rem;
                 font-family: 'Montaga', 'Georgia', serif;
@@ -1061,11 +1187,16 @@ export class DungeonScene {
                 opacity: 0;
                 animation: victoryBtn 0.8s ease-out 0.9s forwards;
             }
+            .victory-content button:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+                box-shadow: none;
+            }
             @keyframes victoryBtn {
                 from { transform: translateY(30px); opacity: 0; }
                 to { transform: translateY(0); opacity: 1; }
             }
-            .victory-content button:hover {
+            .victory-content button:hover:not(:disabled) {
                 transform: translateY(-3px);
                 box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
                 background: linear-gradient(180deg, #ffe44d 0%, #ddaa00 50%, #bb8800 100%);
@@ -1075,28 +1206,92 @@ export class DungeonScene {
                 color: #d4c4a0;
                 border: 2px solid #4a3a25;
                 box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 200, 100, 0.1);
-                margin-left: 1rem;
+                margin-left: 0;
             }
-            .victory-content button.secondary:hover {
+            .victory-content button.secondary:hover:not(:disabled) {
                 border-color: #ffd700;
                 color: #ffd700;
                 background: linear-gradient(180deg, rgba(60, 45, 30, 0.9) 0%, rgba(30, 22, 15, 0.95) 100%);
+            }
+            .transition-msg {
+                font-size: 1rem;
+                color: #ff8c00;
+                margin: 1.5rem auto 0;
+                max-width: 400px;
+                line-height: 1.6;
+                font-style: italic;
+                text-align: center;
+                opacity: 0;
+                animation: victoryText 0.8s ease-out 0.8s forwards;
             }
         `;
 
         document.head.appendChild(style);
         document.body.appendChild(overlay);
 
-        // Add event listeners
-        document.getElementById('next-level-btn')?.addEventListener('click', () => {
-            // Save game state before transitioning to next level
+        const nextLevelButton = document.getElementById('next-level-btn') as HTMLButtonElement | null;
+        const menuButton = document.getElementById('menu-btn') as HTMLButtonElement | null;
+        const chooseButtons = Array.from(document.querySelectorAll('.upgrade-choice')) as HTMLButtonElement[];
+        const chooseGrid = document.querySelector('.upgrade-grid') as HTMLElement | null;
+        let upgradePicked = !progressionResult.leveledUp;
+
+        const applyProgressionToRun = (healAmount: number = 0): void => {
+            this.playerMaxHealth = this.progressionService.getCurrentMaxHealth();
+            this.player?.applyProgressionModifiers?.(this.progressionService.getRuntimeModifiers());
+            if (healAmount > 0) {
+                this.playerHealth = Math.min(this.playerMaxHealth, this.playerHealth + healAmount);
+            } else {
+                this.playerHealth = Math.min(this.playerHealth, this.playerMaxHealth);
+            }
+            this.updateHealthUI();
+            this.healthVignette?.updateHealth(this.playerHealth, this.playerMaxHealth);
+            this.companion?.updateContext({
+                playerHealth: this.playerHealth,
+                maxHealth: this.playerMaxHealth,
+            });
+        };
+
+        chooseButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                if (upgradePicked) return;
+
+                const upgradeId = button.dataset.upgrade as UpgradeChoice['id'] | undefined;
+                if (!upgradeId) return;
+
+                upgradePicked = true;
+                const previousMaxHealth = this.playerMaxHealth;
+                this.progressionService.applyUpgrade(upgradeId);
+                button.classList.add('selected');
+                chooseGrid?.classList.add('selection-made');
+                const healBonus = upgradeId === 'vitality'
+                    ? this.progressionService.getCurrentMaxHealth() - previousMaxHealth
+                    : 0;
+                applyProgressionToRun(healBonus);
+
+                chooseButtons.forEach(choiceButton => {
+                    choiceButton.disabled = true;
+                    if (choiceButton !== button) {
+                        choiceButton.setAttribute('aria-hidden', 'true');
+                    }
+                });
+                if (nextLevelButton) {
+                    nextLevelButton.disabled = false;
+                    nextLevelButton.textContent = 'Continuer';
+                }
+            });
+        });
+
+        nextLevelButton?.addEventListener('click', () => {
+            if (progressionResult.leveledUp && !upgradePicked) return;
+
             if (this.playerInventory) {
                 PlayerInventory.saveGameState(this.playerInventory, this.playerHealth, this.characterClass);
                 console.log(`[DungeonScene] Saved state before level ${nextLevelNumber}: health=${this.playerHealth}, potions=${this.playerInventory.getPotionCount()}`);
             }
             window.location.href = `${window.location.pathname}?level=${nextLevelNumber}&class=${this.characterClass}`;
         });
-        document.getElementById('menu-btn')?.addEventListener('click', () => {
+
+        menuButton?.addEventListener('click', () => {
             PlayerInventory.clearGameState();
             window.location.href = window.location.pathname;
         });
@@ -1158,7 +1353,7 @@ export class DungeonScene {
         }
 
         const fill = healthBar.querySelector('.health-fill') as HTMLElement;
-        const percent = Math.max(0, this.playerHealth);
+        const percent = this.playerMaxHealth > 0 ? Math.max(0, (this.playerHealth / this.playerMaxHealth) * 100) : 0;
         fill.style.width = `${percent}%`;
 
         // Hide glow when at full health
@@ -1169,7 +1364,7 @@ export class DungeonScene {
         }
 
         // Update health vignette effect
-        this.healthVignette?.updateHealth(this.playerHealth);
+        this.healthVignette?.updateHealth(this.playerHealth, this.playerMaxHealth);
     }
 
     private updateStaminaUI(): void {
@@ -2281,7 +2476,7 @@ export class DungeonScene {
             : this.playerInventory.usePotion();
         if (potion) {
             const healAmount = PlayerInventory.getPotionHealAmount(potion);
-            this.playerHealth = Math.min(100, this.playerHealth + healAmount);
+            this.playerHealth = Math.min(this.playerMaxHealth, this.playerHealth + healAmount);
             this.updateHealthUI();
             this.audioManager.playPotionDrinkSound();
             this.statsService.recordPotionUsed();

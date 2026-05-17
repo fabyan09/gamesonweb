@@ -14,6 +14,7 @@ import '@babylonjs/loaders/glTF';
 import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 import { GameSettings } from '../core/GameSettings';
 import { CharacterController } from './CharacterClass';
+import { PlayerProgressionModifiers } from './CharacterClass';
 import { PlayerInventory } from '../systems/PlayerInventory';
 import { AudioManager } from '../systems/AudioManager';
 import { GamepadManager, GamepadButton } from '../core/GamepadManager';
@@ -122,11 +123,16 @@ export class ArcherController implements CharacterController {
 
     // Stamina system
     private stamina: number = 100;
-    private readonly maxStamina: number = 100;
-    private readonly staminaRegenRate: number = 8; // per second
-    private readonly runStaminaDrain: number = 15; // per second while running
-    private readonly blockStaminaDrain: number = 10; // per second while blocking
-    private readonly shootStaminaCost: number = 12; // per shot
+    private readonly baseMaxStamina: number = 100;
+    private readonly baseStaminaRegenRate: number = 8; // per second
+    private readonly baseRunStaminaDrain: number = 15; // per second while running
+    private readonly baseBlockStaminaDrain: number = 10; // per second while blocking
+    private readonly baseShootStaminaCost: number = 12; // per shot
+    private movementMultiplier: number = 1;
+    private maxStaminaBonus: number = 0;
+    private staminaRegenBonus: number = 0;
+    private staminaDrainMultiplier: number = 1;
+    private attackCostMultiplier: number = 1;
 
     // Mesh Y offset
     private readonly standingMeshY = -0.08;
@@ -154,7 +160,7 @@ export class ArcherController implements CharacterController {
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
         this.gamepadManager = GamepadManager.getInstance();
-        this.stamina = this.maxStamina;
+        this.stamina = this.baseMaxStamina;
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -578,7 +584,7 @@ export class ArcherController implements CharacterController {
         if (!this.isAiming || this.isShooting) return;
 
         // Require stamina to shoot
-        if (this.stamina < this.shootStaminaCost) {
+        if (this.stamina < this.getShootStaminaCost()) {
             console.warn('[ArcherController] Not enough stamina to shoot');
             return;
         }
@@ -599,7 +605,7 @@ export class ArcherController implements CharacterController {
         this.playAnimation('aimRecoil', false);
 
         // Consume stamina for the shot
-        this.stamina = Math.max(0, this.stamina - this.shootStaminaCost);
+        this.stamina = Math.max(0, this.stamina - this.getShootStaminaCost());
 
         // Play arrow shoot sound
         this.audioManager.playArrowShootSound();
@@ -912,20 +918,20 @@ export class ArcherController implements CharacterController {
         const delta = this.scene.getEngine().getDeltaTime() / 1000;
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
         if (this.keys.run && isMoving && !this.isCrouching && this.stamina > 0) {
-            const drain = this.runStaminaDrain * delta;
+            const drain = this.getRunStaminaDrain() * delta;
             this.stamina = Math.max(0, this.stamina - drain);
             if (this.stamina <= 0) this.keys.run = false;
         }
         if (this.isBlocking && this.stamina > 0) {
-            const drain = this.blockStaminaDrain * delta;
+            const drain = this.getBlockStaminaDrain() * delta;
             this.stamina = Math.max(0, this.stamina - drain);
             if (this.stamina <= 0) this.triggerBlock();
         }
         if ((!this.keys.run || !isMoving) && !this.isBlocking) {
-            this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * delta);
+            this.stamina = Math.min(this.getMaxStamina(), this.stamina + this.getStaminaRegenRate() * delta);
         }
 
-        const speed = this.keys.run ? this.config.runSpeed : this.config.walkSpeed;
+        const speed = (this.keys.run ? this.config.runSpeed : this.config.walkSpeed) * this.movementMultiplier;
 
         // Get camera angle for movement
         const cameraAngle = this.camera ? -this.camera.alpha - Math.PI / 2 : 0;
@@ -1033,7 +1039,37 @@ export class ArcherController implements CharacterController {
     }
 
     getMaxStamina(): number {
-        return this.maxStamina;
+        return this.baseMaxStamina + this.maxStaminaBonus;
+    }
+
+    applyProgressionModifiers(modifiers: PlayerProgressionModifiers): void {
+        const previousMaxStamina = this.getMaxStamina();
+        this.movementMultiplier = modifiers.movementMultiplier;
+        this.maxStaminaBonus = modifiers.maxStaminaBonus;
+        this.staminaRegenBonus = modifiers.staminaRegenBonus;
+        this.staminaDrainMultiplier = modifiers.staminaDrainMultiplier;
+        this.attackCostMultiplier = modifiers.attackCostMultiplier;
+
+        const newMaxStamina = this.getMaxStamina();
+        if (newMaxStamina !== previousMaxStamina) {
+            this.stamina = Math.min(newMaxStamina, this.stamina + Math.max(0, newMaxStamina - previousMaxStamina));
+        }
+    }
+
+    private getStaminaRegenRate(): number {
+        return this.baseStaminaRegenRate + this.staminaRegenBonus;
+    }
+
+    private getRunStaminaDrain(): number {
+        return this.baseRunStaminaDrain * this.staminaDrainMultiplier;
+    }
+
+    private getBlockStaminaDrain(): number {
+        return this.baseBlockStaminaDrain * this.staminaDrainMultiplier;
+    }
+
+    private getShootStaminaCost(): number {
+        return this.baseShootStaminaCost * this.attackCostMultiplier;
     }
 
     get position(): Vector3 {

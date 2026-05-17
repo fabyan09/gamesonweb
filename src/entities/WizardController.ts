@@ -16,6 +16,7 @@ import '@babylonjs/loaders/glTF';
 import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
 import { GameSettings } from '../core/GameSettings';
 import { CharacterController } from './CharacterClass';
+import { PlayerProgressionModifiers } from './CharacterClass';
 import { AudioManager } from '../systems/AudioManager';
 import { GamepadManager, GamepadButton } from '../core/GamepadManager';
 
@@ -190,11 +191,16 @@ export class WizardController implements CharacterController {
 
     // Stamina system
     private stamina: number = 100;
-    private readonly maxStamina: number = 100;
-    private readonly staminaRegenRate: number = 8; // per second
-    private readonly runStaminaDrain: number = 15; // per second while running
-    private readonly blockStaminaDrain: number = 10; // per second while blocking
-    private readonly castStaminaCost: number = 25; // per cast
+    private readonly baseMaxStamina: number = 100;
+    private readonly baseStaminaRegenRate: number = 8; // per second
+    private readonly baseRunStaminaDrain: number = 15; // per second while running
+    private readonly baseBlockStaminaDrain: number = 10; // per second while blocking
+    private readonly baseCastStaminaCost: number = 25; // per cast
+    private movementMultiplier: number = 1;
+    private maxStaminaBonus: number = 0;
+    private staminaRegenBonus: number = 0;
+    private staminaDrainMultiplier: number = 1;
+    private attackCostMultiplier: number = 1;
 
     // Mesh Y offset
     private readonly standingMeshY = -0.06;
@@ -231,7 +237,7 @@ export class WizardController implements CharacterController {
         this.settings = GameSettings.getInstance();
         this.audioManager = AudioManager.getInstance();
         this.gamepadManager = GamepadManager.getInstance();
-        this.stamina = this.maxStamina;
+        this.stamina = this.baseMaxStamina;
         this.config = {
             position: config.position ?? new Vector3(0, 0, 0),
             scale: config.scale ?? 0.01,
@@ -712,13 +718,13 @@ export class WizardController implements CharacterController {
         if (this.isCasting || this.isBlocking || !this.canAttack) return;
 
         // Require stamina to cast
-        if (this.stamina < this.castStaminaCost) {
+        if (this.stamina < this.getCastStaminaCost()) {
             console.warn('[WizardController] Not enough stamina to cast');
             return;
         }
 
         // Consume stamina immediately
-        this.stamina = Math.max(0, this.stamina - this.castStaminaCost);
+        this.stamina = Math.max(0, this.stamina - this.getCastStaminaCost());
 
         this.isCasting = true;
         this.canAttack = false;
@@ -1032,23 +1038,23 @@ export class WizardController implements CharacterController {
         const delta = this.scene.getEngine().getDeltaTime() / 1000;
         const isMoving = this.keys.forward || this.keys.backward || this.keys.left || this.keys.right;
         if (this.keys.run && isMoving && !this.isCrouching && this.stamina > 0) {
-            const drain = this.runStaminaDrain * delta;
+            const drain = this.getRunStaminaDrain() * delta;
             this.stamina = Math.max(0, this.stamina - drain);
             if (this.stamina <= 0) this.keys.run = false;
         }
         if (this.isBlocking && this.stamina > 0) {
-            const drain = this.blockStaminaDrain * delta;
+            const drain = this.getBlockStaminaDrain() * delta;
             this.stamina = Math.max(0, this.stamina - drain);
             if (this.stamina <= 0) this.endBlock();
         }
         if ((!this.keys.run || !isMoving) && !this.isBlocking) {
-            this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * delta);
+            this.stamina = Math.min(this.getMaxStamina(), this.stamina + this.getStaminaRegenRate() * delta);
         }
 
         // Crouch speed is much slower (60% of walk speed)
-        const speed = this.isCrouching
+        const speed = (this.isCrouching
             ? this.config.walkSpeed * 0.6
-            : (this.keys.run ? this.config.runSpeed : this.config.walkSpeed);
+            : (this.keys.run ? this.config.runSpeed : this.config.walkSpeed)) * this.movementMultiplier;
 
         // Get camera angle for movement
         const cameraAngle = this.camera ? -this.camera.alpha - Math.PI / 2 : 0;
@@ -1203,7 +1209,37 @@ export class WizardController implements CharacterController {
     }
 
     getMaxStamina(): number {
-        return this.maxStamina;
+        return this.baseMaxStamina + this.maxStaminaBonus;
+    }
+
+    applyProgressionModifiers(modifiers: PlayerProgressionModifiers): void {
+        const previousMaxStamina = this.getMaxStamina();
+        this.movementMultiplier = modifiers.movementMultiplier;
+        this.maxStaminaBonus = modifiers.maxStaminaBonus;
+        this.staminaRegenBonus = modifiers.staminaRegenBonus;
+        this.staminaDrainMultiplier = modifiers.staminaDrainMultiplier;
+        this.attackCostMultiplier = modifiers.attackCostMultiplier;
+
+        const newMaxStamina = this.getMaxStamina();
+        if (newMaxStamina !== previousMaxStamina) {
+            this.stamina = Math.min(newMaxStamina, this.stamina + Math.max(0, newMaxStamina - previousMaxStamina));
+        }
+    }
+
+    private getStaminaRegenRate(): number {
+        return this.baseStaminaRegenRate + this.staminaRegenBonus;
+    }
+
+    private getRunStaminaDrain(): number {
+        return this.baseRunStaminaDrain * this.staminaDrainMultiplier;
+    }
+
+    private getBlockStaminaDrain(): number {
+        return this.baseBlockStaminaDrain * this.staminaDrainMultiplier;
+    }
+
+    private getCastStaminaCost(): number {
+        return this.baseCastStaminaCost * this.attackCostMultiplier;
     }
 
     get crouching(): boolean {
