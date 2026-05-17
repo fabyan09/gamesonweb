@@ -2529,11 +2529,10 @@ export class DungeonScene {
         // Effet de scan: Afficher les cibles en rouge (même à travers la brume)
         let highlightedCount = 0;
         this.enemies.forEach(enemy => {
-            if (enemy.isDead() || !enemy.mesh) return; // Note we check enemy.mesh
+            if (enemy.isDead || !enemy.rootMesh) return;
             
-            const childMeshes = enemy.mesh.getChildMeshes();
-            // Fallback si enemy.mesh et rootMesh
-            const meshesToScan = childMeshes.length > 0 ? childMeshes : (enemy.rootMesh ? enemy.rootMesh.getChildMeshes() : []);
+            const childMeshes = enemy.rootMesh.getChildMeshes();
+            const meshesToScan = childMeshes;
             
             meshesToScan.forEach(m => {
                 if (m.getClassName() === "Mesh") {
@@ -2555,8 +2554,8 @@ export class DungeonScene {
             setTimeout(() => {
                 if (this.isLevelComplete) return; // avoid errors if level switched
                 this.enemies.forEach(enemy => {
-                    if (!enemy.mesh && !enemy.rootMesh) return;
-                    const meshesToScan = enemy.mesh ? enemy.mesh.getChildMeshes() : enemy.rootMesh!.getChildMeshes();
+                    if (!enemy.rootMesh) return;
+                    const meshesToScan = enemy.rootMesh.getChildMeshes();
                     meshesToScan.forEach(m => {
                         try {
                             this.highlightLayer?.removeMesh(m as Mesh);
