@@ -8,6 +8,7 @@ import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
+import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import { Ray } from '@babylonjs/core/Culling/ray';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 
@@ -53,6 +54,12 @@ export class DungeonScene {
     private player: CharacterController | null = null;
     private currentLevel: LevelData | null = null;
     private currentLevelIndex: number = 0;
+    
+    // Companion Power: Scan
+    private highlightLayer: HighlightLayer | null = null;
+    private lastScanTime: number = 0;
+    private scanCooldown: number = 20000; // 20 seconds cooldown
+    
     private enemies: Enemy[] = [];
     private playerHealth: number = 100;
     private playerMaxHealth: number = 100;
@@ -2496,10 +2503,84 @@ export class DungeonScene {
     }
 
     /**
+     * Trigger the AI Companion "Scan" Power
+     */
+    private triggerScanPower(): void {
+        // Only level 2+ (index >= 1)
+        if (this.currentLevelIndex < 1) {
+            this.companion?.showMessageDirectly("Mon pouvoir est trop faible à cet étage...", 3000);
+            return;
+        }
+
+        const now = performance.now();
+        if (now - this.lastScanTime < this.scanCooldown) {
+            // En cooldown
+            const remaining = Math.ceil((this.scanCooldown - (now - this.lastScanTime)) / 1000);
+            this.companion?.showMessageDirectly(`Scan en recharge... (${remaining}s)`, 2000);
+            return;
+        }
+
+        this.lastScanTime = now;
+
+        if (!this.highlightLayer) {
+            this.highlightLayer = new HighlightLayer("scanHighlight", this.scene);
+        }
+
+        // Effet de scan: Afficher les cibles en rouge (même à travers la brume)
+        let highlightedCount = 0;
+        this.enemies.forEach(enemy => {
+            if (enemy.isDead() || !enemy.mesh) return; // Note we check enemy.mesh
+            
+            const childMeshes = enemy.mesh.getChildMeshes();
+            // Fallback si enemy.mesh et rootMesh
+            const meshesToScan = childMeshes.length > 0 ? childMeshes : (enemy.rootMesh ? enemy.rootMesh.getChildMeshes() : []);
+            
+            meshesToScan.forEach(m => {
+                if (m.getClassName() === "Mesh") {
+                    try {
+                        this.highlightLayer?.addMesh(m as Mesh, new Color3(1, 0.2, 0));
+                        m.renderOverlay = true;
+                        m.overlayColor = new Color3(1, 0.2, 0);
+                        m.overlayAlpha = 0.5;
+                        highlightedCount++;
+                    } catch (e) {}
+                }
+            });
+        });
+
+        if (highlightedCount > 0) {
+            this.companion?.showMessageDirectly('Scan spectral actif. Cibles détectées.', 3000);
+            
+            // Retirer l'effet au bout de 5 secondes
+            setTimeout(() => {
+                if (this.isLevelComplete) return; // avoid errors if level switched
+                this.enemies.forEach(enemy => {
+                    if (!enemy.mesh && !enemy.rootMesh) return;
+                    const meshesToScan = enemy.mesh ? enemy.mesh.getChildMeshes() : enemy.rootMesh!.getChildMeshes();
+                    meshesToScan.forEach(m => {
+                        try {
+                            this.highlightLayer?.removeMesh(m as Mesh);
+                            m.renderOverlay = false;
+                        } catch (e) {}
+                    });
+                });
+            }, 5000);
+        } else {
+            this.companion?.showMessageDirectly('Aucune cible détectée.', 3000);
+        }
+    }
+
+    /**
      * Setup interaction keyboard listener
      */
     private setupInteractionListener(): void {
         window.addEventListener('keydown', (e) => {
+            // Check if companion power key is pressed
+            if (this.settings.isKeyBound('companionPower', e.code)) {
+                if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
+                this.triggerScanPower();
+            }
+            
             // Check if interact key is pressed
             if (this.settings.isKeyBound('interact', e.code)) {
                 // Don't interact if game is paused or player is dead

@@ -15,6 +15,7 @@ export interface KeyBindings {
     crouch: string[];
     pause: string[];
     interact: string[];
+    companionPower: string[];
 }
 
 export type CrouchMode = 'toggle' | 'hold';
@@ -46,7 +47,8 @@ export const DEFAULT_KEYBINDINGS: KeyBindings = {
     jump: ['Space'],
     crouch: ['ControlLeft', 'ControlRight'],
     pause: ['KeyP'],
-    interact: ['KeyF', 'KeyE']
+    interact: ['KeyF', 'KeyE'],
+    companionPower: ['KeyR', 'KeyC']
 };
 
 const DEFAULT_SETTINGS: SettingsData = {

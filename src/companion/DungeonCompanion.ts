@@ -89,6 +89,14 @@ export class DungeonCompanion {
         }
     }
 
+    /**
+     * Make the companion display a specific message immediately (bypassing AI queue ideally, or straight to UI)
+     */
+    showMessageDirectly(text: string, duration: number = 3000): void {
+        this.ui.showMessage(text, duration);
+        this.entity.flashOnSpeak();
+    }
+
     dispose(): void {
         this.ai.dispose();
         this.ui.dispose();
