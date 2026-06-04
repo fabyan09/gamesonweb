@@ -1023,26 +1023,6 @@
             border-color: #443300;
         }
 
-        /* ========== DEBUG POSITION ========== */
-        #debug-position {
-            position: fixed;
-            top: 40px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #00aaff;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 12px;
-            padding: 5px 10px;
-            border-radius: 4px;
-            z-index: 100;
-            display: none;
-            border: 1px solid #004466;
-        }
-
-        #debug-position.visible {
-            display: block;
-        }
-
         /* ========== CONTROLS PANEL ========== */
         .controls-grid {
             display: grid;
@@ -1983,7 +1963,6 @@
 
     <!-- FPS Counter -->
     <div id="fps-counter">FPS: <span class="fps-value">60</span></div>
-    <div id="debug-position">X: <span class="pos-x">0</span> Y: <span class="pos-y">0</span> Z: <span class="pos-z">0</span></div>
 
     <!-- Gamepad Indicator -->
     <div id="gamepad-indicator" title="Aucune manette"></div>
@@ -2376,6 +2355,10 @@
             <div class="row">
                 <span class="key">1-4</span>
                 <span class="action">Potion</span>
+            </div>
+            <div class="row">
+                <span class="key" data-control="power">R</span>
+                <span class="action">Pouvoir (Scan)</span>
             </div>
             <div class="row">
                 <span class="key" data-control="pause">P</span>

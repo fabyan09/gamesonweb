@@ -5,6 +5,7 @@ import { CharacterPreview, createCharacterPreviews } from './entities/CharacterP
 import { assetPreloader } from './assets/AssetPreloader';
 import { AudioManager } from './systems/AudioManager';
 import { GamepadManager } from './core/GamepadManager';
+import { GamepadMenuNavigator } from './ui/GamepadMenuNavigator';
 import { AuthService } from './services/AuthService';
 import { ProgressionService } from './services/ProgressionService';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
@@ -98,6 +99,12 @@ audioManager.loadMenuSounds();
 // Initialize settings
 const settings = GameSettings.getInstance();
 const progressionService = ProgressionService.getInstance();
+
+// Initialize global gamepad menu navigator (singleton — covers every HTML panel
+// in the game: welcome, main menu, character select, settings, controls, rules,
+// profile, leaderboard, victory + upgrade, death). Pause menu stays handled by
+// DungeonScene.
+GamepadMenuNavigator.initialize();
 
 // State variables (declared early to avoid temporal dead zone)
 let pendingLevel: number = 1;

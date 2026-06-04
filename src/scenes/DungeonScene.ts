@@ -2071,31 +2071,9 @@ export class DungeonScene {
         }
     }
 
-    private updateDebugPosition(): void {
-        const debugPos = document.getElementById('debug-position');
-        if (!debugPos) return;
-
-        // Show debug position when FPS counter is visible (uses same setting)
-        if (this.settings.showFps && this.player) {
-            debugPos.classList.add('visible');
-            const pos = this.player.position;
-            const posX = debugPos.querySelector('.pos-x');
-            const posY = debugPos.querySelector('.pos-y');
-            const posZ = debugPos.querySelector('.pos-z');
-            if (posX) posX.textContent = pos.x.toFixed(1);
-            if (posY) posY.textContent = pos.y.toFixed(1);
-            if (posZ) posZ.textContent = pos.z.toFixed(1);
-        } else {
-            debugPos.classList.remove('visible');
-        }
-    }
-
     render(): void {
         // Update FPS counter
         this.updateFpsCounter();
-
-        // Update debug position
-        this.updateDebugPosition();
 
         // Update gamepad camera look
         this.updateGamepadCamera();
@@ -2739,6 +2717,11 @@ export class DungeonScene {
                     this.handleGamepadInteract();
                     break;
 
+                // RB - Companion Power (Scan)
+                case GamepadButton.RB:
+                    this.triggerScanPower();
+                    break;
+
                 // D-pad - Potions 1-4
                 case GamepadButton.DpadUp:
                 case GamepadButton.DpadDown:
@@ -2779,7 +2762,8 @@ export class DungeonScene {
             'crouch': 'Ctrl',
             'interact': 'F',
             'potions': '1-4',
-            'pause': 'P'
+            'pause': 'P',
+            'power': 'R'
         };
 
         // Detect controller type (PlayStation or Xbox)
@@ -2795,7 +2779,8 @@ export class DungeonScene {
             'crouch': getBtn(GamepadButton.RS),
             'interact': getBtn(GamepadButton.Y),
             'potions': '↑↓←→',
-            'pause': getBtn(GamepadButton.Start)
+            'pause': getBtn(GamepadButton.Start),
+            'power': getBtn(GamepadButton.RB)
         };
 
         const controls = isGamepad ? gamepadControls : keyboardControls;
@@ -2828,6 +2813,8 @@ export class DungeonScene {
                 keySpan.textContent = controls['potions'];
             } else if (actionText.includes('pause')) {
                 keySpan.textContent = controls['pause'];
+            } else if (actionText.includes('pouvoir') || actionText.includes('scan')) {
+                keySpan.textContent = controls['power'];
             }
         });
     }
