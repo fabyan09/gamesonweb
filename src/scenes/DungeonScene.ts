@@ -15,6 +15,8 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 // Side-effect imports for collisions
 import '@babylonjs/core/Collisions/collisionCoordinator';
 import '@babylonjs/core/Culling/ray';
+// Required for HighlightLayer: registers EffectLayer scene component
+import '@babylonjs/core/Layers/effectLayerSceneComponent';
 
 import { AssetLoader } from '../assets/AssetLoader';
 import { ThirdPersonCamera } from '../core/ThirdPersonCamera';
@@ -59,6 +61,8 @@ export class DungeonScene {
     private highlightLayer: HighlightLayer | null = null;
     private lastScanTime: number = 0;
     private scanCooldown: number = 20000; // 20 seconds cooldown
+    private scanMarkerMat: StandardMaterial | null = null;
+    private scanRenderGroupConfigured: boolean = false;
     
     private enemies: Enemy[] = [];
     private playerHealth: number = 100;
@@ -2513,60 +2517,118 @@ export class DungeonScene {
         }
 
         const now = performance.now();
-        if (now - this.lastScanTime < this.scanCooldown) {
-            // En cooldown
+        // lastScanTime === 0 means never scanned yet — skip cooldown check on first cast
+        if (this.lastScanTime > 0 && now - this.lastScanTime < this.scanCooldown) {
             const remaining = Math.ceil((this.scanCooldown - (now - this.lastScanTime)) / 1000);
             this.companion?.showMessageDirectly(`Scan en recharge... (${remaining}s)`, 2000);
             return;
         }
 
-        this.lastScanTime = now;
-
-        if (!this.highlightLayer) {
-            this.highlightLayer = new HighlightLayer("scanHighlight", this.scene);
-        }
-
-        // Effet de scan: Afficher les cibles en rouge (même à travers la brume)
-        let highlightedCount = 0;
-        this.enemies.forEach(enemy => {
-            if (enemy.isDead || !enemy.rootMesh) return;
-            
-            const childMeshes = enemy.rootMesh.getChildMeshes();
-            const meshesToScan = childMeshes;
-            
-            meshesToScan.forEach(m => {
-                if (m.getClassName() === "Mesh") {
-                    try {
-                        this.highlightLayer?.addMesh(m as Mesh, new Color3(1, 0.2, 0));
-                        m.renderOverlay = true;
-                        m.overlayColor = new Color3(1, 0.2, 0);
-                        m.overlayAlpha = 0.5;
-                        highlightedCount++;
-                    } catch (e) {}
+        // Collect living enemies and the highlightable child meshes from each
+        const livingEnemies = this.enemies.filter(e => !e.isDead && e.rootMesh);
+        const targetMeshes: Mesh[] = [];
+        livingEnemies.forEach(enemy => {
+            enemy.rootMesh!.getChildMeshes(false).forEach(m => {
+                // instanceof catches Mesh and its subclasses — more reliable than getClassName()
+                if (m instanceof Mesh) {
+                    targetMeshes.push(m);
                 }
             });
         });
 
-        if (highlightedCount > 0) {
-            this.companion?.showMessageDirectly('Scan spectral actif. Cibles détectées.', 3000);
-            
-            // Retirer l'effet au bout de 5 secondes
-            setTimeout(() => {
-                if (this.isLevelComplete) return; // avoid errors if level switched
-                this.enemies.forEach(enemy => {
-                    if (!enemy.rootMesh) return;
-                    const meshesToScan = enemy.rootMesh.getChildMeshes();
-                    meshesToScan.forEach(m => {
-                        try {
-                            this.highlightLayer?.removeMesh(m as Mesh);
-                            m.renderOverlay = false;
-                        } catch (e) {}
-                    });
-                });
-            }, 5000);
-        } else {
+        if (livingEnemies.length === 0 || targetMeshes.length === 0) {
+            this.lastScanTime = now;
             this.companion?.showMessageDirectly('Aucune cible détectée.', 3000);
+            return;
         }
+
+        // Lazily create the highlight layer; wrap in try/catch in case Babylon registration fails
+        try {
+            if (!this.highlightLayer) {
+                this.highlightLayer = new HighlightLayer("scanHighlight", this.scene);
+                this.highlightLayer.innerGlow = false;
+                this.highlightLayer.outerGlow = true;
+                this.highlightLayer.blurHorizontalSize = 1.5;
+                this.highlightLayer.blurVerticalSize = 1.5;
+            }
+        } catch (e) {
+            console.error('[Scan] Failed to create HighlightLayer:', e);
+            this.companion?.showMessageDirectly("Mon pouvoir vacille... le scan a échoué.", 3000);
+            return;
+        }
+
+        const highlightColor = new Color3(1, 0.2, 0);
+        const highlighted: Mesh[] = [];
+        targetMeshes.forEach(m => {
+            try {
+                this.highlightLayer?.addMesh(m, highlightColor);
+                m.renderOverlay = true;
+                m.overlayColor = highlightColor;
+                m.overlayAlpha = 0.5;
+                highlighted.push(m);
+            } catch (e) {
+                console.warn('[Scan] Could not highlight mesh', m.name, e);
+            }
+        });
+
+        // Spawn always-on-top markers above each enemy so they're visible through walls.
+        // Rendering group 1 has its depth buffer cleared before it draws, so these meshes
+        // are guaranteed to render on top of the geometry from group 0 (walls, floors, etc).
+        if (!this.scanRenderGroupConfigured) {
+            // (groupId, autoClear, clearDepth, clearStencil)
+            // Don't clear stencil — HighlightLayer relies on the stencil buffer.
+            this.scene.setRenderingAutoClearDepthStencil(1, true, true, false);
+            this.scanRenderGroupConfigured = true;
+        }
+        if (!this.scanMarkerMat) {
+            const mat = new StandardMaterial("scanMarkerMat", this.scene);
+            mat.emissiveColor = highlightColor;
+            mat.diffuseColor = new Color3(0, 0, 0);
+            mat.specularColor = new Color3(0, 0, 0);
+            mat.disableLighting = true;
+            this.scanMarkerMat = mat;
+        }
+
+        const markers: Mesh[] = [];
+        livingEnemies.forEach((enemy, i) => {
+            const marker = MeshBuilder.CreatePolyhedron(`scanMarker_${i}`, { type: 1, size: 0.4 }, this.scene);
+            marker.material = this.scanMarkerMat;
+            marker.renderingGroupId = 1;
+            marker.isPickable = false;
+            marker.checkCollisions = false;
+            marker.parent = enemy.rootMesh!;
+            marker.position.set(0, 2.6, 0); // float above the enemy's head
+            markers.push(marker);
+        });
+
+        // Pulse + spin animation for visibility
+        const pulseObs = this.scene.onBeforeRenderObservable.add(() => {
+            const t = performance.now() * 0.004;
+            const scale = 1 + Math.sin(t) * 0.25;
+            markers.forEach(m => {
+                m.scaling.set(scale, scale, scale);
+                m.rotation.y += 0.03;
+            });
+        });
+
+        // Start cooldown only after a successful scan
+        this.lastScanTime = now;
+        const noun = livingEnemies.length === 1 ? 'créature' : 'créatures';
+        this.companion?.showMessageDirectly(`Scan spectral actif. ${livingEnemies.length} ${noun} détectée${livingEnemies.length === 1 ? '' : 's'}.`, 3000);
+
+        // Remove the effect after 5 seconds — clear exactly the meshes/markers we added
+        setTimeout(() => {
+            highlighted.forEach(mesh => {
+                try {
+                    this.highlightLayer?.removeMesh(mesh);
+                    mesh.renderOverlay = false;
+                } catch (e) {}
+            });
+            this.scene.onBeforeRenderObservable.remove(pulseObs);
+            markers.forEach(m => {
+                try { m.dispose(); } catch (e) {}
+            });
+        }, 5000);
     }
 
     /**
