@@ -246,6 +246,14 @@ function showCharacterSelect(level: number = 1): void {
     loadCharacterPreviews();
 }
 
+function startLevelSelection(level: number): void {
+    const n = Math.max(1, Math.floor(level) || 1);
+    document.getElementById('level-select-panel')?.classList.remove('visible');
+    hideMainMenu();
+    pendingLevel = n;
+    showCharacterSelect(n);
+}
+
 function setupCharacterSelectListeners(): void {
     // Character cards - start game with selected class
     document.querySelectorAll('.character-card').forEach(card => {
@@ -302,6 +310,39 @@ function setupMenuListeners(): void {
         hideMainMenu();
         pendingLevel = 1;
         showCharacterSelect(1);
+    });
+
+    // Level select - open panel
+    document.getElementById('btn-level-select')?.addEventListener('click', () => {
+        document.getElementById('level-select-panel')?.classList.add('visible');
+    });
+
+    // Level cards + difficulty presets (both carry a data-level attribute)
+    document.querySelectorAll('#level-select-panel [data-level]').forEach(el => {
+        el.addEventListener('click', () => {
+            const lvl = parseInt((el as HTMLElement).dataset.level || '1', 10);
+            startLevelSelection(lvl);
+        });
+    });
+
+    // Custom level number
+    const launchCustomLevel = () => {
+        const input = document.getElementById('level-custom-input') as HTMLInputElement | null;
+        const val = parseInt(input?.value || '', 10);
+        if (!val || val < 1) {
+            input?.focus();
+            return;
+        }
+        startLevelSelection(val);
+    };
+    document.getElementById('level-custom-go')?.addEventListener('click', launchCustomLevel);
+    document.getElementById('level-custom-input')?.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).code === 'Enter') launchCustomLevel();
+    });
+
+    // Level select - back
+    document.getElementById('level-select-back')?.addEventListener('click', () => {
+        document.getElementById('level-select-panel')?.classList.remove('visible');
     });
 
     // Rules button
@@ -423,6 +464,7 @@ function setupMenuListeners(): void {
             document.getElementById('settings-panel')?.classList.remove('visible');
             document.getElementById('rules-panel')?.classList.remove('visible');
             document.getElementById('controls-panel')?.classList.remove('visible');
+            document.getElementById('level-select-panel')?.classList.remove('visible');
         }
     });
 }

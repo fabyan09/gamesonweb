@@ -357,6 +357,36 @@
             font-style: normal;
         }
 
+        .welcome-theme {
+            max-width: 650px;
+            margin: 0 auto 2rem;
+            color: #9fb8d4;
+            font-size: 1rem;
+            line-height: 1.7;
+            font-style: italic;
+        }
+
+        .welcome-theme-tag {
+            display: inline-block;
+            background: rgba(106, 153, 255, 0.15);
+            border: 1px solid rgba(106, 153, 255, 0.5);
+            color: #6af;
+            font-style: normal;
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            padding: 0.2rem 0.7rem;
+            border-radius: 4px;
+            margin-right: 0.6rem;
+        }
+
+        .welcome-hardware {
+            margin-top: 1.5rem;
+            color: #8a7a55;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+        }
+
         .welcome-btn {
             padding: 1.2rem 3.5rem;
             font-size: 1.4rem;
@@ -548,7 +578,7 @@
         }
 
         /* ========== SETTINGS PANEL ========== */
-        #settings-panel, #rules-panel, #controls-panel {
+        #settings-panel, #rules-panel, #controls-panel, #level-select-panel {
             position: fixed;
             top: 0;
             left: 0;
@@ -566,7 +596,7 @@
             transition: opacity 0.3s ease-out;
         }
 
-        #settings-panel.visible, #rules-panel.visible, #controls-panel.visible {
+        #settings-panel.visible, #rules-panel.visible, #controls-panel.visible, #level-select-panel.visible {
             opacity: 1;
             pointer-events: auto;
             visibility: visible;
@@ -875,6 +905,107 @@
             color: #b8a070;
             font-size: 0.9rem;
             margin-top: 0.5rem;
+        }
+
+        .level-card .level-desc {
+            color: #7a6a48;
+            font-size: 0.78rem;
+            margin-top: 0.4rem;
+            line-height: 1.4;
+        }
+
+        .level-section-label {
+            color: #b8a070;
+            font-size: 0.95rem;
+            letter-spacing: 0.1em;
+            margin: 2rem 0 0.8rem;
+            padding-top: 1.2rem;
+            border-top: 1px solid rgba(255, 215, 0, 0.15);
+        }
+
+        .level-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .level-preset-btn {
+            flex: 1 1 calc(50% - 0.6rem);
+            min-width: 120px;
+            padding: 0.7rem 0.5rem;
+            background: linear-gradient(180deg, rgba(40, 30, 20, 0.8) 0%, rgba(20, 15, 10, 0.9) 100%);
+            border: 2px solid #3a2a1a;
+            border-radius: 6px;
+            color: #d4c4a0;
+            font-family: 'Montaga', 'Georgia', serif;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: center;
+        }
+
+        .level-preset-btn:hover {
+            border-color: #ffd700;
+            color: #ffd700;
+            transform: translateY(-2px);
+        }
+
+        .level-preset-btn small {
+            display: block;
+            color: #7a6a48;
+            font-size: 0.72rem;
+            margin-top: 0.2rem;
+        }
+
+        .level-custom {
+            display: flex;
+            gap: 0.6rem;
+            margin-top: 1rem;
+            align-items: stretch;
+        }
+
+        .level-custom input {
+            flex: 1;
+            padding: 0.7rem 1rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #3a2a1a;
+            border-radius: 6px;
+            color: #ffd700;
+            font-family: 'Montaga', 'Georgia', serif;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .level-custom input:focus {
+            border-color: #ffd700;
+        }
+
+        .level-custom button {
+            padding: 0.7rem 1.4rem;
+            background: linear-gradient(180deg, #ffd700 0%, #cc9900 100%);
+            border: 2px solid #ffd700;
+            border-radius: 6px;
+            color: #1a1000;
+            font-family: 'Montaga', 'Georgia', serif;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.25s ease;
+        }
+
+        .level-custom button:hover {
+            background: linear-gradient(180deg, #ffe44d 0%, #ddaa00 100%);
+            transform: translateY(-2px);
+        }
+
+        .level-jury-note {
+            color: #7a6a48;
+            font-size: 0.82rem;
+            line-height: 1.5;
+            margin-top: 0.6rem;
+            font-style: italic;
         }
 
         /* ========== PAUSE MENU ========== */
@@ -2003,7 +2134,9 @@
                 <p>Pourtant, les ténèbres qui s'y terrent menacent désormais de s'étendre au monde des vivants. <span class="lore-highlight">Un héros doit descendre</span> dans l'abîme pour affronter les horreurs qui y demeurent.</p>
                 <p>Mais prenez garde : les murs eux-mêmes sont vivants. Une <span class="lore-highlight">conscience ancienne</span> habite chaque pierre, chaque ombre. Le donjon pense, observe, et murmure... Il vous attend.</p>
             </div>
+            <p class="welcome-theme"><span class="welcome-theme-tag">Thème IA</span> Ici, l'intelligence artificielle n'est pas un ennemi de plus : le donjon lui-même est une conscience qui vous observe et vous parle en temps réel.</p>
             <button class="welcome-btn" id="btn-enter">Entrer dans les Cryptes</button>
+            <p class="welcome-hardware">Souris recommandée &middot; Manette supportée &middot; Clavier AZERTY &amp; QWERTY</p>
         </div>
         <div class="welcome-footer">Games On Web 2026</div>
     </div>
@@ -2018,6 +2151,7 @@
             <p class="menu-spirit-whisper">Le donjon est vivant. Il vous attend.</p>
             <div class="menu-buttons">
                 <button class="menu-btn primary" id="btn-play">Jouer</button>
+                <button class="menu-btn" id="btn-level-select">Niveaux</button>
                 <button class="menu-btn" id="btn-rules">Règles & Histoire</button>
                 <button class="menu-btn" id="btn-settings">Paramètres</button>
                 <button class="menu-btn" id="btn-leaderboard">Classement</button>
@@ -2039,6 +2173,45 @@
             </div>
         </div>
         <div class="menu-footer">Games On Web 2026</div>
+    </div>
+
+    <!-- Level Select Panel -->
+    <div id="level-select-panel">
+        <div class="panel-container">
+            <h2 class="panel-title">Choisir un niveau</h2>
+
+            <p class="level-jury-note">Note pour le jury : vous pouvez lancer n'importe quel niveau directement, sans avoir à finir les précédents. Plus le numéro est élevé, plus c'est difficile.</p>
+
+            <div class="level-section-label">Niveaux faits main</div>
+            <div class="level-grid">
+                <div class="level-card" data-level="1">
+                    <div class="level-number">1</div>
+                    <div class="level-name">Initiation</div>
+                    <div class="level-desc">Idéal pour découvrir le jeu en douceur</div>
+                </div>
+                <div class="level-card" data-level="2">
+                    <div class="level-number">2</div>
+                    <div class="level-name">Descente</div>
+                    <div class="level-desc">Plus dense, plus d'ennemis</div>
+                </div>
+            </div>
+
+            <div class="level-section-label">Paliers de difficulté (générés)</div>
+            <div class="level-presets">
+                <button class="level-preset-btn" data-level="5">Niveau 5<small>Échauffement</small></button>
+                <button class="level-preset-btn" data-level="10">Niveau 10<small>Sérieux</small></button>
+                <button class="level-preset-btn" data-level="25">Niveau 25<small>Difficile</small></button>
+                <button class="level-preset-btn" data-level="50">Niveau 50<small>Cauchemar</small></button>
+            </div>
+
+            <div class="level-section-label">Niveau personnalisé</div>
+            <div class="level-custom">
+                <input type="number" id="level-custom-input" min="1" max="999" placeholder="Numéro de niveau (ex : 50)">
+                <button id="level-custom-go">Lancer</button>
+            </div>
+
+            <button class="panel-back-btn" id="level-select-back" style="margin-top:2rem;">Retour</button>
+        </div>
     </div>
 
     <!-- Settings Panel -->

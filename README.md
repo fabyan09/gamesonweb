@@ -1,430 +1,243 @@
-# 🏰 Oblivion's Crypt
+# Oblivion's Crypt
 
-> **Games On Web 2026 — Thème : IA** - Un jeu d'action-aventure 3D immersif développé avec Babylon.js
+Un dungeon crawler 3D jouable dans le navigateur, développé avec Babylon.js pour
+le concours **Games On Web 2026** dont le thème est l'**IA**.
 
-[![Babylon.js](https://img.shields.io/badge/Babylon.js-8.41.2-red?style=for-the-badge&logo=babylon.js)](https://www.babylonjs.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.4-purple?style=for-the-badge&logo=vite)](https://vitejs.dev/)
-
----
-
-## 🎮 À Propos du Jeu
-
-Plongez dans les profondeurs des Cryptes de l'Oubli, peuplées de créatures terrifiantes. Choisissez votre classe de personnage, explorez des niveaux générés procéduralement, combattez des ennemis redoutables et découvrez les secrets cachés dans les tombeaux ancestraux.
-
-Mais vous n'êtes pas seul. **L'Esprit du Donjon** — une conscience ancienne née de la magie noire du Roi Maudit Aldric — habite chaque pierre, chaque ombre. Cette intelligence artificielle observe vos moindres mouvements, commente vos actions en temps réel, vous avertit des dangers... ou se moque de vos échecs. Ni allié, ni ennemi : le donjon joue son propre jeu.
-
-### ✨ Caractéristiques Principales
-
-| Fonctionnalité | Description |
-|----------------|-------------|
-| 🗡️ **3 Classes Jouables** | Chevalier (mêlée), Archer (distance) et Sorcier (magie) |
-| 🧠 **Compagnon IA** | L'Esprit du Donjon — IA consciente qui observe et parle au joueur en temps réel (600+ dialogues, 30 types de triggers) |
-| 👹 **5 Types d'Ennemis** | Vampire, Parasite, Mutant, Skeleton Zombie, Warrok (Boss) |
-| 🏗️ **Génération Procédurale** | Cryptes uniques à chaque partie (algorithme BSP) |
-| 🎒 **Système d'Inventaire** | Potions de soin et flèches à collecter |
-| 🚪 **Portes Interactives** | Système de kick pour ouvrir les portes |
-| 🎵 **Design Audio Immersif** | Musique d'ambiance et effets sonores spatialisés |
-| 🎮 **Support Manette** | Compatible Xbox, PlayStation et manettes génériques |
-| ⚙️ **Contrôles Personnalisables** | Remappez toutes les touches selon vos préférences |
+**Jouer tout de suite (rien à installer) :** https://fabyan09.github.io/gamesonweb/
 
 ---
 
-## 🎯 Comment Jouer
+## Avant de jouer : le matériel
 
-### Installation
+On a vu passer le conseil des organisateurs et on le prend au sérieux : la plupart
+des gens testeront le jeu sur un ordinateur portable, sans souris ni manette. Voici
+donc la vérité honnête sur la façon dont le jeu se joue.
 
-```bash
-# Cloner le repository
-git clone https://github.com/votre-repo/gamesonweb.git
-cd gamesonweb
+- **Souris fortement recommandée.** La caméra et la visée passent par un verrouillage
+  du pointeur (pointer lock) et par le clic droit pour bloquer/viser. Au trackpad
+  c'est jouable, mais nettement moins confortable, surtout pour l'archer et le sorcier.
+- **Manette entièrement supportée** (Xbox, PlayStation, manettes génériques). C'est
+  même, à notre avis, la façon la plus agréable de jouer. La navigation dans les menus
+  fonctionne aussi à la manette.
+- **Clavier AZERTY et QWERTY** gérés tous les deux : les déplacements marchent en ZQSD
+  comme en WASD. (Coucou les claviers américains.)
+- Le jeu tourne dans Chrome / Edge / Firefox récents. Première ouverture un peu longue,
+  le temps de précharger les modèles 3D.
 
-# Installer les dépendances
-npm install
-
-# Lancer le serveur de développement
-npm run dev
-```
-
-Le jeu sera accessible sur `http://localhost:3000`
-
-### Commandes
-
-```bash
-npm run dev      # Serveur de développement (hot reload)
-npm run build    # Build de production
-npm run preview  # Prévisualiser le build
-```
+Si vous testez vite fait au trackpad, prenez le **Chevalier** : c'est la classe la plus
+indulgente.
 
 ---
 
-## 🕹️ Contrôles
+## Pourquoi ce jeu entre dans le thème "IA"
 
-### Clavier & Souris
+C'est le cœur du projet, alors autant être direct.
+
+Dans la plupart des jeux, l'IA c'est « les ennemis qui vous poursuivent ». On a ça
+aussi (machine à états, poursuite, attaque, enrage), mais ce n'est pas notre réponse
+au thème. Notre vraie idée, c'est que **le donjon lui-même est une intelligence**.
+
+On l'appelle **l'Esprit du Donjon**. C'est une entité qui observe en permanence ce
+que fait le joueur et qui lui parle en temps réel, comme un commentateur conscient et
+ambigu — ni allié, ni ennemi. Il réagit à une trentaine de situations différentes :
+quand vous repérez un ennemi, quand vous encaissez un coup, quand votre vie est
+critique, quand vous enchaînez les kills, quand vous restez immobile trop longtemps,
+quand vous ouvrez un coffre, quand vous tombez sur le boss...
+
+Concrètement, derrière cette présence il y a un petit moteur de décision :
+- une banque de plus de 600 répliques réparties par type d'événement,
+- un système de priorités et de cooldowns pour qu'il ne parle ni trop, ni au mauvais
+  moment, et qu'il interrompe son bavardage si quelque chose d'important arrive,
+- une surveillance continue de l'état du joueur (vie, inventaire, multi-kills,
+  inactivité) qui déclenche les bonnes répliques au bon moment.
+
+Le résultat, c'est qu'on a l'impression que les murs réfléchissent. C'est ça, pour
+nous, le thème IA : pas un ennemi de plus, mais une conscience qui habite le lieu.
+
+L'idée est rappelée dès l'écran d'accueil, dans le menu, sur les écrans de chargement
+et dans le panneau « Règles & Histoire », pour que le jury comprenne tout de suite
+notre angle.
+
+---
+
+## Tester rapidement (note pour le jury)
+
+On sait que vous avez beaucoup de jeux à parcourir. Deux choses pour vous faire gagner
+du temps :
+
+- Le bouton **Jouer** lance directement le **niveau 1**, pensé comme une initiation
+  tranquille.
+- Le bouton **Niveaux** ouvre un sélecteur où vous pouvez :
+  - lancer le **niveau 1** (initiation) ou le **niveau 2** (fait main, plus dense),
+  - sauter directement à un palier de difficulté procédural (niveaux 5, 10, 25...),
+  - ou **taper le numéro de niveau de votre choix**. Envie d'un truc franchement
+    violent ? Tapez **50** : les cryptes sont plus grandes, plus peuplées, et le boss
+    Warrok débarque en nombre.
+
+Au-delà des deux niveaux faits main, tout est généré procéduralement et la difficulté
+monte avec le numéro de niveau (types d'ennemis, nombre, taille du donjon). Vous pouvez
+donc jauger le jeu en facile comme en cauchemar sans avoir à le finir.
+
+---
+
+## Le jeu en bref
+
+Vous descendez dans les Cryptes de l'Oubli. Vous choisissez une classe, vous nettoyez
+chaque niveau de ses créatures pour déverrouiller la sortie, vous fouillez les coffres
+pour récupérer potions et flèches, et vous essayez de survivre pendant que l'Esprit du
+Donjon commente vos faits et gestes.
+
+**Trois classes :**
+
+| Classe | Style | Particularité |
+|--------|-------|----------------|
+| Chevalier | Mêlée | Bouclier qui bloque 70 % des dégâts, attaques accroupies, coup de pied dans les portes |
+| Archer | Distance | Tirs à trajectoire réelle, esquive, gestion des flèches, défense réduite |
+| Sorcier | Magie | Boules de feu à distance |
+
+**Cinq ennemis**, du simple Vampire au boss Warrok, avec un système d'enrage : touchez
+un ennemi à distance et il s'énerve, accélère, et vient vous chercher.
+
+**Et aussi :** génération procédurale par BSP, inventaire qui persiste entre les
+niveaux, endurance (stamina) qui limite course/blocage/attaques, musique d'ambiance et
+effets sonores spatialisés, comptes joueurs avec statistiques et classement (Firebase).
+
+---
+
+## Contrôles
+
+### Clavier et souris
 
 | Action | Touche |
 |--------|--------|
-| **Déplacement** | Z Q S D (ou W A S D) |
-| **Courir** | Shift |
-| **Sauter** | Espace |
-| **S'accroupir** | Ctrl |
-| **Attaquer** | Clic Gauche |
-| **Bloquer / Viser** | Clic Droit |
-| **Interagir** | F |
-| **Utiliser Potion** | 1, 2, 3, 4 |
-| **Pause** | P |
+| Se déplacer | ZQSD / WASD |
+| Courir | Shift |
+| Sauter | Espace |
+| S'accroupir | Ctrl |
+| Attaquer | Clic gauche |
+| Bloquer / Viser | Clic droit |
+| Interagir | F |
+| Potions | 1 à 4 |
+| Changer de caméra (TPS/FPS) | V |
+| Pause | P |
 
-### Manette (Xbox / PlayStation)
+Toutes les touches sont remappables dans les paramètres.
 
-| Action | Bouton |
-|--------|--------|
-| **Déplacement** | Stick Gauche |
-| **Caméra** | Stick Droit |
-| **Courir** | L3 (Stick Gauche enfoncé) |
-| **Sauter** | A / X |
-| **S'accroupir** | B / Cercle |
-| **Attaquer** | RT / R2 |
-| **Bloquer / Viser** | LT / L2 |
-| **Interagir** | Y / Triangle |
-| **Potion** | X / Carré |
-| **Pause** | Start |
+### Manette
+
+Stick gauche pour bouger, stick droit pour la caméra, gâchettes pour attaquer et
+bloquer. La manette navigue aussi dans les menus.
 
 ---
 
-## ⚔️ Classes de Personnages
+## Le développement, pour de vrai
 
-### 🛡️ Chevalier
+Cette partie n'est pas du remplissage : c'est ce qu'on aurait aimé lire sur les autres
+projets. Voici nos vraies galères et nos vrais choix.
 
-Le guerrier polyvalent, maître du combat rapproché.
+### Les lumières qui faisaient disparaître les murs
 
-| Statistique | Valeur |
-|-------------|--------|
-| **Vitesse (Marche)** | 0.08 |
-| **Vitesse (Course)** | 0.15 |
-| **Portée d'Attaque** | 2.5 unités |
-| **Réduction de Dégâts (Blocage)** | 70% |
-| **Capacité Spéciale** | Attaques accroupies, Coup de pied |
+Notre pire bug, et de loin. Babylon.js limite le nombre de lumières dynamiques qui
+peuvent éclairer un même mesh (histoire d'uniform buffers côté GPU). Tant qu'on avait
+deux ou trois torches, tout allait bien. Le jour où on a peuplé un niveau de braseros,
+des pans entiers de mur se sont mis à **disparaître** selon l'angle de la caméra — pas
+à s'assombrir, à disparaître. On a perdu un temps fou à croire à un problème de culling
+de meshes alors que c'était la limite de lumières par mesh qui était dépassée. On a fini
+par écrire un système qui ne garde que les 8 lumières les plus pertinentes actives à un
+instant donné. Conséquence directe : on s'interdit désormais d'ajouter la moindre
+PointLight sans réfléchir à ce budget — l'orbe du compagnon, par exemple, est un pur
+effet de particules, **sans** lumière réelle, justement pour ne pas casser ce système.
 
-**Style de jeu :** Approchez-vous de vos ennemis, bloquez leurs attaques avec votre bouclier et frappez au moment opportun. Utilisez le coup de pied pour repousser les ennemis ou ouvrir les portes.
+### Les personnages qui glissaient sur le sol
 
-### 🏹 Archer
+Nos animations viennent de fichiers GLB séparés du modèle, et on les retargete sur le
+squelette du personnage. Problème : beaucoup d'animations embarquent du « root motion »
+(le déplacement est dans l'animation elle-même). Résultat, le perso avançait tout seul
+pendant une animation d'attaque, ou repartait à l'origine de la scène entre deux
+mouvements. Il a fallu filtrer ce mouvement racine (complet / horizontal / aucun selon
+l'animation) pour que le déplacement soit piloté par le code et pas par l'animation.
 
-Le tireur d'élite, spécialiste du combat à distance.
+### Le pouvoir du compagnon qui a refusé de marcher pendant des jours
 
-| Statistique | Valeur |
-|-------------|--------|
-| **Vitesse (Marche)** | 0.06 |
-| **Vitesse (Course)** | 0.12 |
-| **Munitions** | 5-10 flèches |
-| **Réduction de Dégâts (Blocage)** | 50% |
-| **Capacité Spéciale** | Tir à trajectoire, Esquive |
+On voulait donner un pouvoir actif à l'Esprit : un « scan » qui surligne les ennemis à
+travers les murs. Sur le papier, simple. En pratique, on a enchaîné les versions où il
+ne se passait *rien* — pas de surbrillance, pas de scan, rien de visible. Le HighlightLayer,
+les marqueurs, la détection des bons meshes ennemis... il a fallu plusieurs passes pour
+que ça fonctionne enfin (et l'historique Git en garde des traces peu flatteuses, du genre
+« feature in dev, ça marche pas encore »). C'est le genre de fonctionnalité qui paraît
+anecdotique et qui prend trois fois plus de temps que prévu.
 
-**Style de jeu :** Gardez vos distances et éliminez les ennemis avant qu'ils ne vous atteignent. Attention : les ennemis touchés par vos flèches deviennent enragés et accélèrent !
+### Doser la génération procédurale
 
----
+Le BSP (Binary Space Partitioning) génère des donjons jouables presque tout de suite,
+mais « jouable » et « agréable » sont deux choses différentes. Trop grand et on s'ennuie
+à traverser des couloirs vides ; trop petit et tout se chevauche. On a réduit la taille
+des donjons générés pour les performances, puis recâblé la difficulté pour qu'elle monte
+proprement avec le numéro de niveau plutôt que de balancer un boss dès le niveau 3.
 
-## 👹 Bestiaire
+### Les décisions de conception qu'on assume
 
-| Ennemi | PV | Dégâts | Détection | Vitesse | Difficulté |
-|--------|---:|-------:|----------:|--------:|:----------:|
-| 🧛 **Vampire** | 50 | 10 | 10 | 0.02 | ⭐ |
-| 🦠 **Parasite** | 75 | 15 | 12 | 0.025 | ⭐⭐ |
-| 🧟 **Mutant** | 100 | 20 | 14 | 0.03 | ⭐⭐⭐ |
-| 💀 **Skeleton Zombie** | 150 | 25 | 15 | 0.025 | ⭐⭐⭐⭐ |
-| 👹 **Warrok (Boss)** | 250 | 35 | 16 | 0.035 | ⭐⭐⭐⭐⭐ |
+- **Un compagnon narratif plutôt qu'une IA d'ennemi sophistiquée.** On trouvait plus
+  original, et plus dans le thème, de faire du donjon une présence qui parle, que
+  d'empiler des comportements ennemis. C'est notre pari sur le concours.
+- **Pas de souris obligatoire, mais clairement recommandée.** On a préféré être
+  honnêtes plutôt que de prétendre que tout est parfait au trackpad.
+- **Un accès libre à tous les niveaux.** Plutôt que de forcer la progression, on laisse
+  choisir sa difficulté. C'était surtout pour vous, le jury, mais ça sert aussi les
+  joueurs qui veulent du challenge tout de suite.
 
-### Comportement de l'IA
+### Ce dont on est fiers
 
-Les ennemis suivent une machine à états :
-
-```
-😴 IDLE → 👀 CHASING → ⚔️ ATTACKING → 💀 DEAD
-                ↓
-           🎉 CELEBRATING (si victoire)
-```
-
-**Système d'Enrage :** Lorsqu'un ennemi est touché par une attaque à distance (flèche), il entre en rage pendant 10 secondes avec une vitesse x1.8 !
-
----
-
-## 🧠 L'Esprit du Donjon — Compagnon IA
-
-Le coeur du thème **IA** du concours Games On Web 2026. Le donjon lui-même est une entité consciente qui interagit avec le joueur.
-
-### Concept Narratif
-
-La magie noire du Roi Maudit Aldric a eu un effet imprévu : au fil des siècles, les cryptes ont développé une **conscience propre** — une intelligence née de la souffrance des âmes piégées entre les pierres. L'Esprit du Donjon pense, observe, se souvient de chaque aventurier, et parle au joueur tout au long de la partie.
-
-**Personnalité :** Ambigu, sarcastique, fasciné par le joueur. Parfois aide, parfois se moque. Ni allié, ni ennemi.
-
-### Système Technique
-
-| Composant | Description |
-|-----------|-------------|
-| **CompanionDialogues** | 600+ lignes de dialogue, 20+ variations par trigger, 30 types d'events |
-| **CompanionAI** | Cerveau IA avec cooldowns, queue de messages prioritaire, détection d'inactivité, tracking de multi-kills, surveillance HP/inventaire |
-| **CompanionEntity** | Orbe spectrale 3D (particules additives), orbite autour du joueur avec lerp et bobbing |
-| **CompanionUI** | Overlay 2D fixe en haut d'écran (style sous-titre), effet de typing avec curseur |
-
-### Triggers de Dialogue
-
-L'Esprit réagit en temps réel a 30 types d'events de jeu :
-
-- **Combat :** ennemi repéré, combat lancé, ennemi tué, boss repéré/tué, enrage, multi-kill, encerclement
-- **Santé :** dégâts reçus, vie basse, vie critique, bloc réussi, mort, potion utilisée, vie pleine
-- **Exploration :** entrée de salle, coffre ouvert, porte ouverte, sortie déscellée, piège, accroupi
-- **Inventaire :** potion ramassée, flèches ramassées, plus de potions, plus de flèches
-- **Progression :** début de niveau, victoire, inactivité du joueur
-
-### Lore Intégré
-
-L'Esprit est référencé dans toute l'interface du jeu :
-- **Ecran d'accueil** — introduction de la conscience ancienne
-- **Menu principal** — texte animé *"Le donjon est vivant. Il vous attend."*
-- **Ecran de chargement** — *"L'Esprit du Donjon prépare votre accueil..."*
-- **Tips de chargement** — 10 phrases lore dédiées à l'Esprit
-- **Panneau Règles & Histoire** — backstory complète de l'origine de l'Esprit
-- **Menu pause** — citation aléatoire de l'Esprit (15 phrases)
+L'Esprit du Donjon qui prend vraiment vie en jeu, les 600 et quelques répliques qui font
+qu'on a rarement deux fois la même phrase, l'orbe spectrale en particules qui flotte
+autour du joueur, et le fait que tout ça tourne dans un navigateur, à la souris comme à
+la manette, en AZERTY comme en QWERTY.
 
 ---
 
-## 🗺️ Système de Niveaux
+## L'équipe
 
-### Niveaux Prédéfinis
-
-Les niveaux sont définis en JSON dans `/public/levels/` :
-- `level1.json` - Tutoriel et introduction
-- `level2.json` - Difficulté intermédiaire
-
-
-## 🩸 Stamina (nouveau)
-
-Un système de stamina a été ajouté pour limiter certaines actions physiques et encourager la gestion des ressources en combat.
-
-- Valeurs par défaut: `max = 100`, `regen = 8/s`.
-- Drain: course (15/s), blocage (10/s).
-- Coûts: attaque Chevalier = 20, tir Archer = 12, sort Sorcier = 25.
-
-Comportement: si la stamina est insuffisante l'action correspondante est bloquée; la stamina se régénère automatiquement lorsque le joueur ne court pas et ne bloque pas.
-
-Fichiers principaux:
-- `src/entities/PlayerController.ts` (Chevalier)
-- `src/entities/ArcherController.ts` (Archère)
-- `src/entities/WizardController.ts` (Sorcier)
-- `src/scenes/DungeonScene.ts` (barre de stamina UI)
-
-Ces valeurs sont codées en dur pour l'instant — je peux les exposer via `GameSettings` si tu veux pouvoir les régler depuis l'UI.
-
-### Génération Procédurale (BSP)
-
-Le mode "Niveau Aléatoire" utilise l'algorithme **Binary Space Partitioning** pour créer des cryptes uniques :
-
-1. L'espace est divisé récursivement en zones
-2. Des salles sont créées dans chaque zone
-3. Des couloirs connectent les salles adjacentes
-4. Les ennemis et objets sont placés aléatoirement
+- **Fabrice Gerbaud** — développement
+- **Merlin Caromel**
+- **Hugo Cohen-Cofflard**
 
 ---
 
-## 🧪 Système d'Objets
-
-### Potions de Soin
-
-| Potion | Soin | Couleur | Rareté |
-|--------|-----:|:-------:|:------:|
-| **Potion I** | 20 PV | 🟠 Orange | Commune (40%) |
-| **Potion II** | 35 PV | 🔵 Bleu | Peu commune (30%) |
-| **Potion III** | 50 PV | 🟢 Vert | Rare (20%) |
-| **Potion IV** | 100 PV | 🔴 Rouge | Épique (10%) |
-
-- **Capacité max :** 4 potions
-- **Utilisation :** Touches 1-4
-
-### Flèches (Archer uniquement)
-
-- **Capacité max :** 10 flèches
-- **Drop par coffre :** 3 flèches
-
----
-
-## 🏛️ Architecture Technique
-
-```
-src/
-├── main.ts                    # Point d'entrée, menus
-│
-├── core/                      # Moteur, boucle de jeu, settings, caméra
-│   ├── Game.ts                # Moteur Babylon.js, boucle de rendu
-│   ├── GameSettings.ts        # Paramètres (localStorage)
-│   ├── ThirdPersonCamera.ts   # Caméra TPS avec pointer lock
-│   ├── FPSCamera.ts           # Caméra première personne
-│   └── GamepadManager.ts      # Support manette
-│
-├── scenes/
-│   └── DungeonScene.ts        # Scène principale du jeu (~1800 lignes)
-│
-├── entities/                  # Entités du jeu (joueurs + ennemis)
-│   ├── CharacterClass.ts      # Interface abstraite des personnages
-│   ├── PlayerController.ts    # Classe Chevalier
-│   ├── ArcherController.ts    # Classe Archer
-│   ├── WizardController.ts    # Classe Sorcier
-│   ├── CharacterPreview.ts    # Aperçu personnage (sélection)
-│   ├── Enemy.ts               # IA des ennemis
-│   └── EnemyTypes.ts          # Configuration des ennemis
-│
-├── level/                     # Données et génération de niveaux
-│   ├── LevelData.ts           # Format JSON des niveaux
-│   ├── LevelLoader.ts         # Chargement et construction des niveaux
-│   └── BSPDungeonGenerator.ts # Génération procédurale (BSP)
-│
-├── companion/                 # Compagnon IA (Esprit du Donjon)
-│   ├── CompanionDialogues.ts  # 600+ dialogues, 30 types de triggers
-│   ├── CompanionAI.ts         # Cerveau IA, cooldowns, priorités
-│   ├── CompanionEntity.ts     # Orbe spectrale 3D (particules)
-│   ├── CompanionUI.ts         # Overlay 2D (sous-titres, typing)
-│   └── DungeonCompanion.ts    # Facade (interface pour DungeonScene)
-│
-├── systems/                   # Systèmes de jeu (mécaniques)
-│   ├── AudioManager.ts        # Audio HTML5 avec pools de sons
-│   ├── ChestSystem.ts         # Coffres et objets ramassables
-│   ├── DoorSystem.ts          # Portes interactives
-│   └── PlayerInventory.ts     # Gestion de l'inventaire
-│
-├── effects/                   # Effets visuels et post-processing
-│   ├── HealingEffect.ts       # Effet visuel de soin
-│   ├── HealthVignette.ts      # Vignette écran (vie basse)
-│   └── PixelFilter.ts         # Filtre post-processing pixel art
-│
-├── assets/                    # Chargement de ressources
-│   ├── AssetLoader.ts         # Chargement des assets GLB
-│   └── AssetPreloader.ts      # Préchargement en arrière-plan
-│
-├── services/                  # Firebase et services externes
-│   ├── FirebaseConfig.ts      # Configuration Firebase
-│   ├── AuthService.ts         # Authentification
-│   └── StatsService.ts        # Suivi des statistiques joueur
-│
-├── ui/
-│   └── ASCIIText.ts           # Composants UI
-│
-└── utils/
-    └── MeshPlacer.ts          # Instanciation optimisée des meshes
-```
-
-### Optimisations Performances
-
-| Technique | Description |
-|-----------|-------------|
-| **Mesh Instancing** | Réutilisation GPU pour les objets répétés (murs, sol) |
-| **Occlusion Culling** | Masquage des meshes derrière les murs (GPU queries) |
-| **Light Culling** | Maximum 8 lumières actives, basé sur la distance |
-| **Frustum Culling** | Natif Babylon.js - ne rend que le visible |
-| **Asset Caching** | Meshes chargés une fois, clonés ensuite |
-
-### Format des Niveaux
-
-```typescript
-interface LevelData {
-  name: string;
-  floors: GridPlacement[];     // Grilles de sol
-  walls: WallSegment[];        // Segments de murs
-  props: PropPlacement[];      // Objets décoratifs
-  lights: LightData[];         // Points lumineux
-  enemies: EnemyPlacement[];   // Positions des ennemis
-  playerSpawn: { position, rotation };
-  camera: { bounds };
-  scene?: { fogDensity, ambientColor };
-}
-```
-
----
-
-## 🎨 Assets
-
-Tous les assets 3D sont au format **GLB** (glTF Binary) :
-
-```
-public/assets/
-├── Dungeon_set/           # Environnement (murs, sols, torches)
-├── Sword and Shield Pack/ # Modèle Chevalier + animations
-├── Pro Longbow Pack/      # Modèle Archer + animations
-├── Creature Pack/         # 5 types d'ennemis
-├── Potions/               # Modèles de potions
-└── SFX/                   # Effets sonores
-```
-
-### Système d'Animation
-
-Les animations sont chargées depuis des fichiers GLB séparés et retargetées sur le squelette du personnage :
-
-```
-Modèle personnage + Animations GLB → Retargeting squelette → Animation Groups
-```
-
-Filtrage du root motion (full/horizontal/none) pour éviter les dérives de position.
-
----
-
-## 🛠️ Technologies Utilisées
-
-| Technologie | Version | Utilisation |
-|-------------|---------|-------------|
-| [Babylon.js](https://www.babylonjs.com/) | 8.41.2 | Moteur 3D WebGL |
-| [TypeScript](https://www.typescriptlang.org/) | 5.6 | Langage typé |
-| [Vite](https://vitejs.dev/) | 5.4 | Build tool & dev server |
-| HTML5 Audio API | - | Son et musique |
-| LocalStorage | - | Sauvegarde des paramètres |
-| Gamepad API | - | Support manette |
-
----
-
-## 👥 L'Équipe
-
-<table>
-  <tr>
-    <td align="center">
-      <b>Fabrice Gerbaud</b><br>
-      <sub>Développeur</sub>
-    </td>
-    <td align="center">
-      <b>Merlin Caromel</b><br>
-      <sub>Soutien Emotionnel</sub>
-    </td>
-    <td align="center">
-      <b>Hugo Cohen-Cofflard</b><br>
-      <sub>Happiness Manager</sub>
-    </td>
-  </tr>
-</table>
-
----
-
-## 📦 Déploiement
-
-Le jeu est déployé automatiquement sur **GitHub Pages** :
+## Lancer le projet en local
 
 ```bash
-# Build pour GitHub Pages
-npm run build
-
-# Les fichiers sont générés dans /dist
-# Le base path est configuré pour /gamesonweb/
+git clone https://github.com/Fabyan09/gamesonweb.git
+cd gamesonweb
+npm install
+npm run dev      # serveur de dev sur http://localhost:3000
 ```
 
-**URL de déploiement :** `https://[username].github.io/gamesonweb/`
+Autres commandes :
+
+```bash
+npm run build    # vérification TypeScript + build de production (dossier dist/)
+npm run preview  # prévisualiser le build de production
+```
+
+Le déploiement vers GitHub Pages est automatique : un push sur `main` déclenche le
+workflow qui build et publie sur https://fabyan09.github.io/gamesonweb/
 
 ---
 
-## 📝 Licence
+## Stack technique
 
-Ce projet a été créé dans le cadre du concours **Games On Web 2026**.
+- **Moteur 3D :** Babylon.js 8.41.2 (WebGL)
+- **Langage / build :** TypeScript (strict) + Vite
+- **Audio :** HTML5 Audio API (musique, pools de SFX, son spatialisé sur les braseros)
+- **Backend léger :** Firebase (authentification, statistiques, classement)
+- **Persistance locale :** LocalStorage (paramètres, état d'inventaire)
+- **Hébergement :** GitHub Pages, base path `/gamesonweb/`
+
+Pour une vue détaillée de l'architecture du code (dossiers `src/core`, `src/entities`,
+`src/companion`, etc.), voir `CLAUDE.md` à la racine.
 
 ---
 
-<div align="center">
-
-**🎮 Bonne exploration des Cryptes de l'Oubli ! 🏰**
-
-*Développé avec ❤️ et beaucoup de ☕*
-
-</div>
+Projet réalisé dans le cadre du concours Games On Web 2026.
+Bonne descente dans les Cryptes — et ne faites pas trop attention à ce que murmurent
+les murs.
