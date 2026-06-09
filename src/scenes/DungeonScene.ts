@@ -70,6 +70,7 @@ export class DungeonScene {
     private isLevelComplete: boolean = false;
     private isPlayerDead: boolean = false;
     private isPaused: boolean = false;
+    private isIntroPlaying: boolean = false;
     private settings: GameSettings;
     private lastFpsUpdate: number = 0;
     private frameCount: number = 0;
@@ -444,7 +445,9 @@ export class DungeonScene {
             isPlayerDead: false,
             isLevelComplete: false,
         });
-        this.companion.trigger('level_start');
+        // Note: the 'level_start' companion line is triggered at the end of the
+        // cinematic intro (startLevelIntro), so the Spirit greets the player exactly
+        // as control is handed over rather than during the loading phase.
 
         // Setup player attack callback
         this.player.onAttackHit((position, range) => {
@@ -546,6 +549,162 @@ export class DungeonScene {
         document.getElementById('loading')?.classList.add('hidden');
         const invUI = document.getElementById('inventory-ui');
         if (invUI) invUI.style.visibility = 'visible';
+
+        // Play the cinematic level intro (overview fly-in onto the player).
+        // Gameplay stays frozen until it finishes; it also fires 'level_start'.
+        this.startLevelIntro();
+    }
+
+    /**
+     * Cinematic level intro: the camera starts high above the dungeon looking down,
+     * then smoothly descends and arcs into the normal over-the-shoulder gameplay
+     * framing, landing exactly on the player. Runs at the start of every level.
+     *
+     * While it plays, gameplay logic is frozen (scene.metadata.isPaused) and all
+     * player input is locked (isIntroPlaying). The intro can be skipped with any
+     * key or click. The hand-off is seamless because the end pose equals the
+     * regular gameplay pose, after which the follow camera takes over.
+     */
+    private startLevelIntro(): void {
+        const playerRoot = this.player?.rootMesh;
+        if (!this.camera || !playerRoot) {
+            // No camera/player to animate — just greet and carry on.
+            this.companion?.trigger('level_start');
+            return;
+        }
+
+        const arc = this.camera.getCamera();
+
+        // Freeze gameplay (player movement, follow camera, chests/doors/traps,
+        // companion checks) without showing the pause menu.
+        if (!this.scene.metadata) this.scene.metadata = {};
+        this.scene.metadata.isPaused = true;
+        this.isIntroPlaying = true;
+
+        // Force third-person framing so the hero is always visible during the reveal,
+        // regardless of the player's saved camera mode.
+        this.camera.setCameraMode('thirdPerson', playerRoot);
+
+        // Save the constraints we are about to override so we can restore them, then
+        // relax limits/collisions so the wide fly-in is not clamped or pushed around.
+        const saved = {
+            lowerBeta: arc.lowerBetaLimit,
+            upperBeta: arc.upperBetaLimit,
+            lowerRadius: arc.lowerRadiusLimit,
+            upperRadius: arc.upperRadiusLimit,
+            checkCollisions: arc.checkCollisions,
+        };
+        arc.detachControl();
+        arc.checkCollisions = false;
+        arc.inertialAlphaOffset = 0;
+        arc.inertialBetaOffset = 0;
+        arc.inertialRadiusOffset = 0;
+        arc.lowerBetaLimit = 0.01;
+        arc.upperBetaLimit = Math.PI - 0.01;
+        arc.lowerRadiusLimit = 0.01;
+        arc.upperRadiusLimit = 2000;
+
+        // End pose = the regular gameplay framing, so the hand-off is seamless.
+        const alphaEnd = arc.alpha;
+        const betaEnd = Math.PI / 2.8;
+        const radiusEnd = 3;
+
+        // Start pose = high overview looking down, scaled to the level size.
+        let radiusStart = 32;
+        const b = this.currentLevel?.cameraBounds;
+        if (b) {
+            const span = Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
+            radiusStart = Math.min(Math.max(span * 0.7, 22), 55);
+        }
+        const betaStart = 0.28;             // almost straight down
+        const alphaStart = alphaEnd - 0.55; // gentle orbit into place
+
+        const TARGET_Y = 1.6;               // look at the player's upper body
+        const HOLD_MS = 350;                // brief beat on the overview
+        const MOVE_MS = 3000;               // descent duration
+        const totalMs = HOLD_MS + MOVE_MS;
+        let elapsed = 0;
+        let finished = false;
+
+        const applyTarget = () => {
+            const tgt = playerRoot.position.clone();
+            tgt.y += TARGET_Y;
+            arc.target.copyFrom(tgt);
+        };
+
+        // Apply the opening pose immediately so the first rendered frame is the overview.
+        arc.alpha = alphaStart;
+        arc.beta = betaStart;
+        arc.radius = radiusStart;
+        applyTarget();
+
+        // Subtle skip hint.
+        const hint = document.createElement('div');
+        hint.textContent = 'Cliquez ou appuyez sur une touche pour passer';
+        hint.style.cssText = `position:fixed;bottom:32px;left:50%;transform:translateX(-50%);` +
+            `color:#d4c4a0;font-family:'Montaga','Georgia',serif;font-size:0.95rem;letter-spacing:0.08em;` +
+            `background:rgba(0,0,0,0.45);padding:8px 18px;border-radius:6px;z-index:120;` +
+            `opacity:0;transition:opacity 0.6s ease;pointer-events:none;`;
+        document.body.appendChild(hint);
+        requestAnimationFrame(() => { hint.style.opacity = '1'; });
+
+        const skip = () => finish();
+
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+
+            window.removeEventListener('keydown', skip);
+            window.removeEventListener('pointerdown', skip);
+            if (hint.parentElement) hint.parentElement.removeChild(hint);
+
+            // Restore camera constraints + mouse control.
+            arc.lowerBetaLimit = saved.lowerBeta;
+            arc.upperBetaLimit = saved.upperBeta;
+            arc.lowerRadiusLimit = saved.lowerRadius;
+            arc.upperRadiusLimit = saved.upperRadius;
+            arc.checkCollisions = saved.checkCollisions;
+            arc.attachControl(this.canvas, true);
+
+            // Snap the follow target to the player so update() does not jump, then
+            // apply the player's actual saved camera mode (e.g. first-person).
+            this.camera?.setTarget(playerRoot);
+            this.camera?.setCameraMode(this.settings.cameraMode, playerRoot);
+
+            // Resume gameplay.
+            if (this.scene.metadata) this.scene.metadata.isPaused = false;
+            this.isIntroPlaying = false;
+
+            // The Spirit greets the player exactly as control is handed over.
+            this.companion?.trigger('level_start');
+        };
+
+        // Arm skip handlers a beat later so a stray initial event does not skip instantly.
+        setTimeout(() => {
+            if (finished) return;
+            window.addEventListener('keydown', skip);
+            window.addEventListener('pointerdown', skip);
+        }, 250);
+
+        const introObs = this.scene.onBeforeRenderObservable.add(() => {
+            if (finished) {
+                this.scene.onBeforeRenderObservable.remove(introObs);
+                return;
+            }
+
+            elapsed += this.scene.getEngine().getDeltaTime();
+
+            const moveElapsed = Math.max(0, elapsed - HOLD_MS);
+            const t = Math.min(moveElapsed / MOVE_MS, 1);
+            const s = t * t * (3 - 2 * t); // smoothstep easing
+
+            arc.alpha = alphaStart + (alphaEnd - alphaStart) * s;
+            arc.beta = betaStart + (betaEnd - betaStart) * s;
+            arc.radius = radiusStart + (radiusEnd - radiusStart) * s;
+            applyTarget();
+
+            if (elapsed >= totalMs) finish();
+        });
     }
 
     // Companion proximity checks (called each frame from render loop)
@@ -1599,6 +1758,7 @@ export class DungeonScene {
     private setupMouseEvents(): void {
         // Handler for mouse/pointer down
         const handleDown = (button: number, eventType: string) => {
+            if (this.isIntroPlaying) return;
             console.log(`[Mouse] ${eventType} - button: ${button}, pointerLock: ${document.pointerLockElement === this.canvas}`);
             if (document.pointerLockElement === this.canvas) {
                 console.log(`[Mouse] -> Processing button ${button}`);
@@ -1608,6 +1768,7 @@ export class DungeonScene {
 
         // Handler for mouse/pointer up
         const handleUp = (button: number, eventType: string) => {
+            if (this.isIntroPlaying) return;
             console.log(`[Mouse] ${eventType} - button: ${button}`);
             if (document.pointerLockElement === this.canvas) {
                 this.player?.onMouseUp(button);
@@ -1649,6 +1810,9 @@ export class DungeonScene {
     private setupPauseMenu(): void {
         // P key to toggle pause (configurable), V key to toggle camera mode
         window.addEventListener('keydown', (e) => {
+            // Ignore all pause/camera input while the cinematic intro is playing
+            if (this.isIntroPlaying) return;
+
             // V key to toggle camera mode
             if (e.code === 'KeyV') {
                 // Don't toggle if game is over or paused
@@ -2614,6 +2778,9 @@ export class DungeonScene {
      */
     private setupInteractionListener(): void {
         window.addEventListener('keydown', (e) => {
+            // Ignore interaction/potion/scan input while the cinematic intro is playing
+            if (this.isIntroPlaying) return;
+
             // Check if companion power key is pressed
             if (this.settings.isKeyBound('companionPower', e.code)) {
                 if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
@@ -2678,6 +2845,8 @@ export class DungeonScene {
     private setupGamepadCallbacks(): void {
         this.gamepadManager.onButtonPress((button) => {
             if (!this.settings.gamepadEnabled) return;
+            // Ignore all gamepad buttons while the cinematic intro is playing
+            if (this.isIntroPlaying) return;
 
             // Start button - Pause/Resume
             if (button === GamepadButton.Start) {
@@ -2904,7 +3073,7 @@ export class DungeonScene {
      */
     private updateGamepadCamera(): void {
         if (!this.settings.gamepadEnabled || !this.gamepadManager.isConnected()) return;
-        if (this.isPaused || this.isPlayerDead || this.isLevelComplete) return;
+        if (this.isPaused || this.isIntroPlaying || this.isPlayerDead || this.isLevelComplete) return;
 
         const rightStick = this.gamepadManager.getRightStick();
         if (Math.abs(rightStick.x) > 0.01 || Math.abs(rightStick.y) > 0.01) {
