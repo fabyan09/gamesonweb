@@ -1,5 +1,9 @@
 # Oblivion's Crypt
 
+🎬 **Bande-annonce :** https://www.youtube.com/watch?v=vIBDfy_fvOQ
+
+[![Trailer Oblivion's Crypt](https://img.youtube.com/vi/vIBDfy_fvOQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=vIBDfy_fvOQ)
+
 Un dungeon crawler 3D jouable dans le navigateur, développé avec Babylon.js pour
 le concours **Games On Web 2026** dont le thème est l'**IA**.
 
